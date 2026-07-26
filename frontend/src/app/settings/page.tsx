@@ -861,7 +861,7 @@ export default function SettingsPage() {
                     </div>
                   )}
 
-                  {isSmtpConfigured && (
+                  {isSmtpConfigured ? (
                     <div className="pt-3 border-t border-zinc-800/80 space-y-2">
                       <div className="flex items-center justify-between p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800">
                         <div>
@@ -884,6 +884,15 @@ export default function SettingsPage() {
                           className="w-4 h-4 accent-emerald-500 rounded cursor-pointer shrink-0 ml-3"
                         />
                       </div>
+                    </div>
+                  ) : (
+                    <div className="pt-3 border-t border-zinc-800/80">
+                      <p className="text-xs text-zinc-400 flex items-center gap-2 bg-zinc-950/40 p-3 rounded-lg border border-zinc-800/60">
+                        <span>ℹ️</span>
+                        <span>
+                          <strong>E-Mail-Benachrichtigungen:</strong> Diese Funktion wird automatisch hier sichtbar, sobald ein Administrator den SMTP-Server unter <em>Systemeinstellungen ➔ E-Mail & SMTP Server</em> konfiguriert hat.
+                        </span>
+                      </p>
                     </div>
                   )}
 
