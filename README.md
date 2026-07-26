@@ -77,35 +77,35 @@ Das System prüft im Hintergrund automatisch, ob eine neue Version auf GitHub ve
 * **Benutzerregistrierung & Admin-Panel:** Admins können neue Benutzer anlegen, Passwörter zurücksetzen und Systemeinstellungen verwalten.
 * **Automatische Session-Abmeldung (`/session-expired`):** Läuft eine Sitzung ab (401 Unauthorized), wird der Nutzer auf eine Infoseite weitergeleitet und automatisch nach 5 Sekunden zum Login zurückgeführt.
 
-### 📅 1. iCal-Kalender-Export & E-Mail-Erinnerungen für Kündigungsfristen
+### 📅 2. iCal-Kalender-Export & E-Mail-Erinnerungen für Kündigungsfristen
 * **1-Klick iCal-Export (.ics):** In der Detailansicht jeder Versicherung kann per Button ein `.ics`-Kalendertermin generiert werden, der sich direkt in **Apple Kalender, Google Calendar oder Outlook** importieren lässt.
 * **Automatische E-Mail-Vorwarnungen:** Ein Hintergrund-Service benachrichtigt Nutzer automatisch 30 Tage vor Ablauf einer Kündigungsfrist per E-Mail.
 * **Bedingte Benutzer-Option:** Die E-Mail-Benachrichtigungsoption erscheint in den persönlichen Einstellungen jedes Benutzers nur dann, wenn der Administrator einen SMTP-Server hinterlegt hat. Jeder Nutzer kann die Benachrichtigung selbstständig ein- oder ausschalten.
 
-### 📊 2. Visuelles Kosten- & Sparten-Diagramm
+### 📊 3. Visuelles Kosten- & Sparten-Diagramm
 * **Interaktives Balkendiagramm:** Visuelle Aufschlüsselung der jährlichen Gesamtausgaben nach Versicherungskategorie (z.B. *Kfz, Privathaftpflicht, Hausrat, Rechtsschutz*).
 * **Individuell Ein-/Ausschaltbar:** Jeder Benutzer kann das Diagramm in seinen persönlichen Einstellungen (*Einstellungen ➔ Design & Erscheinungsbild*) beliebig aktivieren oder deaktivieren.
 * **Interaktive Sparten-Filter:** Ein Klick auf ein Segment im Diagramm oder einen Sparten-Chip filtert die Verträge sofort in Echtzeit.
 * **Echtzeit-Suchleiste & Sortierung:** Schnellsuche nach Vertragsnamen, Gesellschaft oder Scheinnummer sowie Sortierung nach Kündigungsfrist, Kosten oder Alphabet.
 
-### 💾 3. Auto-Backup & Wiederherstellungs-System
+### 💾 4. Auto-Backup & Wiederherstellungs-System
 * **Automatisches Vorab-Backup:** Bei jedem System-Update per `update` wird eine Sicherungskopie der Datenbank unter `/opt/versicherungsmanager/backups/insurance_backup_DATUM_UHRZEIT.db` angelegt.
 * **Manuelle & Geplante Sicherung:** Über die Web-Oberfläche (`/settings` ➔ Systemeinstellungen) können Admins jederzeit 1-Klick-Datenbank-Sicherungen auslösen oder herunterladen.
 
-### 🤖 3. Lokale KI-Engine (Qwen2.5-1.5B via Llama-cpp)
+### 🤖 5. Lokale KI-Engine (Qwen2.5-1.5B via Llama-cpp)
 * **100% Lokal & Privat:** Kein Versenden vertraulicher Versicherungsdokumente an externe Cloud-APIs.
 * **Intelligente Datensatz-Erkennung:** Extraktion von *Gesellschaft, Polizzen-Nummer, Kündigungsfrist, Ablaufdatum, Beiträgen & Zahlungsintervallen*.
 * **Semantische Leistungs-Analyse:** Auswertung komplexer Deckungsbausteine als saubere Nomen-Stichpunkte in Klammern.
 
-### ⚡ 4. Dual-Engine & Neutrales Branding
+### ⚡ 6. Dual-Engine & Neutrales Branding
 * **Admin-Toggle in den Einstellungen:** Switsche beliebig zwischen KI-Analyse und klassischer OCR.
 * **Dynamisches Branding:** Bei deaktivierter KI werden sämtliche `[AI]`-Badges und KI-Erwähnungen in der gesamten Oberfläche neutralisiert.
 
-### 🏢 5. Automatisches Firmen-Logo & DACH-Abdeckung (70+ Versicherer)
+### 🏢 7. Automatisches Firmen-Logo & DACH-Abdeckung (70+ Versicherer)
 * **Automatische Firmen-Logos:** Erkennt Gesellschaften (HUK24, Allianz, AXA, Generali, ERGO, DEVK, Barmenia u.v.m.) und lädt die Marken-Logos transparent ohne manuelles Hochladen.
 * **Sämtliche Versicherungssparten:** Kfz, Privathaftpflicht, Hausrat, Wohngebäude, Berufsunfähigkeit (BU), Rechtsschutz, Zahnzusatz, Krankenkasse, Tierhalter- & Reiseversicherungen.
 
-### 🎨 6. 6 Wunderschöne Design-Themen & Akzentfarben
+### 🎨 8. 6 Wunderschöne Design-Themen & Akzentfarben
 Jeder Benutzer kann unter **Einstellungen ➔ Design & Erscheinungsbild** sein persönliches Layout wählen:
 * ☀️ **Klassisch Business (Hell):** Strahlend helle Oberfläche mit weißen Karten & klaren Kontrasten.
 * 🌙 **Dark Neon Glass (Standard):** Modernes dunkles Glasmorphismus-Design mit Neoneffekten.
