@@ -162,23 +162,34 @@ ${senderName || "[Dein Name]"} (Unterschrift)`;
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Kündigungsschreiben - ${insurance.name}</title>
+          <title></title>
           <style>
+            @page {
+              size: A4 portrait;
+              margin: 15mm 20mm 15mm 20mm;
+            }
+            @media print {
+              html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #ffffff !important;
+                color: #000000 !important;
+                -webkit-print-color-adjust: exact;
+              }
+            }
             body {
-              font-family: Arial, sans-serif;
+              font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
               font-size: 11pt;
               line-height: 1.5;
-              margin: 40px;
-              color: #000;
+              color: #000000;
+              margin: 0;
+              padding: 0;
             }
-            .header-info { margin-bottom: 30px; }
-            .recipient { margin-bottom: 40px; font-weight: bold; }
-            .subject { font-size: 13pt; font-weight: bold; margin-bottom: 25px; text-transform: uppercase; }
-            .content { margin-bottom: 40px; white-space: pre-line; }
-            .signature { margin-top: 50px; border-top: 1px solid #000; width: 250px; pt-2; }
-            @media print {
-              body { margin: 0; }
-            }
+            .header-info { margin-bottom: 35px; }
+            .recipient { margin-bottom: 40px; font-weight: bold; font-size: 11pt; line-height: 1.4; }
+            .subject { font-size: 12pt; font-weight: bold; margin-bottom: 25px; text-transform: uppercase; }
+            .content { margin-bottom: 45px; white-space: pre-line; }
+            .signature { margin-top: 55px; border-top: 1px solid #000000; width: 250px; padding-top: 6px; }
           </style>
         </head>
         <body>
