@@ -21,7 +21,7 @@ export function Footer() {
   }, []);
 
   return (
-    <footer className="mt-12 py-6 border-t border-zinc-800/60 text-xs text-zinc-500 font-mono">
+    <footer className="mt-auto py-4 border-t border-zinc-800/60 text-xs text-zinc-500 font-mono bg-zinc-950/80 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-4 md:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="flex items-center gap-2 flex-wrap justify-center sm:justify-start">
           <span className="text-zinc-400 font-medium">{APP_COPYRIGHT}</span>

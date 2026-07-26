@@ -12,7 +12,7 @@
 <p align="center">
   <a href="#-proxmox-ve--linux-1-klick-installation"><img src="https://img.shields.io/badge/Proxmox_VE-Helper_Script-orange.svg?style=for-the-badge&logo=proxmox" alt="Proxmox Script"></a>
   <a href="#-tech-stack"><img src="https://img.shields.io/badge/Docker-Ready-2496ED.svg?style=for-the-badge&logo=docker" alt="Docker"></a>
-  <a href="#-tech-stack"><img src="https://img.shields.io/badge/Next.js_16-v1.0.1-black.svg?style=for-the-badge&logo=next.js" alt="Next.js"></a>
+  <a href="#-tech-stack"><img src="https://img.shields.io/badge/Next.js_16-v1.0.2-black.svg?style=for-the-badge&logo=next.js" alt="Next.js"></a>
   <a href="#-tech-stack"><img src="https://img.shields.io/badge/FastAPI-Python-009688.svg?style=for-the-badge&logo=fastapi" alt="FastAPI"></a>
   <a href="#-lokale-ki-engine-qwen25-15b"><img src="https://img.shields.io/badge/Local_AI-Qwen2.5_1.5B-purple.svg?style=for-the-badge" alt="Local AI"></a>
 </p>
