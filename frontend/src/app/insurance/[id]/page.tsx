@@ -246,7 +246,7 @@ export default function InsuranceDetailPage() {
   }
 
   return (
-    <div className="min-h-screen pb-16">
+    <div className="space-y-6 flex-1">
       <Navbar userEmail={currentUser?.email} />
 
       <div className="max-w-6xl mx-auto space-y-8">

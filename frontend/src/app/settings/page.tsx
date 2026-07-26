@@ -618,7 +618,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen pb-16">
+    <div className="space-y-6 flex-1">
       <Navbar userEmail={currentUser.email} />
 
       <div className="max-w-4xl mx-auto space-y-6">

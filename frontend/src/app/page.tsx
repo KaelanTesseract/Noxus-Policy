@@ -80,13 +80,13 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen pb-16">
+    <div className="space-y-6 flex-1 flex flex-col justify-between">
       <Navbar 
         userEmail={currentUser?.email} 
         onUploadClick={() => setIsUploadModalOpen(true)} 
       />
 
-      <div className="space-y-8">
+      <div className="space-y-6 flex-1">
         {/* Metric Quick Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="border-zinc-800/80 bg-zinc-900/40 backdrop-blur-md relative overflow-hidden group hover:border-zinc-700 transition-all">
