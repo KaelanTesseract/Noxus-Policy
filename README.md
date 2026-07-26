@@ -1,7 +1,7 @@
 # 🛡️ Noxus Policy — KI-gestützte Dokumentenanalyse & Versicherungsmanager
 
 <p align="center">
-  <img src="frontend/public/logo.png" alt="Noxus Policy Logo" width="120" />
+  <img src="https://raw.githubusercontent.com/KaelanTesseract/Noxus-Policy/main/frontend/public/logo.png" alt="Noxus Policy Logo" width="130" />
 </p>
 
 <p align="center">
@@ -12,7 +12,7 @@
 <p align="center">
   <a href="#-proxmox-ve--linux-1-klick-installation"><img src="https://img.shields.io/badge/Proxmox_VE-Helper_Script-orange.svg?style=for-the-badge&logo=proxmox" alt="Proxmox Script"></a>
   <a href="#-tech-stack"><img src="https://img.shields.io/badge/Docker-Ready-2496ED.svg?style=for-the-badge&logo=docker" alt="Docker"></a>
-  <a href="#-tech-stack"><img src="https://img.shields.io/badge/Next.js_16-Turbopack-black.svg?style=for-the-badge&logo=next.js" alt="Next.js"></a>
+  <a href="#-tech-stack"><img src="https://img.shields.io/badge/Next.js_16-v1.0.1-black.svg?style=for-the-badge&logo=next.js" alt="Next.js"></a>
   <a href="#-tech-stack"><img src="https://img.shields.io/badge/FastAPI-Python-009688.svg?style=for-the-badge&logo=fastapi" alt="FastAPI"></a>
   <a href="#-lokale-ki-engine-qwen25-15b"><img src="https://img.shields.io/badge/Local_AI-Qwen2.5_1.5B-purple.svg?style=for-the-badge" alt="Local AI"></a>
 </p>
@@ -53,24 +53,35 @@ Das Skript erstellt **automatisch ein Vorab-Sicherheitsbackup** der Datenbank im
 [█████████████████░░░░░░░░░░░░]  55% | 3/5: Lade neueste Version herunter...
 ```
 
+Das System prüft im Hintergrund automatisch, ob eine neue Version auf GitHub verfügbar ist, und zeigt dies **dezent im Fußbereich des Dashboards** an.
+
 ---
 
 ## ✨ Hauptfunktionen
 
-### 🤖 1. Lokale KI-Engine (Qwen2.5-1.5B via Llama-cpp)
-* **100% Lokal & Privat:** Kein Versenden vertraulicher Versicherungsdokumente an externe Cloud-APIs (wie OpenAI oder Google). Alle Analysen laufen lokal auf deinem Server.
-* **Intelligente Datensatz-Erkennung:** Automatische Extraktion von *Versicherungsgesellschaft, Polizzen-Nummer, Kündigungsfrist, Ablaufdatum, Beiträgen & Zahlungsintervallen*.
+### 👥 1. Benutzer- & Rollenverwaltung
+* **Erster Admin-Setup (`/admin-setup`):** Sichere Ersteinrichtung mit erzwungener Passwort-Änderung für den ersten Administrator.
+* **Benutzerregistrierung & Admin-Panel:** Admins können neue Benutzer anlegen, Passwörter zurücksetzen und Systemeinstellungen verwalten.
+* **Automatische Session-Abmeldung (`/session-expired`):** Läuft eine Sitzung ab (401 Unauthorized), wird der Nutzer auf eine Infoseite weitergeleitet und automatisch nach 5 Sekunden zum Login zurückgeführt.
+
+### 💾 2. Auto-Backup & Wiederherstellungs-System
+* **Automatisches Vorab-Backup:** Bei jedem System-Update per `update` wird eine Sicherungskopie der Datenbank unter `/opt/versicherungsmanager/backups/insurance_backup_DATUM_UHRZEIT.db` angelegt.
+* **Manuelle & Geplante Sicherung:** Über die Web-Oberfläche (`/settings` ➔ Systemeinstellungen) können Admins jederzeit 1-Klick-Datenbank-Sicherungen auslösen oder herunterladen.
+
+### 🤖 3. Lokale KI-Engine (Qwen2.5-1.5B via Llama-cpp)
+* **100% Lokal & Privat:** Kein Versenden vertraulicher Versicherungsdokumente an externe Cloud-APIs.
+* **Intelligente Datensatz-Erkennung:** Extraktion von *Gesellschaft, Polizzen-Nummer, Kündigungsfrist, Ablaufdatum, Beiträgen & Zahlungsintervallen*.
 * **Semantische Leistungs-Analyse:** Auswertung komplexer Deckungsbausteine als saubere Nomen-Stichpunkte in Klammern.
 
-### ⚡ 2. Dual-Engine (KI oder Klassisches OCR) & Neutrales Branding
-* **Admin-Toggle in den Einstellungen:** Switsche beliebig zwischen KI-Analyse und superschneller klassischer OCR.
+### ⚡ 4. Dual-Engine & Neutrales Branding
+* **Admin-Toggle in den Einstellungen:** Switsche beliebig zwischen KI-Analyse und klassischer OCR.
 * **Dynamisches Branding:** Bei deaktivierter KI werden sämtliche `[AI]`-Badges und KI-Erwähnungen in der gesamten Oberfläche neutralisiert.
 
-### 🏢 3. Universelle DACH-Abdeckung (70+ Versicherer)
-* **Alle großen & regionalen Anbieter:** Allianz, HUK-COBURG, HUK24, AXA, ERGO, Generali, Provinzial, SV Sparkassenversicherung, Haftpflichtkasse, Barmenia, Debeka, R+V, Signal Iduna, Helvetia, Wiener Städtische u.v.m.
+### 🏢 5. Automatisches Firmen-Logo & DACH-Abdeckung (70+ Versicherer)
+* **Automatische Firmen-Logos:** Erkennt Gesellschaften (HUK24, Allianz, AXA, Generali, ERGO, DEVK, Barmenia u.v.m.) und lädt die Marken-Logos transparent ohne manuelles Hochladen.
 * **Sämtliche Versicherungssparten:** Kfz, Privathaftpflicht, Hausrat, Wohngebäude, Berufsunfähigkeit (BU), Rechtsschutz, Zahnzusatz, Krankenkasse, Tierhalter- & Reiseversicherungen.
 
-### 🎨 4. 6 Wunderschöne Design-Themen & Akzentfarben
+### 🎨 6. 6 Wunderschöne Design-Themen & Akzentfarben
 Jeder Benutzer kann unter **Einstellungen ➔ Design & Erscheinungsbild** sein persönliches Layout wählen:
 * ☀️ **Klassisch Business (Hell):** Strahlend helle Oberfläche mit weißen Karten & klaren Kontrasten.
 * 🌙 **Dark Neon Glass (Standard):** Modernes dunkles Glasmorphismus-Design mit Neoneffekten.
@@ -109,4 +120,3 @@ Dieses Projekt ist Open-Source-Software und steht unter der **[MIT Lizenz](LICEN
 * **Frontend:** Next.js (MIT), React (MIT), TailwindCSS (MIT), Lucide Icons (ISC).
 * **Backend:** FastAPI (MIT), Uvicorn (BSD), SQLAlchemy (MIT), PyPDF (BSD), Llama-cpp-python (MIT).
 * **KI-Modell:** Qwen2.5 1.5B Instruct von Alibaba Cloud (Apache 2.0 License - Open Commercial Use).
-
