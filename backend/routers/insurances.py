@@ -1,12 +1,11 @@
-# Copyright (c) 2026 Dennis Guse. All rights reserved.
-# Licensed under the MIT License. See LICENSE file in project root.
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from typing import List
+from typing import List, Optional
+from pydantic import BaseModel
 import os
 import json
+import datetime
 
 import models, schemas, auth
 from database import get_db
@@ -14,6 +13,19 @@ from database import get_db
 router = APIRouter(prefix="/api/insurances", tags=["insurances"])
 
 def format_insurance_dict(ins: models.Insurance) -> dict:
+    claims_list = []
+    if hasattr(ins, "claims") and ins.claims:
+        for c in ins.claims:
+            claims_list.append({
+                "id": c.id,
+                "insurance_id": c.insurance_id,
+                "claim_number": c.claim_number,
+                "claim_date": c.claim_date,
+                "amount": c.amount,
+                "status": c.status,
+                "description": c.description
+            })
+
     res = {
         "id": ins.id,
         "owner_id": ins.owner_id,
@@ -27,7 +39,9 @@ def format_insurance_dict(ins: models.Insurance) -> dict:
         "end_date": ins.end_date,
         "cancellation_date": ins.cancellation_date,
         "contact_info": ins.contact_info,
-        "coverage_details": []
+        "coverage_details": [],
+        "notes": ins.notes,
+        "claims": claims_list
     }
     if ins.coverage_details:
         try:
