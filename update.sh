@@ -64,21 +64,27 @@ TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 if [ -f "$INSTALL_DIR/backend/insurance.db" ]; then
   cp "$INSTALL_DIR/backend/insurance.db" "$INSTALL_DIR/backups/insurance_backup_$TIMESTAMP.db" 2>/dev/null || true
 fi
-sleep 1.5
-
-# Step 3: Git Pull Update (55%)
-render_progress 55 100 "3/5: Lade neueste Version herunter..."
-if [ -d ".git" ]; then
-  git pull origin main >/dev/null 2>&1 || true
-fi
-chmod +x update.sh install.sh 2>/dev/null || true
-ln -sf /opt/versicherungsmanager/update.sh /usr/local/bin/update 2>/dev/null || true
 sleep 1
 
-# Step 4: Docker Container Rebuild (80%)
+# Step 3: Git Pull & Hard Sync with GitHub (55%)
+render_progress 55 100 "3/5: Lade neueste Version von GitHub herunter..."
+if [ ! -d ".git" ]; then
+  git init >/dev/null 2>&1 || true
+  git remote add origin https://github.com/KaelanTesseract/Noxus-Policy.git >/dev/null 2>&1 || true
+fi
+
+git fetch origin main >/dev/null 2>&1 || true
+git reset --hard origin/main >/dev/null 2>&1 || git pull origin main >/dev/null 2>&1 || true
+
+chmod +x update.sh install.sh 2>/dev/null || true
+ln -sf /opt/versicherungsmanager/update.sh /usr/local/bin/update 2>/dev/null || true
+ln -sf /opt/versicherungsmanager/update.sh /usr/local/bin/policy-update 2>/dev/null || true
+
+# Step 4: Docker Container Rebuild without cache (80%)
 render_progress 80 100 "4/5: Baue und aktualisiere Docker-Container (Frontend + Backend)..."
 docker compose down --remove-orphans >/dev/null 2>&1 || true
-docker compose up -d --build >/dev/null 2>&1 || docker compose up -d
+docker compose build --no-cache >/dev/null 2>&1 || true
+docker compose up -d >/dev/null 2>&1 || docker compose up -d
 
 # Step 5: Clean Docker Cache (100%)
 render_progress 100 100 "5/5: Bereinige alten Build-Speicher..."
