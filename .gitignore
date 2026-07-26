@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Next.js Build Output
+frontend/.next/
+frontend/out/
+frontend/node_modules/
+
+# Databases & Media uploads
+backend/*.db
+backend/insurance.db
+backups/
+*.db
+
+# Backups & Archives
+*.zip
+*.tar.gz
+
+# Environment & Logs
+.env
+.env.local
+*.log

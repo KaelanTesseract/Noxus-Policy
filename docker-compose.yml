@@ -1,0 +1,31 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    networks:
+      - app-net
+    restart: always
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/data:/app/data
+      - ./backend/documents:/app/documents
+      - ./backend/models:/app/models
+    environment:
+      - DATABASE_URL=sqlite:////app/data/versicherungsmanager.db
+      - SECRET_KEY=changeme123
+    networks:
+      - app-net
+    restart: always
+
+networks:
+  app-net:
+    driver: bridge
