@@ -3,14 +3,13 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from database import engine, Base
+from database import engine, Base, DATABASE_URL, SessionLocal
 import models
 from routers import users, insurances, documents, backup
 from sqlalchemy.orm import Session
-from sqlalchemy import text
-from database import SessionLocal
 import auth
 import os
+import sqlite3
 
 from backup_scheduler import start_scheduler_thread
 
@@ -29,8 +28,64 @@ app.include_router(insurances.router)
 app.include_router(documents.router)
 app.include_router(backup.router)
 
-import threading
-import ocr
+def auto_migrate_sqlite():
+    try:
+        if "sqlite" in DATABASE_URL:
+            if DATABASE_URL.startswith("sqlite:////"):
+                db_path = "/" + DATABASE_URL[11:]
+            elif DATABASE_URL.startswith("sqlite:///"):
+                db_path = DATABASE_URL[9:]
+            else:
+                db_path = "data/versicherungsmanager.db"
+
+            if os.path.exists(db_path):
+                conn = sqlite3.connect(db_path)
+                cursor = conn.cursor()
+
+                # insurances table
+                try:
+                    cursor.execute("PRAGMA table_info(insurances)")
+                    ins_cols = [row[1] for row in cursor.fetchall()]
+                    if "category" not in ins_cols:
+                        cursor.execute("ALTER TABLE insurances ADD COLUMN category VARCHAR")
+                    if "cost" not in ins_cols:
+                        cursor.execute("ALTER TABLE insurances ADD COLUMN cost FLOAT")
+                    if "payment_cycle" not in ins_cols:
+                        cursor.execute("ALTER TABLE insurances ADD COLUMN payment_cycle VARCHAR DEFAULT 'monatlich'")
+                    if "coverage_details" not in ins_cols:
+                        cursor.execute("ALTER TABLE insurances ADD COLUMN coverage_details VARCHAR")
+                    if "notes" not in ins_cols:
+                        cursor.execute("ALTER TABLE insurances ADD COLUMN notes VARCHAR")
+                    if "contact_info" not in ins_cols:
+                        cursor.execute("ALTER TABLE insurances ADD COLUMN contact_info VARCHAR")
+                except Exception as e:
+                    print(f"[Auto-Migrate insurances] {e}")
+
+                # documents table
+                try:
+                    cursor.execute("PRAGMA table_info(documents)")
+                    doc_cols = [row[1] for row in cursor.fetchall()]
+                    if "custom_name" not in doc_cols:
+                        cursor.execute("ALTER TABLE documents ADD COLUMN custom_name VARCHAR")
+                    if "doc_type" not in doc_cols:
+                        cursor.execute("ALTER TABLE documents ADD COLUMN doc_type VARCHAR")
+                except Exception as e:
+                    print(f"[Auto-Migrate documents] {e}")
+
+                # users table
+                try:
+                    cursor.execute("PRAGMA table_info(users)")
+                    usr_cols = [row[1] for row in cursor.fetchall()]
+                    if "email_notifications_enabled" not in usr_cols:
+                        cursor.execute("ALTER TABLE users ADD COLUMN email_notifications_enabled BOOLEAN DEFAULT 1")
+                except Exception as e:
+                    print(f"[Auto-Migrate users] {e}")
+
+                conn.commit()
+                conn.close()
+                print("[Auto-Migration] Database schema check completed.")
+    except Exception as mig_err:
+        print(f"[Auto-Migration] Notice: {mig_err}")
 
 @app.on_event("startup")
 def startup_db_init():
@@ -40,48 +95,8 @@ def startup_db_init():
     except Exception as e:
         print(f"Base.metadata.create_all notice: {e}")
 
-    # 2. Auto-migrate missing columns in existing SQLite database
-    try:
-        with engine.connect() as conn:
-            # insurances table
-            res_ins = conn.execute(text("PRAGMA table_info(insurances)")).fetchall()
-            ins_cols = [r[1] for r in res_ins]
-            if "category" not in ins_cols:
-                try: conn.execute(text("ALTER TABLE insurances ADD COLUMN category VARCHAR"))
-                except Exception: pass
-            if "cost" not in ins_cols:
-                try: conn.execute(text("ALTER TABLE insurances ADD COLUMN cost FLOAT"))
-                except Exception: pass
-            if "payment_cycle" not in ins_cols:
-                try: conn.execute(text("ALTER TABLE insurances ADD COLUMN payment_cycle VARCHAR DEFAULT 'monatlich'"))
-                except Exception: pass
-            if "coverage_details" not in ins_cols:
-                try: conn.execute(text("ALTER TABLE insurances ADD COLUMN coverage_details VARCHAR"))
-                except Exception: pass
-            if "notes" not in ins_cols:
-                try: conn.execute(text("ALTER TABLE insurances ADD COLUMN notes VARCHAR"))
-                except Exception: pass
-
-            # documents table
-            res_doc = conn.execute(text("PRAGMA table_info(documents)")).fetchall()
-            doc_cols = [r[1] for r in res_doc]
-            if "custom_name" not in doc_cols:
-                try: conn.execute(text("ALTER TABLE documents ADD COLUMN custom_name VARCHAR"))
-                except Exception: pass
-            if "doc_type" not in doc_cols:
-                try: conn.execute(text("ALTER TABLE documents ADD COLUMN doc_type VARCHAR"))
-                except Exception: pass
-
-            # users table
-            res_usr = conn.execute(text("PRAGMA table_info(users)")).fetchall()
-            usr_cols = [r[1] for r in res_usr]
-            if "email_notifications_enabled" not in usr_cols:
-                try: conn.execute(text("ALTER TABLE users ADD COLUMN email_notifications_enabled BOOLEAN DEFAULT 1"))
-                except Exception: pass
-
-            conn.commit()
-    except Exception as mig_err:
-        print(f"Database auto-migration notice: {mig_err}")
+    # 2. Auto-migrate missing columns in existing SQLite database via raw sqlite3
+    auto_migrate_sqlite()
 
     # 3. Create default admin if missing
     try:
