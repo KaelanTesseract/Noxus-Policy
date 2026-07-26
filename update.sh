@@ -90,9 +90,16 @@ docker compose build --no-cache
 docker compose up -d
 
 # Step 5: Wait for Backend startup & Clean Docker Cache (100%)
-render_progress 95 100 "5/5: Prüfe Container-Status & Bereinige Speicher..."
-sleep 3
-docker compose ps || true
+render_progress 95 100 "5/5: Prüfe Container-Status & Backend-Bereitschaft..."
+echo -e "\n\n⏳ Warte auf vollständige Backend-Initialisierung..."
+for i in {1..15}; do
+  if curl -s http://localhost:8000/ >/dev/null 2>&1 || curl -s http://127.0.0.1:8000/ >/dev/null 2>&1 || docker exec versicherungsmanager-backend-1 curl -s http://localhost:8000/ >/dev/null 2>&1; then
+    echo -e "${GREEN}✓ Backend ist einsatzbereit!${NC}"
+    break
+  fi
+  sleep 1
+done
+
 docker image prune -f >/dev/null 2>&1 || true
 echo -e "\n"
 
