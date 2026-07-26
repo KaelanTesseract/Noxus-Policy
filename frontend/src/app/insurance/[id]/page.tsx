@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { UploadModal } from "@/components/UploadModal";
 import { CompanyLogo } from "@/components/CompanyLogo";
+import { CancellationModal } from "@/components/CancellationModal";
 import { api } from "@/lib/api";
 
 interface Insurance {
@@ -71,6 +72,7 @@ export default function InsuranceDetailPage() {
 
   // Upload modal state
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isCancellationModalOpen, setIsCancellationModalOpen] = useState(false);
   const [isCardDragOver, setIsCardDragOver] = useState(false);
 
   // Document viewer modal state
@@ -311,11 +313,18 @@ export default function InsuranceDetailPage() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+            <Button 
+              onClick={() => setIsCancellationModalOpen(true)} 
+              variant="outline" 
+              className="border-indigo-800/80 bg-indigo-950/40 hover:bg-indigo-900/50 text-indigo-300 font-semibold text-xs transition-all shadow-md flex items-center gap-1.5"
+            >
+              ✍️ Kündigungsschreiben
+            </Button>
             <Button 
               onClick={handleDownloadIcal} 
               variant="outline" 
-              className="border-amber-800/80 bg-amber-950/40 hover:bg-amber-900/50 text-amber-300 font-semibold text-xs transition-all shadow-md"
+              className="border-amber-800/80 bg-amber-950/40 hover:bg-amber-900/50 text-amber-300 font-semibold text-xs transition-all shadow-md flex items-center gap-1.5"
             >
               📅 Kalender-Termin (.ics)
             </Button>
@@ -727,6 +736,14 @@ export default function InsuranceDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Cancellation Letter Generator Modal */}
+      <CancellationModal
+        isOpen={isCancellationModalOpen}
+        onClose={() => setIsCancellationModalOpen(false)}
+        insurance={insurance}
+        userEmail={currentUser?.email}
+      />
     </div>
   );
 }
