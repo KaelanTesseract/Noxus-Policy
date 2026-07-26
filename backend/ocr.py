@@ -21,7 +21,9 @@ def get_llm():
         from huggingface_hub import hf_hub_download
         from llama_cpp import Llama
 
-        model_dir = os.path.join(os.path.dirname(__file__), "models")
+        model_dir = os.path.join(os.path.dirname(__file__), "models_data")
+        if not os.path.exists(model_dir):
+            model_dir = os.path.join(os.path.dirname(__file__), "models")
         os.makedirs(model_dir, exist_ok=True)
         model_path = os.path.join(model_dir, "qwen2.5-1.5b-instruct-q4_k_m.gguf")
 
