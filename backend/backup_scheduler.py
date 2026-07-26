@@ -196,7 +196,11 @@ def check_and_send_cancellation_notifications():
         if not smtp_server or not smtp_server.strip():
             return
 
-        users = db.query(models.User).filter(models.User.email_notifications_enabled == True).all()
+        try:
+            users = db.query(models.User).filter(models.User.email_notifications_enabled == True).all()
+        except Exception:
+            users = db.query(models.User).all()
+
         today = datetime.date.today()
 
         for user in users:

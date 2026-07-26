@@ -32,65 +32,58 @@ app.include_router(backup.router)
 import threading
 import ocr
 
-def preload_ai_model():
-    try:
-        print("[Startup] Pre-loading Mini-AI model in background...")
-        ocr.get_llm()
-    except Exception as e:
-        print(f"[Startup] AI pre-load notice: {e}")
-
 @app.on_event("startup")
 def startup_db_init():
+    # 1. Create tables first
     try:
         Base.metadata.create_all(bind=engine)
-        
-        # Start background backup scheduler thread
-        try:
-            start_scheduler_thread()
-        except Exception as se:
-            print(f"Error starting backup scheduler thread: {se}")
+    except Exception as e:
+        print(f"Base.metadata.create_all notice: {e}")
 
-        # Start pre-loading AI model in background
-        threading.Thread(target=preload_ai_model, daemon=True).start()
-        
-        # Auto-migrate missing columns in existing SQLite database
+    # 2. Auto-migrate missing columns in existing SQLite database
+    try:
         with engine.connect() as conn:
             # insurances table
             res_ins = conn.execute(text("PRAGMA table_info(insurances)")).fetchall()
             ins_cols = [r[1] for r in res_ins]
             if "category" not in ins_cols:
-                conn.execute(text("ALTER TABLE insurances ADD COLUMN category VARCHAR"))
+                try: conn.execute(text("ALTER TABLE insurances ADD COLUMN category VARCHAR"))
+                except Exception: pass
             if "cost" not in ins_cols:
-                conn.execute(text("ALTER TABLE insurances ADD COLUMN cost FLOAT"))
+                try: conn.execute(text("ALTER TABLE insurances ADD COLUMN cost FLOAT"))
+                except Exception: pass
             if "payment_cycle" not in ins_cols:
-                conn.execute(text("ALTER TABLE insurances ADD COLUMN payment_cycle VARCHAR DEFAULT 'monatlich'"))
+                try: conn.execute(text("ALTER TABLE insurances ADD COLUMN payment_cycle VARCHAR DEFAULT 'monatlich'"))
+                except Exception: pass
             if "coverage_details" not in ins_cols:
-                conn.execute(text("ALTER TABLE insurances ADD COLUMN coverage_details VARCHAR"))
+                try: conn.execute(text("ALTER TABLE insurances ADD COLUMN coverage_details VARCHAR"))
+                except Exception: pass
+            if "notes" not in ins_cols:
+                try: conn.execute(text("ALTER TABLE insurances ADD COLUMN notes VARCHAR"))
+                except Exception: pass
 
             # documents table
             res_doc = conn.execute(text("PRAGMA table_info(documents)")).fetchall()
             doc_cols = [r[1] for r in res_doc]
             if "custom_name" not in doc_cols:
-                conn.execute(text("ALTER TABLE documents ADD COLUMN custom_name VARCHAR"))
+                try: conn.execute(text("ALTER TABLE documents ADD COLUMN custom_name VARCHAR"))
+                except Exception: pass
             if "doc_type" not in doc_cols:
-                conn.execute(text("ALTER TABLE documents ADD COLUMN doc_type VARCHAR"))
+                try: conn.execute(text("ALTER TABLE documents ADD COLUMN doc_type VARCHAR"))
+                except Exception: pass
 
             # users table
             res_usr = conn.execute(text("PRAGMA table_info(users)")).fetchall()
             usr_cols = [r[1] for r in res_usr]
             if "email_notifications_enabled" not in usr_cols:
-                conn.execute(text("ALTER TABLE users ADD COLUMN email_notifications_enabled BOOLEAN DEFAULT 1"))
-
-            # insurances table
-            res_ins = conn.execute(text("PRAGMA table_info(insurances)")).fetchall()
-            ins_cols = [r[1] for r in res_ins]
-            if "notes" not in ins_cols:
-                conn.execute(text("ALTER TABLE insurances ADD COLUMN notes VARCHAR"))
+                try: conn.execute(text("ALTER TABLE users ADD COLUMN email_notifications_enabled BOOLEAN DEFAULT 1"))
+                except Exception: pass
 
             conn.commit()
     except Exception as mig_err:
         print(f"Database auto-migration notice: {mig_err}")
 
+    # 3. Create default admin if missing
     try:
         db = SessionLocal()
         any_admin = db.query(models.User).filter(models.User.is_admin == True).first()
@@ -109,6 +102,12 @@ def startup_db_init():
         print("Database initialized successfully!")
     except Exception as e:
         print(f"Error initializing admin user: {e}")
+
+    # 4. Start background backup scheduler thread AFTER DB initialization
+    try:
+        start_scheduler_thread()
+    except Exception as se:
+        print(f"Error starting backup scheduler thread: {se}")
 
 @app.get("/")
 def read_root():
