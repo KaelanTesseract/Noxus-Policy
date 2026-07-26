@@ -36,11 +36,25 @@ class Insurance(Base):
     cancellation_date = Column(Date, nullable=True)
     contact_info = Column(String, nullable=True)
     coverage_details = Column(String, nullable=True)
+    notes = Column(String, nullable=True)
     
     owner_id = Column(Integer, ForeignKey("users.id"))
     owner = relationship("User", back_populates="insurances")
     
     documents = relationship("Document", back_populates="insurance", cascade="all, delete-orphan")
+    claims = relationship("Claim", back_populates="insurance", cascade="all, delete-orphan")
+
+class Claim(Base):
+    __tablename__ = "claims"
+    id = Column(Integer, primary_key=True, index=True)
+    claim_number = Column(String, nullable=True)
+    claim_date = Column(Date, nullable=True)
+    amount = Column(Float, nullable=True)
+    status = Column(String, default="In Bearbeitung")
+    description = Column(String, nullable=True)
+    
+    insurance_id = Column(Integer, ForeignKey("insurances.id"))
+    insurance = relationship("Insurance", back_populates="claims")
 
 class Document(Base):
     __tablename__ = "documents"

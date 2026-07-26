@@ -40,6 +40,23 @@ class UserResponse(UserBase):
     class Config:
         from_attributes = True
 
+# Claims
+class ClaimBase(BaseModel):
+    claim_number: Optional[str] = None
+    claim_date: Optional[date] = None
+    amount: Optional[float] = None
+    status: Optional[str] = "In Bearbeitung"
+    description: Optional[str] = None
+
+class ClaimCreate(ClaimBase):
+    pass
+
+class ClaimResponse(ClaimBase):
+    id: int
+    insurance_id: int
+    class Config:
+        from_attributes = True
+
 # Insurances
 class InsuranceBase(BaseModel):
     name: str
@@ -53,6 +70,7 @@ class InsuranceBase(BaseModel):
     cancellation_date: Optional[date] = None
     contact_info: Optional[str] = None
     coverage_details: Optional[List[str]] = None
+    notes: Optional[str] = None
 
 class InsuranceCreate(InsuranceBase):
     pass
@@ -63,6 +81,7 @@ class InsuranceUpdate(InsuranceBase):
 class InsuranceResponse(InsuranceBase):
     id: int
     owner_id: int
+    claims: Optional[List[ClaimResponse]] = []
     class Config:
         from_attributes = True
 

@@ -81,6 +81,12 @@ def startup_db_init():
             if "email_notifications_enabled" not in usr_cols:
                 conn.execute(text("ALTER TABLE users ADD COLUMN email_notifications_enabled BOOLEAN DEFAULT 1"))
 
+            # insurances table
+            res_ins = conn.execute(text("PRAGMA table_info(insurances)")).fetchall()
+            ins_cols = [r[1] for r in res_ins]
+            if "notes" not in ins_cols:
+                conn.execute(text("ALTER TABLE insurances ADD COLUMN notes VARCHAR"))
+
             conn.commit()
     except Exception as mig_err:
         print(f"Database auto-migration notice: {mig_err}")

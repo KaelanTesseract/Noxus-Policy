@@ -102,6 +102,7 @@ def delete_insurance(insurance_id: int, db: Session = Depends(get_db), current_u
             print(f"Notice during file cleanup: {file_err}")
 
         # 2. Execute direct SQL deletions to bypass ORM cascade/foreign key locks
+        db.execute(text("DELETE FROM claims WHERE insurance_id = :iid"), {"iid": insurance_id})
         db.execute(text("DELETE FROM documents WHERE insurance_id = :iid"), {"iid": insurance_id})
         db.execute(text("DELETE FROM insurances WHERE id = :iid"), {"iid": insurance_id})
         db.commit()
@@ -113,3 +114,64 @@ def delete_insurance(insurance_id: int, db: Session = Depends(get_db), current_u
         db.rollback()
         print(f"Delete insurance exception: {e}")
         raise HTTPException(status_code=500, detail=f"Fehler beim Löschen: {str(e)}")
+
+class NotesUpdatePayload(BaseModel):
+    notes: Optional[str] = None
+
+@router.put("/{insurance_id}/notes")
+def update_insurance_notes(
+    insurance_id: int,
+    payload: NotesUpdatePayload,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    db_insurance = db.query(models.Insurance).filter(models.Insurance.id == insurance_id).first()
+    if not db_insurance:
+        raise HTTPException(status_code=404, detail="Versicherung nicht gefunden.")
+    if db_insurance.owner_id != current_user.id and not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Nicht berechtigt.")
+
+    db_insurance.notes = payload.notes
+    db.commit()
+    return {"msg": "Notizen erfolgreich gespeichert.", "notes": db_insurance.notes}
+
+@router.post("/{insurance_id}/claims", response_model=schemas.ClaimResponse)
+def add_claim(
+    insurance_id: int,
+    payload: schemas.ClaimCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    db_insurance = db.query(models.Insurance).filter(models.Insurance.id == insurance_id).first()
+    if not db_insurance:
+        raise HTTPException(status_code=404, detail="Versicherung nicht gefunden.")
+    if db_insurance.owner_id != current_user.id and not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Nicht berechtigt.")
+
+    new_claim = models.Claim(
+        insurance_id=insurance_id,
+        claim_number=payload.claim_number or f"SCH-{datetime.date.today().strftime('%Y%m%d')}-{db_insurance.id}",
+        claim_date=payload.claim_date or datetime.date.today(),
+        amount=payload.amount,
+        status=payload.status or "In Bearbeitung",
+        description=payload.description
+    )
+    db.add(new_claim)
+    db.commit()
+    db.refresh(new_claim)
+    return new_claim
+
+@router.delete("/{insurance_id}/claims/{claim_id}")
+def delete_claim(
+    insurance_id: int,
+    claim_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    db_claim = db.query(models.Claim).filter(models.Claim.id == claim_id, models.Claim.insurance_id == insurance_id).first()
+    if not db_claim:
+        raise HTTPException(status_code=404, detail="Schadensmeldung nicht gefunden.")
+
+    db.delete(db_claim)
+    db.commit()
+    return {"msg": "Schadensmeldung gelöscht."}

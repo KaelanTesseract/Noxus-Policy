@@ -83,6 +83,21 @@ export default function InsuranceDetailPage() {
   const [editDocName, setEditDocName] = useState("");
   const [editDocType, setEditDocType] = useState("");
 
+  // Notes state
+  const [notesText, setNotesText] = useState("");
+  const [notesMsg, setNotesMsg] = useState("");
+  const [savingNotes, setSavingNotes] = useState(false);
+
+  // Claims state
+  const [claimsList, setClaimsList] = useState<any[]>([]);
+  const [isAddClaimOpen, setIsAddClaimOpen] = useState(false);
+  const [newClaimNum, setNewClaimNum] = useState("");
+  const [newClaimDate, setNewClaimDate] = useState("");
+  const [newClaimAmount, setNewClaimAmount] = useState("");
+  const [newClaimStatus, setNewClaimStatus] = useState("In Bearbeitung");
+  const [newClaimDesc, setNewClaimDesc] = useState("");
+  const [addingClaim, setAddingClaim] = useState(false);
+
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
@@ -92,28 +107,28 @@ export default function InsuranceDetailPage() {
   }, [insuranceId]);
 
   const loadData = async () => {
-    if (!insuranceId || insuranceId === "undefined") return;
+    setLoading(true);
     try {
-      const user = await api.get("/users/me");
-      if (user.must_change_password) {
-        router.push("/admin-setup");
-        return;
-      }
-      setCurrentUser(user);
+      const u = await api.get("/users/me");
+      setCurrentUser(u);
 
       const insData = await api.get(`/insurances/${insuranceId}`);
       setInsurance(insData);
+
       setFormData({
         name: insData.name || "",
         company: insData.company || "",
         insurance_number: insData.insurance_number || "",
-        category: insData.category || "Haftpflicht",
-        cost: insData.cost ? String(insData.cost) : "",
+        category: insData.category || "",
+        cost: insData.cost !== null && insData.cost !== undefined ? String(insData.cost) : "",
         payment_cycle: insData.payment_cycle || "jährlich",
         start_date: insData.start_date || "",
         end_date: insData.end_date || "",
         cancellation_date: insData.cancellation_date || ""
       });
+
+      setNotesText(insData.notes || "");
+      setClaimsList(insData.claims || []);
 
       setCoverageList(insData.coverage_details || []);
 
@@ -224,6 +239,55 @@ export default function InsuranceDetailPage() {
       setDocuments(docsData);
     } catch (err: any) {
       alert("Fehler beim Aktualisieren des Dokuments: " + err.message);
+    }
+  };
+
+  const handleSaveNotes = async () => {
+    setSavingNotes(true);
+    setNotesMsg("");
+    try {
+      await api.put(`/insurances/${insuranceId}/notes`, { notes: notesText });
+      setNotesMsg("✓ Notizen gespeichert!");
+      setTimeout(() => setNotesMsg(""), 3000);
+    } catch (err: any) {
+      console.error("Failed to save notes:", err);
+    } finally {
+      setSavingNotes(false);
+    }
+  };
+
+  const handleAddClaim = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddingClaim(true);
+    try {
+      const created = await api.post(`/insurances/${insuranceId}/claims`, {
+        claim_number: newClaimNum || undefined,
+        claim_date: newClaimDate || undefined,
+        amount: newClaimAmount ? parseFloat(newClaimAmount) : undefined,
+        status: newClaimStatus,
+        description: newClaimDesc
+      });
+      setClaimsList([...claimsList, created]);
+      setIsAddClaimOpen(false);
+      setNewClaimNum("");
+      setNewClaimDate("");
+      setNewClaimAmount("");
+      setNewClaimStatus("In Bearbeitung");
+      setNewClaimDesc("");
+    } catch (err: any) {
+      console.error("Failed to add claim:", err);
+    } finally {
+      setAddingClaim(false);
+    }
+  };
+
+  const handleDeleteClaim = async (claimId: number) => {
+    if (!confirm("Schadensmeldung wirklich löschen?")) return;
+    try {
+      await api.delete(`/insurances/${insuranceId}/claims/${claimId}`);
+      setClaimsList(claimsList.filter(c => c.id !== claimId));
+    } catch (err: any) {
+      console.error("Failed to delete claim:", err);
     }
   };
 
@@ -483,6 +547,113 @@ export default function InsuranceDetailPage() {
                 </form>
               </CardContent>
             </Card>
+
+            {/* Notes Card */}
+            <Card className="border-zinc-800 bg-zinc-900/40 backdrop-blur-md shadow-xl mt-6">
+              <CardHeader className="pb-3 border-b border-zinc-800/60">
+                <CardTitle className="text-lg font-semibold flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <span>📝 Notizen & Persönliche Memos</span>
+                  </span>
+                  {notesMsg && <span className="text-xs text-emerald-400 font-normal">{notesMsg}</span>}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6 space-y-4">
+                <textarea
+                  rows={4}
+                  value={notesText}
+                  onChange={(e) => setNotesText(e.target.value)}
+                  placeholder="Hinterlege hier eigene Notizen, z.B. Selbstbeteiligung 150€, Ansprechpartner, Hotline-Nummer für Pannen..."
+                  className="w-full bg-zinc-950/60 border border-zinc-800 rounded-xl p-3 text-xs sm:text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-700"
+                />
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    onClick={handleSaveNotes}
+                    disabled={savingNotes}
+                    className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs px-4"
+                  >
+                    {savingNotes ? "Speichert..." : "Notizen speichern"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Claims History Card */}
+            <Card className="border-zinc-800 bg-zinc-900/40 backdrop-blur-md shadow-xl mt-6">
+              <CardHeader className="pb-3 border-b border-zinc-800/60 flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                    <span>💥 Schadensfälle & Melde-Historie</span>
+                  </CardTitle>
+                </div>
+                <Button
+                  type="button"
+                  onClick={() => setIsAddClaimOpen(true)}
+                  className="theme-bg-accent text-white text-xs font-medium px-3 py-1.5"
+                >
+                  + Schadensfall melden
+                </Button>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6 space-y-3">
+                {claimsList.length === 0 ? (
+                  <p className="text-xs text-zinc-500 italic py-2">
+                    Bisher keine Schadensfälle oder Regulierungsmeldungen für diesen Vertrag erfasst.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {claimsList.map((claim) => (
+                      <div
+                        key={claim.id}
+                        className="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-mono font-bold text-white">{claim.claim_number}</span>
+                            <span
+                              className={`text-[10px] font-mono px-2 py-0.5 rounded font-semibold border ${
+                                claim.status === "Reguliert / Bezahlt"
+                                  ? "bg-emerald-950/80 border-emerald-800 text-emerald-300"
+                                  : claim.status === "Abgelehnt"
+                                  ? "bg-red-950/80 border-red-800 text-red-300"
+                                  : "bg-amber-950/80 border-amber-800 text-amber-300"
+                              }`}
+                            >
+                              {claim.status}
+                            </span>
+                            {claim.claim_date && (
+                              <span className="text-[11px] text-zinc-400 font-mono">
+                                📅 {new Date(claim.claim_date).toLocaleDateString("de-DE")}
+                              </span>
+                            )}
+                          </div>
+                          {claim.description && (
+                            <p className="text-xs text-zinc-300 mt-1">{claim.description}</p>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-4 shrink-0 justify-between sm:justify-end">
+                          {claim.amount !== null && claim.amount !== undefined && (
+                            <span className="text-sm font-mono font-bold text-emerald-400">
+                              💰 {claim.amount.toFixed(2)} €
+                            </span>
+                          )}
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDeleteClaim(claim.id)}
+                            className="text-zinc-500 hover:text-red-400 h-8 w-8 p-0 rounded-lg"
+                          >
+                            ✕
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
           {/* Right Column: Uploaded Documents & Viewer */}
@@ -685,6 +856,93 @@ export default function InsuranceDetailPage() {
                 Speichern
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Claim Modal */}
+      {isAddClaimOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+            <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <span>💥 Schadensfall melden</span>
+              </h3>
+              <button onClick={() => setIsAddClaimOpen(false)} className="text-zinc-400 hover:text-white text-lg">✕</button>
+            </div>
+
+            <form onSubmit={handleAddClaim} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="claimNum" className="text-xs text-zinc-300">Schadennummer (optional)</Label>
+                <Input
+                  id="claimNum"
+                  value={newClaimNum}
+                  onChange={e => setNewClaimNum(e.target.value)}
+                  placeholder="z.B. SCH-2026-001"
+                  className="bg-zinc-950/50 border-zinc-800 text-xs font-mono text-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="claimDate" className="text-xs text-zinc-300">Schadensdatum</Label>
+                  <Input
+                    id="claimDate"
+                    type="date"
+                    value={newClaimDate}
+                    onChange={e => setNewClaimDate(e.target.value)}
+                    className="bg-zinc-950/50 border-zinc-800 text-xs text-white"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="claimAmount" className="text-xs text-zinc-300">Schadenshöhe (€)</Label>
+                  <Input
+                    id="claimAmount"
+                    type="number"
+                    step="0.01"
+                    value={newClaimAmount}
+                    onChange={e => setNewClaimAmount(e.target.value)}
+                    placeholder="0.00"
+                    className="bg-zinc-950/50 border-zinc-800 text-xs font-mono text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="claimStatus" className="text-xs text-zinc-300">Status</Label>
+                <select
+                  id="claimStatus"
+                  value={newClaimStatus}
+                  onChange={e => setNewClaimStatus(e.target.value)}
+                  className="w-full bg-zinc-950/50 border border-zinc-800 rounded-md p-2 text-xs text-white"
+                >
+                  <option value="In Bearbeitung">In Bearbeitung</option>
+                  <option value="Reguliert / Bezahlt">Reguliert / Bezahlt</option>
+                  <option value="Abgelehnt">Abgelehnt</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="claimDesc" className="text-xs text-zinc-300">Beschreibung des Schadens</Label>
+                <textarea
+                  id="claimDesc"
+                  rows={3}
+                  value={newClaimDesc}
+                  onChange={e => setNewClaimDesc(e.target.value)}
+                  placeholder="z.B. Steinschlag in Windschutzscheibe / Wildunfall / Wasserrohrbruch im Bad..."
+                  className="w-full bg-zinc-950/50 border border-zinc-800 rounded-xl p-3 text-xs text-zinc-200 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-zinc-800">
+                <Button type="button" variant="outline" onClick={() => setIsAddClaimOpen(false)} className="border-zinc-800 text-zinc-300 text-xs">
+                  Abbrechen
+                </Button>
+                <Button type="submit" disabled={addingClaim} className="theme-bg-accent text-white text-xs theme-glow">
+                  {addingClaim ? "Speichert..." : "Schadensfall eintragen"}
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}

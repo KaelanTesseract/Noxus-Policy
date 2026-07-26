@@ -12,7 +12,7 @@
 <p align="center">
   <a href="#-proxmox-ve--linux-1-klick-installation"><img src="https://img.shields.io/badge/Proxmox_VE-Helper_Script-orange.svg?style=for-the-badge&logo=proxmox" alt="Proxmox Script"></a>
   <a href="#-tech-stack"><img src="https://img.shields.io/badge/Docker-Ready-2496ED.svg?style=for-the-badge&logo=docker" alt="Docker"></a>
-  <a href="#-tech-stack"><img src="https://img.shields.io/badge/Next.js_16-v1.0.5-black.svg?style=for-the-badge&logo=next.js" alt="Next.js"></a>
+  <a href="#-tech-stack"><img src="https://img.shields.io/badge/Next.js_16-v1.0.6-black.svg?style=for-the-badge&logo=next.js" alt="Next.js"></a>
   <a href="#-tech-stack"><img src="https://img.shields.io/badge/FastAPI-Python-009688.svg?style=for-the-badge&logo=fastapi" alt="FastAPI"></a>
   <a href="#-lokale-ki-engine-qwen25-15b"><img src="https://img.shields.io/badge/Local_AI-Qwen2.5_1.5B-purple.svg?style=for-the-badge" alt="Local AI"></a>
 </p>
@@ -84,7 +84,15 @@ Das System prüft im Hintergrund automatisch, ob eine neue Version auf GitHub ve
 * **1-Klick iCal-Export (.ics):** Generierung von `.ics`-Kalenderterminen für **Apple Kalender, Google Calendar oder Outlook**.
 * **Automatische E-Mail-Vorwarnungen:** Automatische E-Mail-Benachrichtigung 30 Tage vor Ablauf einer Kündigungsfrist.
 
-### 📊 3. Visuelles Kosten- & Sparten-Diagramm
+### 💥 3. Schadensfälle- & Melde-Historie / Notizen & Memos
+* **💥 Schadensfall-Tracker:** Erfasse und verwalte Schadensfälle pro Versicherung (Schadensdatum, Schadensnummer, Schadenshöhe in €, Beschreibung und Status: *In Bearbeitung*, *Reguliert / Bezahlt*, *Abgelehnt*).
+* **📝 Notizen- & Memo-Funktion:** Hinterlege individuelle Freitext-Notizen zu jedem Vertrag (z.B. Selbstbeteiligung, Telefon-Hotline für Pannen, persönliche Ansprechpartner).
+
+### 📱 4. Responsive Mobile-First Optimierung
+* **100% Touch- & Smartphone-Optimiert:** Sämtliche Ansichten, Formulare, Modals, Diagramme und Header-Aktionen passen sich nahtlos auf allen mobilen Bildschirmen an.
+* **Unterstützung aller 6 Design-Stile auf Mobilgeräten:** Vollwertiges Nutzererlebnis auf Smartphones & Tablets.
+
+### 📊 5. Visuelles Kosten- & Sparten-Diagramm
 * **Interaktives Balkendiagramm:** Visuelle Aufschlüsselung der jährlichen Gesamtausgaben nach Versicherungskategorie (z.B. *Kfz, Privathaftpflicht, Hausrat, Rechtsschutz*).
 * **Individuell Ein-/Ausschaltbar:** Jeder Benutzer kann das Diagramm in seinen persönlichen Einstellungen (*Einstellungen ➔ Design & Erscheinungsbild*) beliebig aktivieren oder deaktivieren.
 * **Interaktive Sparten-Filter:** Ein Klick auf ein Segment im Diagramm oder einen Sparten-Chip filtert die Verträge sofort in Echtzeit.
