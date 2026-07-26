@@ -424,7 +424,7 @@ def export_user_backup(
 
     try:
         # Get user insurances
-        user_insurances = db.query(models.Insurance).filter(models.Insurance.user_id == target_user.id).all()
+        user_insurances = db.query(models.Insurance).filter(models.Insurance.owner_id == target_user.id).all()
         insurance_ids = [ins.id for ins in user_insurances]
 
         # Get user documents
@@ -449,16 +449,18 @@ def export_user_backup(
                 for ins in user_insurances:
                     ins_dict = {
                         "id": ins.id,
+                        "name": ins.name,
                         "company": ins.company,
-                        "insurance_type": ins.insurance_type,
-                        "policy_number": ins.policy_number,
+                        "insurance_number": ins.insurance_number,
                         "start_date": ins.start_date.isoformat() if ins.start_date else None,
                         "end_date": ins.end_date.isoformat() if ins.end_date else None,
+                        "cancellation_date": ins.cancellation_date.isoformat() if ins.cancellation_date else None,
                         "cost": ins.cost,
                         "payment_cycle": ins.payment_cycle,
                         "category": ins.category,
+                        "contact_info": ins.contact_info,
                         "notes": ins.notes,
-                        "coverage_details": json.loads(ins.coverage_details) if ins.coverage_details else None
+                        "coverage_details": ins.coverage_details
                     }
                     insurances_list.append(ins_dict)
                 zf.writestr("insurances.json", json.dumps(insurances_list, indent=2))
@@ -469,18 +471,20 @@ def export_user_backup(
                     doc_dict = {
                         "id": doc.id,
                         "insurance_id": doc.insurance_id,
-                        "file_name": doc.file_name,
-                        "file_path": doc.file_path,
-                        "file_type": doc.file_type,
+                        "filename": doc.filename,
+                        "original_filename": doc.original_filename,
                         "custom_name": doc.custom_name,
-                        "uploaded_at": doc.uploaded_at.isoformat() if doc.uploaded_at else None
+                        "doc_type": doc.doc_type,
+                        "upload_date": doc.upload_date.isoformat() if doc.upload_date else None
                     }
                     documents_list.append(doc_dict)
 
                     # Add physical file if exists
-                    if os.path.exists(doc.file_path):
-                        arc_file = os.path.join("files", os.path.basename(doc.file_path))
-                        zf.write(doc.file_path, arcname=arc_file)
+                    if doc.filename:
+                        phys_path = os.path.join(DOCUMENTS_DIR, doc.filename)
+                        if os.path.exists(phys_path):
+                            arc_file = os.path.join("files", doc.filename)
+                            zf.write(phys_path, arcname=arc_file)
 
                 zf.writestr("documents.json", json.dumps(documents_list, indent=2))
 
@@ -587,7 +591,7 @@ def import_user_backup(
 
             # Load insurances.json
             insurances_json_path = os.path.join(extract_dir, "insurances.json")
-            ins_id_mapping = {} # old_id -> new_insurance_obj
+            ins_id_mapping = {} # old_id -> new_insurance_id
             ins_count = 0
 
             if os.path.exists(insurances_json_path):
@@ -597,20 +601,22 @@ def import_user_backup(
                 for ins_dict in ins_list:
                     s_date = datetime.date.fromisoformat(ins_dict["start_date"]) if ins_dict.get("start_date") else None
                     e_date = datetime.date.fromisoformat(ins_dict["end_date"]) if ins_dict.get("end_date") else None
-                    cov_details = json.dumps(ins_dict["coverage_details"]) if ins_dict.get("coverage_details") else None
+                    c_date = datetime.date.fromisoformat(ins_dict["cancellation_date"]) if ins_dict.get("cancellation_date") else None
 
                     new_ins = models.Insurance(
-                        user_id=dest_user.id,
+                        owner_id=dest_user.id,
+                        name=ins_dict.get("name", "Unbekannter Vertrag"),
                         company=ins_dict.get("company", "Unbekannt"),
-                        insurance_type=ins_dict.get("insurance_type", "Versicherung"),
-                        policy_number=ins_dict.get("policy_number", ""),
+                        insurance_number=ins_dict.get("insurance_number", ""),
                         start_date=s_date,
                         end_date=e_date,
+                        cancellation_date=c_date,
                         cost=ins_dict.get("cost", 0.0),
                         payment_cycle=ins_dict.get("payment_cycle", "monatlich"),
                         category=ins_dict.get("category", "Sonstige"),
+                        contact_info=ins_dict.get("contact_info", ""),
                         notes=ins_dict.get("notes", ""),
-                        coverage_details=cov_details
+                        coverage_details=ins_dict.get("coverage_details", "")
                     )
                     db.add(new_ins)
                     db.commit()
@@ -634,21 +640,21 @@ def import_user_backup(
                     if not new_ins_id:
                         continue
 
-                    old_file_name = doc_dict.get("file_name", "document.pdf")
-                    extracted_file = os.path.join(extract_dir, "files", os.path.basename(doc_dict.get("file_path", "")))
+                    old_filename = doc_dict.get("filename", "document.pdf")
+                    extracted_file = os.path.join(extract_dir, "files", old_filename)
 
-                    new_file_name = f"{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}_{old_file_name}"
-                    new_file_path = os.path.join(DOCUMENTS_DIR, new_file_name)
+                    new_filename = f"{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}_{old_filename}"
+                    new_file_path = os.path.join(DOCUMENTS_DIR, new_filename)
 
                     if os.path.exists(extracted_file):
                         shutil.copy2(extracted_file, new_file_path)
 
                     new_doc = models.Document(
                         insurance_id=new_ins_id,
-                        file_name=old_file_name,
-                        file_path=new_file_path,
-                        file_type=doc_dict.get("file_type", "application/pdf"),
-                        custom_name=doc_dict.get("custom_name", "")
+                        filename=new_filename,
+                        original_filename=doc_dict.get("original_filename", old_filename),
+                        custom_name=doc_dict.get("custom_name", ""),
+                        doc_type=doc_dict.get("doc_type", "")
                     )
                     db.add(new_doc)
                     doc_count += 1
