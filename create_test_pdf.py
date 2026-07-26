@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Dennis Guse. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in project root.
+
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle

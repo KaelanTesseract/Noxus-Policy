@@ -1,4 +1,9 @@
 "use client"
+/**
+ * Copyright (c) 2026 Dennis Guse. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in project root.
+ */
+
 import { useEffect, useState, createContext, useContext } from "react";
 
 export type ColorTheme = "indigo" | "emerald" | "violet" | "cyan" | "amber" | "rose";

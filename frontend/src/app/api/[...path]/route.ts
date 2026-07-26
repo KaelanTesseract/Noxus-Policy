@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2026 Dennis Guse. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in project root.
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 
 export const maxDuration = 300; // 5 minutes max execution time for AI processing

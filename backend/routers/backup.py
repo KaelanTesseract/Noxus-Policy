@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Dennis Guse. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in project root.
+
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Response
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session

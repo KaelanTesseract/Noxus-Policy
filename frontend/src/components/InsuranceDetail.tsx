@@ -1,4 +1,9 @@
 "use client"
+/**
+ * Copyright (c) 2026 Dennis Guse. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in project root.
+ */
+
 import { useState, useEffect } from "react";
 import { api, getAuthHeaders } from "@/lib/api";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";

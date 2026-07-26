@@ -1,4 +1,9 @@
 "use client"
+/**
+ * Copyright (c) 2026 Dennis Guse. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in project root.
+ */
+
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Navbar } from "@/components/Navbar";

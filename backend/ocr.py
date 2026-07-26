@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Dennis Guse. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in project root.
+
 import pytesseract
 from PIL import Image
 from pdf2image import convert_from_path

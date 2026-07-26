@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright (c) 2026 Dennis Guse. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in project root.
+
 # ==============================================================================
 # Noxus Policy - Proxmox VE Host LXC 1-Click Creator & Installer
 # (Runs directly in Proxmox VE Host Shell - pve node)
