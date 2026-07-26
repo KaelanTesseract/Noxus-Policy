@@ -1,7 +1,7 @@
 # 🛡️ Noxus Policy — KI-gestützte Dokumentenanalyse & Versicherungsmanager
 
 <p align="center">
-  <img src="frontend/public/logo.png" alt="Noxus Policy Logo" width="130" />
+  <img src="logo.png" alt="Noxus Policy Logo" width="130" />
 </p>
 
 <p align="center">
