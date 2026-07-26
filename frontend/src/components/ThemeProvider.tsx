@@ -88,23 +88,29 @@ interface ThemeContextType {
   setTheme: (t: ColorTheme) => void;
   styleTheme: StyleTheme;
   setStyleTheme: (s: StyleTheme) => void;
+  showCostChart: boolean;
+  setShowCostChart: (show: boolean) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType>({
   theme: "indigo",
   setTheme: () => {},
   styleTheme: "dark-glass",
-  setStyleTheme: () => {}
+  setStyleTheme: () => {},
+  showCostChart: true,
+  setShowCostChart: () => {}
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<ColorTheme>("indigo");
   const [styleTheme, setStyleThemeState] = useState<StyleTheme>("dark-glass");
+  const [showCostChart, setShowCostChartState] = useState<boolean>(true);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedTheme = localStorage.getItem("app-theme") as ColorTheme;
       const savedStyle = localStorage.getItem("app-style") as StyleTheme;
+      const savedChart = localStorage.getItem("app-show-cost-chart");
 
       if (savedTheme && THEMES.some(t => t.id === savedTheme)) {
         setThemeState(savedTheme);
@@ -118,6 +124,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         document.documentElement.setAttribute("data-style", savedStyle);
       } else {
         document.documentElement.setAttribute("data-style", "dark-glass");
+      }
+
+      if (savedChart !== null) {
+        setShowCostChartState(savedChart === "true");
       }
     }
   }, []);
@@ -138,8 +148,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const setShowCostChart = (show: boolean) => {
+    setShowCostChartState(show);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("app-show-cost-chart", String(show));
+    }
+  };
+
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, styleTheme, setStyleTheme }}>
+    <ThemeContext.Provider value={{ theme, setTheme, styleTheme, setStyleTheme, showCostChart, setShowCostChart }}>
       {children}
     </ThemeContext.Provider>
   );

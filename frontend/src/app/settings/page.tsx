@@ -31,7 +31,7 @@ interface StoredBackup {
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { theme, setTheme, styleTheme, setStyleTheme } = useTheme();
+  const { theme, setTheme, styleTheme, setStyleTheme, showCostChart, setShowCostChart } = useTheme();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [activeTab, setActiveTab] = useState<"general" | "system">("general");
@@ -777,6 +777,30 @@ export default function SettingsPage() {
                         </button>
                       );
                     })}
+                  </div>
+                </div>
+
+                {/* 3. Dashboard-Elemente & Diagramm Toggle */}
+                <div className="pt-4 border-t border-zinc-800/80">
+                  <Label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3 block">
+                    3. Dashboard-Elemente & Diagramme:
+                  </Label>
+                  <div className="flex items-center justify-between p-4 rounded-xl bg-zinc-950/60 border border-zinc-800">
+                    <div>
+                      <Label htmlFor="showCostChartToggle" className="text-sm font-semibold text-white cursor-pointer">
+                        📊 Sparten- & Kosten-Diagramm auf dem Dashboard anzeigen
+                      </Label>
+                      <p className="text-xs text-zinc-400 mt-1">
+                        Aktiviert die visuelle Aufschlüsselung der jährlichen Versicherungskosten nach Sparten im Dashboard.
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      id="showCostChartToggle"
+                      checked={showCostChart}
+                      onChange={(e) => setShowCostChart(e.target.checked)}
+                      className="w-5 h-5 accent-indigo-500 rounded cursor-pointer shrink-0"
+                    />
                   </div>
                 </div>
               </CardContent>

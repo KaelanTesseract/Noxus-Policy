@@ -79,6 +79,7 @@ Das System prüft im Hintergrund automatisch, ob eine neue Version auf GitHub ve
 
 ### 📊 2. Visuelles Kosten- & Sparten-Diagramm
 * **Interaktives Balkendiagramm:** Visuelle Aufschlüsselung der jährlichen Gesamtausgaben nach Versicherungskategorie (z.B. *Kfz, Privathaftpflicht, Hausrat, Rechtsschutz*).
+* **Individuell Ein-/Ausschaltbar:** Jeder Benutzer kann das Diagramm in seinen persönlichen Einstellungen (*Einstellungen ➔ Design & Erscheinungsbild*) beliebig aktivieren oder deaktivieren.
 * **Interaktive Sparten-Filter:** Ein Klick auf ein Segment im Diagramm oder einen Sparten-Chip filtert die Verträge sofort in Echtzeit.
 * **Echtzeit-Suchleiste & Sortierung:** Schnellsuche nach Vertragsnamen, Gesellschaft oder Scheinnummer sowie Sortierung nach Kündigungsfrist, Kosten oder Alphabet.
 

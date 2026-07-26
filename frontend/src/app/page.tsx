@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { UploadModal } from "@/components/UploadModal";
 import { CompanyLogo } from "@/components/CompanyLogo";
+import { useTheme } from "@/components/ThemeProvider";
 
 const CATEGORY_COLORS = [
   { bg: "bg-indigo-500", text: "text-indigo-400", border: "border-indigo-500/30", lightBg: "bg-indigo-500/10" },
@@ -24,6 +25,7 @@ const CATEGORY_COLORS = [
 
 export default function Dashboard() {
   const router = useRouter();
+  const { showCostChart } = useTheme();
   const [insurances, setInsurances] = useState<any[]>([]);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -212,7 +214,7 @@ export default function Dashboard() {
         </div>
 
         {/* Visual Category & Cost Distribution Diagram */}
-        {categoryList.length > 0 && (
+        {showCostChart && categoryList.length > 0 && (
           <Card className="border-zinc-800/80 bg-zinc-900/40 backdrop-blur-md overflow-hidden">
             <CardHeader className="pb-3 border-b border-zinc-800/60">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
