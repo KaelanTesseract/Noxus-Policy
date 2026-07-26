@@ -86,11 +86,13 @@ ln -sf /opt/versicherungsmanager/update.sh /usr/local/bin/policy-update 2>/dev/n
 # Step 4: Docker Container Rebuild without cache (80%)
 render_progress 80 100 "4/5: Baue und aktualisiere Docker-Container (Frontend + Backend)..."
 docker compose down --remove-orphans >/dev/null 2>&1 || true
-docker compose build --no-cache >/dev/null 2>&1 || true
-docker compose up -d >/dev/null 2>&1 || docker compose up -d
+docker compose build --no-cache
+docker compose up -d
 
-# Step 5: Clean Docker Cache (100%)
-render_progress 100 100 "5/5: Bereinige alten Build-Speicher..."
+# Step 5: Wait for Backend startup & Clean Docker Cache (100%)
+render_progress 95 100 "5/5: Prüfe Container-Status & Bereinige Speicher..."
+sleep 3
+docker compose ps || true
 docker image prune -f >/dev/null 2>&1 || true
 echo -e "\n"
 
