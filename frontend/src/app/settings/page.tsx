@@ -40,6 +40,8 @@ export default function SettingsPage() {
   const [email, setEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [emailNotificationsEnabled, setEmailNotificationsEnabled] = useState(true);
+  const [isSmtpConfigured, setIsSmtpConfigured] = useState(false);
   const [profileMsg, setProfileMsg] = useState("");
   const [profileErr, setProfileErr] = useState("");
   const [profileLoading, setProfileLoading] = useState(false);
@@ -122,6 +124,14 @@ export default function SettingsPage() {
       const user = await api.get("/users/me");
       setCurrentUser(user);
       setEmail(user.email);
+      setEmailNotificationsEnabled(user.email_notifications_enabled ?? true);
+
+      try {
+        const smtpStatus = await api.get("/users/smtp-status");
+        setIsSmtpConfigured(!!smtpStatus.configured);
+      } catch (e) {
+        setIsSmtpConfigured(false);
+      }
 
       if (user.is_admin) {
         const usersList = await api.get("/users/all");
@@ -848,6 +858,32 @@ export default function SettingsPage() {
                         onChange={e => setConfirmPassword(e.target.value)}
                         className="bg-zinc-950/50 border-zinc-800"
                       />
+                    </div>
+                  )}
+
+                  {isSmtpConfigured && (
+                    <div className="pt-3 border-t border-zinc-800/80 space-y-2">
+                      <div className="flex items-center justify-between p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800">
+                        <div>
+                          <Label htmlFor="emailNotificationsToggle" className="text-xs font-semibold text-white cursor-pointer block">
+                            📧 E-Mail Benachrichtigungen für Kündigungsfristen
+                          </Label>
+                          <p className="text-[11px] text-zinc-400 mt-0.5">
+                            Erhalte automatische Vorwarnungen per E-Mail, wenn eine Kündigungsfrist in den nächsten 30 Tagen abläuft.
+                          </p>
+                        </div>
+                        <input
+                          type="checkbox"
+                          id="emailNotificationsToggle"
+                          checked={emailNotificationsEnabled}
+                          onChange={(e) => {
+                            const val = e.target.checked;
+                            setEmailNotificationsEnabled(val);
+                            api.put("/users/profile", { email_notifications_enabled: val }).catch(console.error);
+                          }}
+                          className="w-4 h-4 accent-emerald-500 rounded cursor-pointer shrink-0 ml-3"
+                        />
+                      </div>
                     </div>
                   )}
 

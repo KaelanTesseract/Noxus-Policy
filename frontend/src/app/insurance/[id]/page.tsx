@@ -245,6 +245,43 @@ export default function InsuranceDetailPage() {
     return null;
   }
 
+  const handleDownloadIcal = () => {
+    if (!insurance) return;
+    const deadlineStr = insurance.cancellation_date || insurance.end_date;
+    if (!deadlineStr) {
+      alert("Für diese Versicherung ist keine Kündigungsfrist eingetragen.");
+      return;
+    }
+
+    const dateObj = new Date(deadlineStr);
+    const formattedDate = dateObj.toISOString().replace(/-|:|\.\d+/g, "").substring(0, 8);
+
+    const icsContent = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//Noxus Policy//DE",
+      "CALSCALE:GREGORIAN",
+      "BEGIN:VEVENT",
+      `SUMMARY:⏰ Kündigungsfrist: ${insurance.name}`,
+      `DESCRIPTION:Kündigungsfrist für ${insurance.name} bei ${insurance.company || "Gesellschaft k.A."}. Schein-Nr: ${insurance.insurance_number || "k.A."}`,
+      `DTSTART;VALUE=DATE:${formattedDate}`,
+      `DTEND;VALUE=DATE:${formattedDate}`,
+      "STATUS:CONFIRMED",
+      "END:VEVENT",
+      "END:VCALENDAR"
+    ].join("\r\n");
+
+    const blob = new Blob([icsContent], { type: "text/calendar;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Kuendigung_${(insurance.name || "Versicherung").replace(/[^a-zA-Z0-9]/g, "_")}.ics`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-6 flex-1">
       <Navbar userEmail={currentUser?.email} />
@@ -274,9 +311,18 @@ export default function InsuranceDetailPage() {
               </p>
             </div>
           </div>
-          <Button variant="outline" onClick={() => router.push("/")} className="border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-300">
-            ← Zurück zur Übersicht
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button 
+              onClick={handleDownloadIcal} 
+              variant="outline" 
+              className="border-amber-800/80 bg-amber-950/40 hover:bg-amber-900/50 text-amber-300 font-semibold text-xs transition-all shadow-md"
+            >
+              📅 Kalender-Termin (.ics)
+            </Button>
+            <Button variant="outline" onClick={() => router.push("/")} className="border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-300 text-xs">
+              ← Zurück
+            </Button>
+          </div>
         </div>
 
         {/* Content Layout */}

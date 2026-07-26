@@ -146,6 +146,9 @@ def update_profile(
         current_user.hashed_password = auth.get_password_hash(payload.new_password.strip())
         current_user.must_change_password = False
 
+    if payload.email_notifications_enabled is not None:
+        current_user.email_notifications_enabled = payload.email_notifications_enabled
+
     try:
         db.commit()
         db.refresh(current_user)
@@ -153,6 +156,12 @@ def update_profile(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=f"Fehler beim Speichern: {str(e)}")
+
+@router.get("/smtp-status")
+def get_smtp_status(db: Session = Depends(get_db)):
+    smtp_server = get_smtp_setting(db, "smtp_server", "")
+    is_configured = bool(smtp_server and smtp_server.strip())
+    return {"configured": is_configured}
 
 @router.get("/smtp-config")
 def get_smtp_config(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_active_user)):

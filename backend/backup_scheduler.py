@@ -187,12 +187,61 @@ def check_and_run_scheduled_backup():
         db.close()
 
 
+def check_and_send_cancellation_notifications():
+    """Checks for upcoming cancellation deadlines and sends email notifications to users who opted in."""
+    db = SessionLocal()
+    try:
+        from routers.users import send_email_message, get_smtp_setting
+        smtp_server = get_smtp_setting(db, "smtp_server", "")
+        if not smtp_server or not smtp_server.strip():
+            return
+
+        users = db.query(models.User).filter(models.User.email_notifications_enabled == True).all()
+        today = datetime.date.today()
+
+        for user in users:
+            if not user.email or "@" not in user.email:
+                continue
+
+            insurances = db.query(models.Insurance).filter(models.Insurance.owner_id == user.id).all()
+            upcoming = []
+            for ins in insurances:
+                if ins.cancellation_date:
+                    delta_days = (ins.cancellation_date - today).days
+                    if 0 <= delta_days <= 30:
+                        upcoming.append((ins, delta_days))
+
+            if upcoming:
+                lines = [f"Hallo {user.email},\n\nhier ist deine Fristen-Erinnerung von Noxus Policy:\n"]
+                for ins, days in upcoming:
+                    company_name = ins.company or "Gesellschaft k.A."
+                    lines.append(f"• {ins.name} ({company_name}): Kündigungsfrist am {ins.cancellation_date.strftime('%d.%m.%Y')} (in {days} Tagen)")
+                lines.append("\nBitte überprüfe deine Verträge rechtzeitig in deiner Noxus Policy App.\n\nViele Grüße,\nDein Noxus Policy Team")
+                
+                content = "\n".join(lines)
+                try:
+                    send_email_message(user.email, f"⏰ Kündigungsfrist-Erinnerung ({len(upcoming)} Verträge)", content, db)
+                    print(f"[Notifier] Sent cancellation reminder email to {user.email}")
+                except Exception as ne:
+                    print(f"[Notifier] Failed to send email to {user.email}: {ne}")
+    except Exception as e:
+        print(f"[Notifier] Error checking cancellation notifications: {e}")
+    finally:
+        db.close()
+
 def start_scheduler_thread():
     def loop():
         print("[Backup-Scheduler] Background scheduler loop started.")
+        last_notification_check = 0
         while True:
             try:
                 check_and_run_scheduled_backup()
+                
+                # Run cancellation notification check once every 24 hours (86400 seconds)
+                now = time.time()
+                if now - last_notification_check > 86400:
+                    check_and_send_cancellation_notifications()
+                    last_notification_check = now
             except Exception as e:
                 print(f"[Backup-Scheduler] Loop error: {e}")
             time.sleep(60) # Check every 60 seconds

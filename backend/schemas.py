@@ -23,6 +23,7 @@ class AdminInitialSetupPayload(BaseModel):
 class ProfileUpdatePayload(BaseModel):
     email: Optional[str] = None
     new_password: Optional[str] = None
+    email_notifications_enabled: Optional[bool] = None
 
 class ForgotPasswordPayload(BaseModel):
     email: str
@@ -35,6 +36,7 @@ class UserResponse(UserBase):
     id: int
     is_admin: bool
     must_change_password: bool
+    email_notifications_enabled: Optional[bool] = True
     class Config:
         from_attributes = True
 

@@ -12,7 +12,7 @@
 <p align="center">
   <a href="#-proxmox-ve--linux-1-klick-installation"><img src="https://img.shields.io/badge/Proxmox_VE-Helper_Script-orange.svg?style=for-the-badge&logo=proxmox" alt="Proxmox Script"></a>
   <a href="#-tech-stack"><img src="https://img.shields.io/badge/Docker-Ready-2496ED.svg?style=for-the-badge&logo=docker" alt="Docker"></a>
-  <a href="#-tech-stack"><img src="https://img.shields.io/badge/Next.js_16-v1.0.3-black.svg?style=for-the-badge&logo=next.js" alt="Next.js"></a>
+  <a href="#-tech-stack"><img src="https://img.shields.io/badge/Next.js_16-v1.0.4-black.svg?style=for-the-badge&logo=next.js" alt="Next.js"></a>
   <a href="#-tech-stack"><img src="https://img.shields.io/badge/FastAPI-Python-009688.svg?style=for-the-badge&logo=fastapi" alt="FastAPI"></a>
   <a href="#-lokale-ki-engine-qwen25-15b"><img src="https://img.shields.io/badge/Local_AI-Qwen2.5_1.5B-purple.svg?style=for-the-badge" alt="Local AI"></a>
 </p>
@@ -76,6 +76,11 @@ Das System prüft im Hintergrund automatisch, ob eine neue Version auf GitHub ve
 * **Erster Admin-Setup (`/admin-setup`):** Sichere Ersteinrichtung mit erzwungener Passwort-Änderung für den ersten Administrator.
 * **Benutzerregistrierung & Admin-Panel:** Admins können neue Benutzer anlegen, Passwörter zurücksetzen und Systemeinstellungen verwalten.
 * **Automatische Session-Abmeldung (`/session-expired`):** Läuft eine Sitzung ab (401 Unauthorized), wird der Nutzer auf eine Infoseite weitergeleitet und automatisch nach 5 Sekunden zum Login zurückgeführt.
+
+### 📅 1. iCal-Kalender-Export & E-Mail-Erinnerungen für Kündigungsfristen
+* **1-Klick iCal-Export (.ics):** In der Detailansicht jeder Versicherung kann per Button ein `.ics`-Kalendertermin generiert werden, der sich direkt in **Apple Kalender, Google Calendar oder Outlook** importieren lässt.
+* **Automatische E-Mail-Vorwarnungen:** Ein Hintergrund-Service benachrichtigt Nutzer automatisch 30 Tage vor Ablauf einer Kündigungsfrist per E-Mail.
+* **Bedingte Benutzer-Option:** Die E-Mail-Benachrichtigungsoption erscheint in den persönlichen Einstellungen jedes Benutzers nur dann, wenn der Administrator einen SMTP-Server hinterlegt hat. Jeder Nutzer kann die Benachrichtigung selbstständig ein- oder ausschalten.
 
 ### 📊 2. Visuelles Kosten- & Sparten-Diagramm
 * **Interaktives Balkendiagramm:** Visuelle Aufschlüsselung der jährlichen Gesamtausgaben nach Versicherungskategorie (z.B. *Kfz, Privathaftpflicht, Hausrat, Rechtsschutz*).

@@ -75,6 +75,12 @@ def startup_db_init():
             if "doc_type" not in doc_cols:
                 conn.execute(text("ALTER TABLE documents ADD COLUMN doc_type VARCHAR"))
 
+            # users table
+            res_usr = conn.execute(text("PRAGMA table_info(users)")).fetchall()
+            usr_cols = [r[1] for r in res_usr]
+            if "email_notifications_enabled" not in usr_cols:
+                conn.execute(text("ALTER TABLE users ADD COLUMN email_notifications_enabled BOOLEAN DEFAULT 1"))
+
             conn.commit()
     except Exception as mig_err:
         print(f"Database auto-migration notice: {mig_err}")

@@ -13,6 +13,7 @@ class User(Base):
     hashed_password = Column(String)
     is_admin = Column(Boolean, default=False)
     must_change_password = Column(Boolean, default=False)
+    email_notifications_enabled = Column(Boolean, default=True)
     
     insurances = relationship("Insurance", back_populates="owner")
 
