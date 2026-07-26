@@ -12,7 +12,7 @@
 <p align="center">
   <a href="#-proxmox-ve--linux-1-klick-installation"><img src="https://img.shields.io/badge/Proxmox_VE-Helper_Script-orange.svg?style=for-the-badge&logo=proxmox" alt="Proxmox Script"></a>
   <a href="#-tech-stack"><img src="https://img.shields.io/badge/Docker-Ready-2496ED.svg?style=for-the-badge&logo=docker" alt="Docker"></a>
-  <a href="#-tech-stack"><img src="https://img.shields.io/badge/Next.js_16-v1.0.2-black.svg?style=for-the-badge&logo=next.js" alt="Next.js"></a>
+  <a href="#-tech-stack"><img src="https://img.shields.io/badge/Next.js_16-v1.0.3-black.svg?style=for-the-badge&logo=next.js" alt="Next.js"></a>
   <a href="#-tech-stack"><img src="https://img.shields.io/badge/FastAPI-Python-009688.svg?style=for-the-badge&logo=fastapi" alt="FastAPI"></a>
   <a href="#-lokale-ki-engine-qwen25-15b"><img src="https://img.shields.io/badge/Local_AI-Qwen2.5_1.5B-purple.svg?style=for-the-badge" alt="Local AI"></a>
 </p>
@@ -77,7 +77,12 @@ Das System prüft im Hintergrund automatisch, ob eine neue Version auf GitHub ve
 * **Benutzerregistrierung & Admin-Panel:** Admins können neue Benutzer anlegen, Passwörter zurücksetzen und Systemeinstellungen verwalten.
 * **Automatische Session-Abmeldung (`/session-expired`):** Läuft eine Sitzung ab (401 Unauthorized), wird der Nutzer auf eine Infoseite weitergeleitet und automatisch nach 5 Sekunden zum Login zurückgeführt.
 
-### 💾 2. Auto-Backup & Wiederherstellungs-System
+### 📊 2. Visuelles Kosten- & Sparten-Diagramm
+* **Interaktives Balkendiagramm:** Visuelle Aufschlüsselung der jährlichen Gesamtausgaben nach Versicherungskategorie (z.B. *Kfz, Privathaftpflicht, Hausrat, Rechtsschutz*).
+* **Interaktive Sparten-Filter:** Ein Klick auf ein Segment im Diagramm oder einen Sparten-Chip filtert die Verträge sofort in Echtzeit.
+* **Echtzeit-Suchleiste & Sortierung:** Schnellsuche nach Vertragsnamen, Gesellschaft oder Scheinnummer sowie Sortierung nach Kündigungsfrist, Kosten oder Alphabet.
+
+### 💾 3. Auto-Backup & Wiederherstellungs-System
 * **Automatisches Vorab-Backup:** Bei jedem System-Update per `update` wird eine Sicherungskopie der Datenbank unter `/opt/versicherungsmanager/backups/insurance_backup_DATUM_UHRZEIT.db` angelegt.
 * **Manuelle & Geplante Sicherung:** Über die Web-Oberfläche (`/settings` ➔ Systemeinstellungen) können Admins jederzeit 1-Klick-Datenbank-Sicherungen auslösen oder herunterladen.
 
