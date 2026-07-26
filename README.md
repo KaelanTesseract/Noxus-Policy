@@ -98,24 +98,24 @@ Das System prüft im Hintergrund automatisch, ob eine neue Version auf GitHub ve
 * **Interaktive Sparten-Filter:** Ein Klick auf ein Segment im Diagramm oder einen Sparten-Chip filtert die Verträge sofort in Echtzeit.
 * **Echtzeit-Suchleiste & Sortierung:** Schnellsuche nach Vertragsnamen, Gesellschaft oder Scheinnummer sowie Sortierung nach Kündigungsfrist, Kosten oder Alphabet.
 
-### 💾 4. Auto-Backup & Wiederherstellungs-System
+### 💾 6. Auto-Backup & Wiederherstellungs-System
 * **Automatisches Vorab-Backup:** Bei jedem System-Update per `update` wird eine Sicherungskopie der Datenbank unter `/opt/versicherungsmanager/backups/insurance_backup_DATUM_UHRZEIT.db` angelegt.
 * **Manuelle & Geplante Sicherung:** Über die Web-Oberfläche (`/settings` ➔ Systemeinstellungen) können Admins jederzeit 1-Klick-Datenbank-Sicherungen auslösen oder herunterladen.
 
-### 🤖 5. Lokale KI-Engine (Qwen2.5-1.5B via Llama-cpp)
+### 🤖 7. Lokale KI-Engine (Qwen2.5-1.5B via Llama-cpp)
 * **100% Lokal & Privat:** Kein Versenden vertraulicher Versicherungsdokumente an externe Cloud-APIs.
 * **Intelligente Datensatz-Erkennung:** Extraktion von *Gesellschaft, Polizzen-Nummer, Kündigungsfrist, Ablaufdatum, Beiträgen & Zahlungsintervallen*.
 * **Semantische Leistungs-Analyse:** Auswertung komplexer Deckungsbausteine als saubere Nomen-Stichpunkte in Klammern.
 
-### ⚡ 6. Dual-Engine & Neutrales Branding
+### ⚡ 8. Dual-Engine & Neutrales Branding
 * **Admin-Toggle in den Einstellungen:** Switsche beliebig zwischen KI-Analyse und klassischer OCR.
 * **Dynamisches Branding:** Bei deaktivierter KI werden sämtliche `[AI]`-Badges und KI-Erwähnungen in der gesamten Oberfläche neutralisiert.
 
-### 🏢 7. Automatisches Firmen-Logo & DACH-Abdeckung (70+ Versicherer)
+### 🏢 9. Automatisches Firmen-Logo & DACH-Abdeckung (70+ Versicherer)
 * **Automatische Firmen-Logos:** Erkennt Gesellschaften (HUK24, Allianz, AXA, Generali, ERGO, DEVK, Barmenia u.v.m.) und lädt die Marken-Logos transparent ohne manuelles Hochladen.
 * **Sämtliche Versicherungssparten:** Kfz, Privathaftpflicht, Hausrat, Wohngebäude, Berufsunfähigkeit (BU), Rechtsschutz, Zahnzusatz, Krankenkasse, Tierhalter- & Reiseversicherungen.
 
-### 🎨 8. 6 Wunderschöne Design-Themen & Akzentfarben
+### 🎨 10. 6 Wunderschöne Design-Themen & Akzentfarben
 Jeder Benutzer kann unter **Einstellungen ➔ Design & Erscheinungsbild** sein persönliches Layout wählen:
 * ☀️ **Klassisch Business (Hell):** Strahlend helle Oberfläche mit weißen Karten & klaren Kontrasten.
 * 🌙 **Dark Neon Glass (Standard):** Modernes dunkles Glasmorphismus-Design mit Neoneffekten.
