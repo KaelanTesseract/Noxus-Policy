@@ -24,3 +24,9 @@ backups/
 .env
 .env.local
 *.log
+
+# Scratch & Test Files
+test_*.py
+create_test_*.py
+Test_*.pdf
+
