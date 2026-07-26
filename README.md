@@ -25,7 +25,7 @@ Nach der Installation ist das System mit folgenden Standard-Zugangsdaten erreich
 
 | Parameter | Standard-Wert |
 | :--- | :--- |
-| **Benutzername / E-Mail** | `admin@admin.de` |
+| **Benutzername / E-Mail** | `admin` *(oder `Admin`)* |
 | **Passwort** | `admin` |
 
 > 🔒 **Sicherheitshinweis:** Beim allerersten Anmelden wirst du aus Sicherheitsgründen automatisch auf die Einrichtungsseite geleitet, um dein persönliches Administrator-Passwort festzulegen.
