@@ -1,7 +1,7 @@
 # 🛡️ Noxus Policy — KI-gestützte Dokumentenanalyse & Versicherungsmanager
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/KaelanTesseract/Noxus-Policy/main/frontend/public/logo.png" alt="Noxus Policy Logo" width="130" />
+  <img src="frontend/public/logo.png" alt="Noxus Policy Logo" width="130" />
 </p>
 
 <p align="center">
@@ -16,6 +16,19 @@
   <a href="#-tech-stack"><img src="https://img.shields.io/badge/FastAPI-Python-009688.svg?style=for-the-badge&logo=fastapi" alt="FastAPI"></a>
   <a href="#-lokale-ki-engine-qwen25-15b"><img src="https://img.shields.io/badge/Local_AI-Qwen2.5_1.5B-purple.svg?style=for-the-badge" alt="Local AI"></a>
 </p>
+
+---
+
+## 🔑 Standard Admin-Zugangsdaten (Erst-Login)
+
+Nach der Installation ist das System mit folgenden Standard-Zugangsdaten erreichbar:
+
+| Parameter | Standard-Wert |
+| :--- | :--- |
+| **Benutzername / E-Mail** | `admin@admin.de` |
+| **Passwort** | `admin` |
+
+> 🔒 **Sicherheitshinweis:** Beim allerersten Anmelden wirst du aus Sicherheitsgründen automatisch auf die Einrichtungsseite geleitet, um dein persönliches Administrator-Passwort festzulegen.
 
 ---
 
