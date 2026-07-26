@@ -22,6 +22,49 @@ interface CancellationModalProps {
   userEmail?: string;
 }
 
+const KNOWN_COMPANY_ADDRESSES: Record<string, string> = {
+  "huk-coburg": "Bahnhofsplatz\n96444 Coburg",
+  "huk24": "Willi-Hussong-Straße 2\n96444 Coburg",
+  "allianz": "Königinstraße 28\n80802 München",
+  "axa": "Colonia-Allee 10-20\n51067 Köln",
+  "ergo": "Victoriaplatz 2\n40477 Düsseldorf",
+  "generali": "Adenauerring 7\n81737 München",
+  "signal iduna": "Joseph-Scherer-Straße 3\n44139 Dortmund",
+  "devk": "Riehler Straße 190\n50735 Köln",
+  "lvm": "Kolde-Ring 21\n48151 Münster",
+  "debeka": "Ferdinand-Sauerbruch-Straße 18\n56073 Koblenz",
+  "r+v": "Raiffeisenplatz 1\n65189 Wiesbaden",
+  "gothaer": "Gothaer Allee 1\n50969 Köln",
+  "barmenia": "Barmenia-Allee 1\n42119 Wuppertal",
+  "cosmosdirekt": "Halbergstraße 50\n66121 Saarbrücken",
+  "hansemerkur": "Siegfried-Wedells-Platz 1\n20354 Hamburg",
+  "vhv": "VHV-Platz 1\n30177 Hannover",
+  "nürnberger": "Ostendstraße 100\n90334 Nürnberg",
+  "zurich": "Platz der Zürcher Versicherung 1\n50674 Köln",
+  "hdi": "HDI-Platz 1\n30659 Hannover",
+  "adac": "Hansastraße 19\n80686 München",
+  "arag": "ARAG-Platz 1\n40472 Düsseldorf",
+  "wgv": "Tübinger Straße 55\n70178 Stuttgart",
+  "provinzial": "Provinzialallee 1\n48159 Münster",
+  "sv sparkassenversicherung": "Löwentorstraße 65\n70376 Stuttgart",
+  "haftpflichtkasse": "Darmstädter Straße 103\n64372 Ober-Ramstadt",
+  "die haftpflichtkasse": "Darmstädter Straße 103\n64372 Ober-Ramstadt",
+  "helvetia": "Berliner Straße 56-58\n60311 Frankfurt am Main",
+  "wwk": "Marsstraße 37\n80335 München",
+  "vgh": "Schiffgraben 4\n30159 Hannover",
+  "concordia": "Karl-Wiechert-Allee 55\n30625 Hannover",
+  "volkswohl bund": "Südwall 37-41\n44137 Dortmund",
+  "alte leipziger": "Alte Leipziger-Platz 1\n61440 Oberursel",
+  "hallesche": "Reinsburgstraße 10\n70178 Stuttgart",
+  "continentale": "Ruhrallee 92\n44139 Dortmund",
+  "janitos": "Im Breitspiel 2-4\n69126 Heidelberg",
+  "baloise": "Ludwig-Erhard-Straße 22\n20459 Hamburg",
+  "techniker krankenkasse": "Bramfelder Straße 140\n22305 Hamburg",
+  "barmer": "Lichtscheider Straße 89\n42285 Wuppertal",
+  "dak-gesundheit": "Nagelsweg 27-31\n20097 Hamburg",
+  "aok": "Rosenthaler Straße 31\n10178 Berlin"
+};
+
 export function CancellationModal({ isOpen, onClose, insurance, userEmail }: CancellationModalProps) {
   const [senderName, setSenderName] = useState("");
   const [senderAddress, setSenderAddress] = useState("");
@@ -37,8 +80,21 @@ export function CancellationModal({ isOpen, onClose, insurance, userEmail }: Can
 
   useEffect(() => {
     if (insurance) {
-      setRecipientCompany(insurance.company || insurance.name || "Versicherungsgesellschaft");
-      setRecipientAddress(insurance.contact_info || "Musterstraße 1\n12345 Musterstadt");
+      const companyName = insurance.company || insurance.name || "Versicherungsgesellschaft";
+      setRecipientCompany(companyName);
+
+      let resolvedAddr = insurance.contact_info;
+      if (!resolvedAddr || resolvedAddr.trim() === "" || resolvedAddr.includes("Musterstraße")) {
+        const companyKey = companyName.toLowerCase();
+        for (const [key, addr] of Object.entries(KNOWN_COMPANY_ADDRESSES)) {
+          if (companyKey.includes(key)) {
+            resolvedAddr = addr;
+            break;
+          }
+        }
+      }
+      setRecipientAddress(resolvedAddr || "[Straße & Hausnummer]\n[PLZ & Ort]");
+
       setInsuranceNumber(insurance.insurance_number || "");
       if (userEmail) {
         setSenderName(userEmail.split("@")[0].replace(/\./g, " "));

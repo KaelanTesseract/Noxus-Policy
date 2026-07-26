@@ -144,6 +144,8 @@ def reanalyze_document(
             ins.end_date = extracted["end_date"]
         if extracted.get("cancellation_date"):
             ins.cancellation_date = extracted["cancellation_date"]
+        if extracted.get("contact_info"):
+            ins.contact_info = extracted["contact_info"]
 
         # Update coverage details with clean formatted AI items
         new_items = extracted.get("coverage_details") or []

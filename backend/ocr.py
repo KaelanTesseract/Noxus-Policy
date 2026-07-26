@@ -122,6 +122,7 @@ def extract_with_mini_ai(text: str) -> dict:
         '  "company": "Name des Versicherers (z.B. HUK-COBURG, HUK24, Allianz, AXA)",\n'
         '  "insurance_type": "Art der Versicherung (z.B. Kfz-Versicherung, Privathaftpflicht)",\n'
         '  "policy_number": "Versicherungsscheinnummer",\n'
+        '  "contact_info": "Vollständige Firmenadresse mit PLZ und Ort (z.B. Bahnhofsplatz, 96444 Coburg)",\n'
         '  "start_date": "YYYY-MM-DD",\n'
         '  "end_date": "YYYY-MM-DD",\n'
         '  "cost": 123.45,\n'
