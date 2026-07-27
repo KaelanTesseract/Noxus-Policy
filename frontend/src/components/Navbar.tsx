@@ -13,9 +13,10 @@ import { api } from "@/lib/api";
 interface NavbarProps {
   userEmail?: string;
   onUploadClick?: () => void;
+  onTaxExportClick?: () => void;
 }
 
-export function Navbar({ userEmail, onUploadClick }: NavbarProps) {
+export function Navbar({ userEmail, onUploadClick, onTaxExportClick }: NavbarProps) {
   const router = useRouter();
   const { theme } = useTheme();
   const [useAi, setUseAi] = useState(true);
@@ -67,6 +68,17 @@ export function Navbar({ userEmail, onUploadClick }: NavbarProps) {
               <span className="w-2 h-2 rounded-full theme-bg-accent"></span>
               <span className="font-medium text-zinc-200">{userEmail}</span>
             </div>
+          )}
+
+          {onTaxExportClick && (
+            <Button
+              onClick={onTaxExportClick}
+              title="Steuererklärungs- & Haushalts-PDF-Export"
+              variant="outline"
+              className="border-sky-800/80 bg-sky-950/40 hover:bg-sky-900/60 text-sky-200 transition-all font-semibold text-xs sm:text-sm px-2.5 sm:px-3.5 py-1.5 flex items-center gap-1.5"
+            >
+              <span>📑 Steuer-Export</span>
+            </Button>
           )}
 
           {onUploadClick && (

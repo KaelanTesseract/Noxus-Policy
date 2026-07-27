@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { UploadModal } from "@/components/UploadModal";
+import { TaxExportModal } from "@/components/TaxExportModal";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { useTheme } from "@/components/ThemeProvider";
 
@@ -28,6 +29,7 @@ export default function Dashboard() {
   const { showCostChart } = useTheme();
   const [insurances, setInsurances] = useState<any[]>([]);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isTaxModalOpen, setIsTaxModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
@@ -150,6 +152,7 @@ export default function Dashboard() {
       <Navbar 
         userEmail={currentUser?.email} 
         onUploadClick={() => setIsUploadModalOpen(true)} 
+        onTaxExportClick={() => setIsTaxModalOpen(true)}
       />
 
       <div className="space-y-6 flex-1">
@@ -452,6 +455,13 @@ export default function Dashboard() {
             if (token) checkAuthAndLoad(token);
           }
         }}
+      />
+
+      <TaxExportModal
+        isOpen={isTaxModalOpen}
+        onClose={() => setIsTaxModalOpen(false)}
+        insurances={insurances}
+        userEmail={currentUser?.email}
       />
     </div>
   );
