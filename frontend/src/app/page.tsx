@@ -288,7 +288,8 @@ export default function Dashboard() {
             <h2 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
               <span>Meine Versicherungs-Policen</span>
               <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700">
-                {filteredInsurances.length} von {insurances.length}
+                <span className="sm:hidden">{filteredInsurances.length} / {insurances.length}</span>
+                <span className="hidden sm:inline">{filteredInsurances.length} von {insurances.length}</span>
               </span>
             </h2>
             <p className="text-xs text-zinc-400 mt-0.5">Durchsuche und verwalte deine aktiv ausgelesenen Verträge</p>

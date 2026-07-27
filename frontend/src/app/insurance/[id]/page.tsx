@@ -378,22 +378,22 @@ export default function InsuranceDetailPage() {
             </div>
           </div>
 
-          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full md:w-auto shrink-0 justify-start md:justify-end">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto shrink-0 justify-start md:justify-end">
             <Button 
               onClick={() => setIsCancellationModalOpen(true)} 
               variant="outline" 
-              className="border-indigo-800/80 bg-indigo-950/40 hover:bg-indigo-900/50 text-indigo-300 font-semibold text-xs transition-all shadow-md flex items-center gap-1.5 flex-1 sm:flex-none justify-center"
+              className="border-indigo-800/80 bg-indigo-950/40 hover:bg-indigo-900/50 text-indigo-300 font-semibold text-xs transition-all shadow-md flex items-center gap-1.5 w-full sm:w-auto justify-center"
             >
               ✍️ Kündigungsschreiben
             </Button>
             <Button 
               onClick={handleDownloadIcal} 
               variant="outline" 
-              className="border-amber-800/80 bg-amber-950/40 hover:bg-amber-900/50 text-amber-300 font-semibold text-xs transition-all shadow-md flex items-center gap-1.5 flex-1 sm:flex-none justify-center"
+              className="border-amber-800/80 bg-amber-950/40 hover:bg-amber-900/50 text-amber-300 font-semibold text-xs transition-all shadow-md flex items-center gap-1.5 w-full sm:w-auto justify-center"
             >
               📅 Kalender-Termin (.ics)
             </Button>
-            <Button variant="outline" onClick={() => router.push("/")} className="border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-300 text-xs flex-1 sm:flex-none justify-center">
+            <Button variant="outline" onClick={() => router.push("/")} className="border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-300 text-xs w-full sm:w-auto justify-center">
               ← Zurück
             </Button>
           </div>
@@ -537,11 +537,11 @@ export default function InsuranceDetailPage() {
                   )}
                   {saveErr && <p className="text-red-400 text-sm">{saveErr}</p>}
 
-                  <div className="flex justify-between items-center pt-4 border-t border-zinc-800/80">
-                    <Button type="button" variant="destructive" onClick={handleDeleteInsurance} className="bg-red-950/80 hover:bg-red-900 text-red-300 border border-red-800 text-xs">
+                  <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center pt-4 border-t border-zinc-800/80 gap-3 w-full">
+                    <Button type="button" variant="destructive" onClick={handleDeleteInsurance} className="bg-red-950/80 hover:bg-red-900 text-red-300 border border-red-800 text-xs w-full sm:w-auto">
                       Versicherung löschen
                     </Button>
-                    <Button type="submit" disabled={saving} className="theme-bg-accent text-white theme-glow">
+                    <Button type="submit" disabled={saving} className="theme-bg-accent text-white theme-glow w-full sm:w-auto">
                       {saving ? "Speichert..." : "Änderungen speichern"}
                     </Button>
                   </div>

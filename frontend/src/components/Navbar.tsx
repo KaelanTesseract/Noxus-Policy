@@ -72,12 +72,13 @@ export function Navbar({ userEmail, onUploadClick }: NavbarProps) {
           {onUploadClick && (
             <Button
               onClick={onUploadClick}
-              className="theme-bg-accent text-white shadow-lg theme-glow transition-all hover:opacity-90 font-medium text-xs sm:text-sm px-2 sm:px-4 py-1.5"
+              title="Dokument hochladen"
+              className="theme-bg-accent text-white shadow-lg theme-glow transition-all hover:opacity-90 font-medium text-xs sm:text-sm px-2.5 sm:px-4 py-1.5"
             >
               <svg className="w-4 h-4 sm:mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
               </svg>
-              <span><span className="hidden sm:inline">Dokument </span>hochladen</span>
+              <span className="hidden sm:inline">Dokument hochladen</span>
             </Button>
           )}
 

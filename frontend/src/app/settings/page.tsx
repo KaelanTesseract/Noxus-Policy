@@ -904,8 +904,8 @@ export default function SettingsPage() {
 
                   {profileErr && <p className="text-red-400 text-sm">{profileErr}</p>}
 
-                  <div className="flex items-center gap-3 pt-2">
-                    <Button type="submit" disabled={profileLoading} className="theme-bg-accent text-white theme-glow">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2 w-full">
+                    <Button type="submit" disabled={profileLoading} className="theme-bg-accent text-white theme-glow w-full sm:w-auto">
                       {profileLoading ? "Speichert..." : "Änderungen speichern"}
                     </Button>
 
@@ -914,7 +914,7 @@ export default function SettingsPage() {
                       variant="outline"
                       disabled={exportingUserId === currentUser.id}
                       onClick={() => handleExportUser(currentUser.id, currentUser.email)}
-                      className="border-zinc-700 bg-zinc-900 text-zinc-300 text-xs hover:bg-zinc-800"
+                      className="border-zinc-700 bg-zinc-900 text-zinc-300 text-xs hover:bg-zinc-800 w-full sm:w-auto"
                     >
                       {exportingUserId === currentUser.id ? "Erstelle Backup..." : "📤 Meine Daten exportieren (.noxususer)"}
                     </Button>
@@ -1110,18 +1110,18 @@ export default function SettingsPage() {
                     </div>
                   )}
 
-                  <div className="flex justify-between items-center pt-2 border-t border-zinc-800/80 gap-3">
+                  <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center pt-2 border-t border-zinc-800/80 gap-3 w-full">
                     <Button
                       type="button"
                       variant="outline"
                       disabled={autoBackupRunning}
                       onClick={handleRunBackupNow}
-                      className="border-indigo-800 bg-indigo-950/50 hover:bg-indigo-900 text-indigo-300 text-xs"
+                      className="border-indigo-800 bg-indigo-950/50 hover:bg-indigo-900 text-indigo-300 text-xs w-full sm:w-auto"
                     >
                       {autoBackupRunning ? "Erstelle Backup..." : "⚡ Sofort Backup auf Server erstellen"}
                     </Button>
 
-                    <Button type="submit" disabled={autoBackupSaving} className="theme-bg-accent text-white theme-glow text-xs font-medium">
+                    <Button type="submit" disabled={autoBackupSaving} className="theme-bg-accent text-white theme-glow text-xs font-medium w-full sm:w-auto">
                       {autoBackupSaving ? "Speichert..." : "Zeitplan & Regeln speichern"}
                     </Button>
                   </div>
