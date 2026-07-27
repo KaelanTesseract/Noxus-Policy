@@ -354,12 +354,12 @@ export default function InsuranceDetailPage() {
 
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Header */}
-        <div className="flex justify-between items-start border-b border-zinc-800/80 pb-5">
-          <div className="flex items-start gap-4">
-            <CompanyLogo company={insurance.company || insurance.name} size="lg" className="mt-1" />
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-5 border-b border-zinc-800/80 pb-5">
+          <div className="flex items-start gap-3 sm:gap-4">
+            <CompanyLogo company={insurance.company || insurance.name} size="lg" className="mt-1 shrink-0" />
             <div>
-              <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-3xl font-bold tracking-tight text-white">{insurance.name}</h1>
+              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">{insurance.name}</h1>
                 <span className="text-xs font-mono px-2.5 py-1 rounded-md theme-bg-accent text-white font-medium shadow-md">
                   {insurance.category || "Versicherung"}
                 </span>
@@ -372,27 +372,28 @@ export default function InsuranceDetailPage() {
                   </span>
                 )}
               </div>
-              <p className="text-sm text-zinc-400 mt-2">
+              <p className="text-xs sm:text-sm text-zinc-400 mt-2">
                 Gesellschaft: <span className="text-zinc-200 font-medium">{insurance.company || "Nicht angegeben"}</span>
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full md:w-auto shrink-0 justify-start md:justify-end">
             <Button 
               onClick={() => setIsCancellationModalOpen(true)} 
               variant="outline" 
-              className="border-indigo-800/80 bg-indigo-950/40 hover:bg-indigo-900/50 text-indigo-300 font-semibold text-xs transition-all shadow-md flex items-center gap-1.5"
+              className="border-indigo-800/80 bg-indigo-950/40 hover:bg-indigo-900/50 text-indigo-300 font-semibold text-xs transition-all shadow-md flex items-center gap-1.5 flex-1 sm:flex-none justify-center"
             >
               ✍️ Kündigungsschreiben
             </Button>
             <Button 
               onClick={handleDownloadIcal} 
               variant="outline" 
-              className="border-amber-800/80 bg-amber-950/40 hover:bg-amber-900/50 text-amber-300 font-semibold text-xs transition-all shadow-md flex items-center gap-1.5"
+              className="border-amber-800/80 bg-amber-950/40 hover:bg-amber-900/50 text-amber-300 font-semibold text-xs transition-all shadow-md flex items-center gap-1.5 flex-1 sm:flex-none justify-center"
             >
               📅 Kalender-Termin (.ics)
             </Button>
-            <Button variant="outline" onClick={() => router.push("/")} className="border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-300 text-xs">
+            <Button variant="outline" onClick={() => router.push("/")} className="border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-300 text-xs flex-1 sm:flex-none justify-center">
               ← Zurück
             </Button>
           </div>

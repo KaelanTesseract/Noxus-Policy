@@ -43,17 +43,17 @@ export function Navbar({ userEmail, onUploadClick }: NavbarProps) {
             <img src="/logo.png" alt="Noxus Policy Logo" className="h-9 w-auto object-contain rounded-lg drop-shadow-md" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <span className="font-extrabold text-base sm:text-xl tracking-wide bg-gradient-to-r from-white via-zinc-100 to-zinc-300 bg-clip-text text-transparent">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className="font-extrabold text-sm sm:text-base md:text-xl tracking-wide bg-gradient-to-r from-white via-zinc-100 to-zinc-300 bg-clip-text text-transparent">
                 NOXUS <span className="theme-text-accent">POLICY</span>
               </span>
               {useAi && (
-                <span className="text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold theme-bg-accent text-white uppercase tracking-widest shadow-sm">
+                <span className="text-[8px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded font-mono font-semibold theme-bg-accent text-white uppercase tracking-widest shadow-sm">
                   AI
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-zinc-400 font-mono">
+            <div className="hidden sm:flex items-center gap-1.5 text-[10px] sm:text-[11px] text-zinc-400 font-mono">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
               SYSTEM ONLINE
             </div>
@@ -61,7 +61,7 @@ export function Navbar({ userEmail, onUploadClick }: NavbarProps) {
         </div>
 
         {/* Right Navigation & Actions */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3">
           {userEmail && (
             <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-900/80 border border-zinc-800 text-xs text-zinc-300">
               <span className="w-2 h-2 rounded-full theme-bg-accent"></span>
@@ -72,9 +72,9 @@ export function Navbar({ userEmail, onUploadClick }: NavbarProps) {
           {onUploadClick && (
             <Button
               onClick={onUploadClick}
-              className="theme-bg-accent text-white shadow-lg theme-glow transition-all hover:opacity-90 font-medium text-xs sm:text-sm px-2.5 sm:px-4 py-1.5"
+              className="theme-bg-accent text-white shadow-lg theme-glow transition-all hover:opacity-90 font-medium text-xs sm:text-sm px-2 sm:px-4 py-1.5"
             >
-              <svg className="w-4 h-4 mr-1 sm:mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <svg className="w-4 h-4 sm:mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
               </svg>
               <span><span className="hidden sm:inline">Dokument </span>hochladen</span>

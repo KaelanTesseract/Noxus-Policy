@@ -633,16 +633,16 @@ export default function SettingsPage() {
 
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex justify-between items-center border-b border-zinc-800/80 pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-zinc-800/80 pb-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-white">Einstellungen</h1>
-            <p className="text-sm text-zinc-400 mt-1">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">Einstellungen</h1>
+            <p className="text-xs sm:text-sm text-zinc-400 mt-1">
               {currentUser.is_admin 
                 ? "Verwalte dein Konto, Farbschema sowie administrative Systemeinstellungen" 
                 : "Verwalte dein Konto und Farbschema"}
             </p>
           </div>
-          <Button variant="outline" onClick={() => router.push("/")} className="border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-300">
+          <Button variant="outline" onClick={() => router.push("/")} className="border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-300 text-xs sm:text-sm self-start sm:self-auto shrink-0">
             ← Zurück zur Übersicht
           </Button>
         </div>
@@ -1478,18 +1478,18 @@ export default function SettingsPage() {
                     </div>
                   )}
 
-                  <div className="flex justify-between items-center pt-2 border-t border-zinc-800/80 gap-3">
+                  <div className="flex flex-col sm:flex-row sm:justify-between items-stretch sm:items-center pt-2 border-t border-zinc-800/80 gap-3 w-full">
                     <Button
                       type="button"
                       variant="outline"
                       disabled={smtpTesting}
                       onClick={handleSmtpTest}
-                      className="border-indigo-800 bg-indigo-950/50 hover:bg-indigo-900 text-indigo-300 text-xs"
+                      className="border-indigo-800 bg-indigo-950/50 hover:bg-indigo-900 text-indigo-300 text-xs w-full sm:w-auto"
                     >
                       {smtpTesting ? "Testet..." : "🧪 Test-E-Mail senden"}
                     </Button>
 
-                    <Button type="submit" disabled={smtpSaving} className="theme-bg-accent text-white theme-glow text-xs font-medium">
+                    <Button type="submit" disabled={smtpSaving} className="theme-bg-accent text-white theme-glow text-xs font-medium w-full sm:w-auto">
                       {smtpSaving ? "Speichert..." : "SMTP-Einstellungen speichern"}
                     </Button>
                   </div>
@@ -1500,7 +1500,7 @@ export default function SettingsPage() {
             {/* Admin User Management Section */}
             <Card className="border-zinc-800 bg-zinc-900/50 backdrop-blur-md shadow-xl">
               <CardHeader>
-                <div className="flex justify-between items-start">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 w-full">
                   <div>
                     <CardTitle className="text-xl font-semibold flex items-center gap-2">
                       <svg className="w-5 h-5 fill-current text-zinc-400" viewBox="0 0 24 24">
@@ -1517,7 +1517,7 @@ export default function SettingsPage() {
                     size="sm"
                     variant="outline"
                     onClick={() => setShowUserImportBox(!showUserImportBox)}
-                    className="border-indigo-800 bg-indigo-950/50 text-indigo-300 text-xs hover:bg-indigo-900"
+                    className="border-indigo-800 bg-indigo-950/50 text-indigo-300 text-xs hover:bg-indigo-900 w-full sm:w-auto shrink-0"
                   >
                     📥 Einzelnen Benutzer importieren (.noxususer)
                   </Button>

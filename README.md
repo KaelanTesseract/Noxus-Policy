@@ -1,7 +1,7 @@
 # 🛡️ Noxus Policy — KI-gestützte Dokumentenanalyse & Versicherungsmanager
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/KaelanTesseract/Noxus-Policy/main/logo.png?raw=true" alt="Noxus Policy Logo" width="140" />
+  <img src="https://github.com/KaelanTesseract/Noxus-Policy/blob/fcd19a9946ac18d64a184fe4778384bd5b48a888/logo.png" alt="Noxus Policy Logo" width="140" />
 </p>
 
 <p align="center">
