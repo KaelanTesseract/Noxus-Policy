@@ -1,7 +1,7 @@
 # Copyright (c) 2026 Dennis Guse. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in project root.
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import List, Optional
@@ -306,3 +306,75 @@ def delete_premium_history_entry(
     db.delete(db_entry)
     db.commit()
     return {"msg": "Beitragseintrag gelöscht."}
+
+@router.get("/{insurance_id}/calendar.ics")
+def download_single_insurance_ics(
+    insurance_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    ins = db.query(models.Insurance).filter(models.Insurance.id == insurance_id).first()
+    if not ins:
+        raise HTTPException(status_code=404, detail="Versicherung nicht gefunden.")
+    if ins.owner_id != current_user.id and not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Nicht berechtigt.")
+
+    deadline_date = ins.cancellation_date or ins.end_date
+    if not deadline_date:
+        raise HTTPException(status_code=400, detail="Für diese Versicherung ist keine Kündigungsfrist oder Vertragsende hinterlegt.")
+
+    date_str = deadline_date.strftime("%Y%m%d")
+    created_str = datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+    uid = f"noxus-policy-ins-{ins.id}-{date_str}@noxus-policy"
+
+    title = f"⏰ Kündigungsfrist: {ins.name} ({ins.company or 'Unbekannt'})"
+    desc_parts = [
+        f"Versicherung: {ins.name}",
+        f"Gesellschaft: {ins.company or 'Nicht angegeben'}",
+        f"Schein-Nr: {ins.insurance_number or 'k.A.'}",
+        f"Kategorie: {ins.category or 'Sonstige'}",
+        f"Kosten: {ins.cost:.2f} € ({ins.payment_cycle or 'jährlich'})" if ins.cost else "Kosten: k.A."
+    ]
+    if ins.is_suspended:
+        desc_parts.append(f"Status: ⏸️ Vertrag ruht ({ins.suspension_reason or 'Beitragsfrei'})")
+
+    description = "\\n".join(desc_parts)
+
+    ics_lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Noxus Policy//Single Insurance Calendar//DE",
+        "CALSCALE:GREGORIAN",
+        "METHOD:PUBLISH",
+        "BEGIN:VEVENT",
+        f"UID:{uid}",
+        f"DTSTAMP:{created_str}",
+        f"DTSTART;VALUE=DATE:{date_str}",
+        f"DTEND;VALUE=DATE:{date_str}",
+        f"SUMMARY:{title}",
+        f"DESCRIPTION:{description}",
+        "STATUS:CONFIRMED",
+        "BEGIN:VALARM",
+        "ACTION:DISPLAY",
+        "DESCRIPTION:Erinnerung Kündigungsfrist in 14 Tagen",
+        "TRIGGER:-P14D",
+        "END:VALARM",
+        "BEGIN:VALARM",
+        "ACTION:DISPLAY",
+        "DESCRIPTION:Eilige Erinnerung Kündigungsfrist in 7 Tagen",
+        "TRIGGER:-P7D",
+        "END:VALARM",
+        "END:VEVENT",
+        "END:VCALENDAR"
+    ]
+    ics_content = "\r\n".join(ics_lines)
+
+    filename_safe = "".join(c if c.isalnum() else "_" for c in ins.name).strip("_")
+    return Response(
+        content=ics_content,
+        media_type="text/calendar; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="kuendigungsfrist_{filename_safe}.ics"',
+            "Cache-Control": "no-cache, no-store, must-revalidate"
+        }
+    )
