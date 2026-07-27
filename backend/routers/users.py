@@ -342,20 +342,7 @@ def rotate_calendar_token(
     db.refresh(current_user)
     return {"calendar_token": current_user.calendar_token, "msg": "Neuer Kalender-Token wurde generiert."}
 
-@router.get("/calendar/feed.ics")
-def get_calendar_feed(
-    token: str,
-    db: Session = Depends(get_db)
-):
-    if not token or len(token) < 10:
-        raise HTTPException(status_code=401, detail="Ungültiger Token")
-
-    user = db.query(models.User).filter(models.User.calendar_token == token).first()
-    if not user:
-        raise HTTPException(status_code=401, detail="Kalender-Abonnement nicht autorisiert")
-
-    insurances = db.query(models.Insurance).filter(models.Insurance.owner_id == user.id).all()
-
+def build_ics_string(user_id: int, insurances: list) -> str:
     ics_lines = [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
@@ -414,7 +401,67 @@ def get_calendar_feed(
         ics_lines.extend(event_block)
 
     ics_lines.append("END:VCALENDAR")
-    ics_content = "\r\n".join(ics_lines)
+    return "\r\n".join(ics_lines)
+
+@router.get("/webcal-config")
+def get_webcal_config(db: Session = Depends(get_db)):
+    setting = db.query(models.SystemSetting).filter(models.SystemSetting.key == "webcal_enabled").first()
+    enabled = setting.value.lower() == "true" if setting and setting.value else False
+    return {"enabled": enabled}
+
+@router.put("/webcal-config")
+def update_webcal_config(
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Nur Administratoren dürfen Systemeinstellungen verändern.")
+    
+    enabled_val = "true" if payload.get("enabled") else "false"
+    setting = db.query(models.SystemSetting).filter(models.SystemSetting.key == "webcal_enabled").first()
+    if not setting:
+        setting = models.SystemSetting(key="webcal_enabled", value=enabled_val)
+        db.add(setting)
+    else:
+        setting.value = enabled_val
+    db.commit()
+    return {"msg": f"WebCal-Einstellung wurde auf '{enabled_val}' aktualisiert."}
+
+@router.get("/calendar/export.ics")
+def download_manual_calendar_ics(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    insurances = db.query(models.Insurance).filter(models.Insurance.owner_id == current_user.id).all()
+    ics_content = build_ics_string(current_user.id, insurances)
+    return Response(
+        content=ics_content,
+        media_type="text/calendar; charset=utf-8",
+        headers={
+            "Content-Disposition": 'attachment; filename="noxus_policy_kuendigungsfristen.ics"',
+            "Cache-Control": "no-cache, no-store, must-revalidate"
+        }
+    )
+
+@router.get("/calendar/feed.ics")
+def get_calendar_feed(
+    token: str,
+    db: Session = Depends(get_db)
+):
+    webcal_cfg = get_webcal_config(db)
+    if not webcal_cfg["enabled"]:
+        raise HTTPException(status_code=403, detail="WebCal Live-Sync ist vom Administrator deaktiviert.")
+
+    if not token or len(token) < 10:
+        raise HTTPException(status_code=401, detail="Ungültiger Token")
+
+    user = db.query(models.User).filter(models.User.calendar_token == token).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="Kalender-Abonnement nicht autorisiert")
+
+    insurances = db.query(models.Insurance).filter(models.Insurance.owner_id == user.id).all()
+    ics_content = build_ics_string(user.id, insurances)
 
     return Response(
         content=ics_content,

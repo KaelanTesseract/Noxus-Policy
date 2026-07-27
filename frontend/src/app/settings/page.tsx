@@ -119,6 +119,9 @@ export default function SettingsPage() {
   const [calendarToken, setCalendarToken] = useState("");
   const [calendarTokenLoading, setCalendarTokenLoading] = useState(false);
   const [calendarTokenMsg, setCalendarTokenMsg] = useState("");
+  const [webcalEnabled, setWebcalEnabled] = useState(false);
+  const [webcalSaving, setWebcalSaving] = useState(false);
+  const [webcalMsg, setWebcalMsg] = useState("");
 
   useEffect(() => {
     loadUserData();
@@ -132,6 +135,51 @@ export default function SettingsPage() {
       }
     } catch (e) {
       console.error("Error loading calendar token:", e);
+    }
+  };
+
+  const loadWebCalConfig = async () => {
+    try {
+      const cfg = await api.get("/users/webcal-config");
+      setWebcalEnabled(!!cfg.enabled);
+    } catch (e) {
+      console.error("Error loading webcal config:", e);
+    }
+  };
+
+  const handleSaveWebCalConfig = async (val: boolean) => {
+    setWebcalSaving(true);
+    setWebcalMsg("");
+    setWebcalEnabled(val);
+    try {
+      const res = await api.put("/users/webcal-config", { enabled: val });
+      setWebcalMsg(res.msg || "Einstellung gespeichert!");
+      setTimeout(() => setWebcalMsg(""), 3000);
+    } catch (e: any) {
+      alert(e.message || "Fehler beim Speichern der WebCal-Einstellung.");
+    } finally {
+      setWebcalSaving(false);
+    }
+  };
+
+  const handleDownloadManualIcs = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("/api/users/calendar/export.ics", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error("Fehler beim Erstellen der Kalenderdatei.");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "noxus_policy_kuendigungsfristen.ics";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert(err.message || "Fehler beim Herunterladen des Kalenders.");
     }
   };
 
@@ -158,6 +206,7 @@ export default function SettingsPage() {
       setEmail(user.email);
       setEmailNotificationsEnabled(user.email_notifications_enabled ?? true);
       loadCalendarToken();
+      loadWebCalConfig();
 
       try {
         const smtpStatus = await api.get("/users/smtp-status");
@@ -956,7 +1005,150 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            {/* Live Calendar Subscription Card */}
+            {/* Live Calendar Subscription & Manual Export Card */}
+            <Card className="border-zinc-800 bg-zinc-900/50 backdrop-blur-md shadow-xl">
+              <CardHeader>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-xl font-semibold flex items-center gap-2">
+                      <svg className="w-5 h-5 fill-current text-indigo-400" viewBox="0 0 24 24">
+                        <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2zm-7 5h5v5h-5z"/>
+                      </svg>
+                      <span>📅 Kalender & Kündigungsfristen (iCal / WebCal)</span>
+                    </CardTitle>
+                    <CardDescription className="mt-1">
+                      Exportiere deine Kündigungsfristen in deinen Kalender (iPhone, Android, Google Kalender, Outlook).
+                    </CardDescription>
+                  </div>
+
+                  <Button
+                    type="button"
+                    onClick={handleDownloadManualIcs}
+                    className="theme-bg-accent text-white text-xs shrink-0 flex items-center gap-1.5"
+                  >
+                    📥 Alle Kündigungsfristen (.ics) herunterladen
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {webcalEnabled ? (
+                  <div className="p-4 rounded-xl bg-indigo-950/30 border border-indigo-800/50 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-mono text-indigo-300 font-bold uppercase tracking-wider">
+                          Dein persönlicher WebCal-Live-Link
+                        </p>
+                        <p className="text-xs text-zinc-400 mt-0.5">
+                          Dieser Link ist privat und synchronisiert deine Kündigungsfristen mit Vorwarnung (14 Tage & 7 Tage vorher) live.
+                        </p>
+                      </div>
+                      {calendarTokenMsg && (
+                        <span className="text-xs px-2.5 py-1 rounded bg-emerald-950 border border-emerald-800 text-emerald-300 font-mono shrink-0">
+                          ✓ {calendarTokenMsg}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-xs font-mono text-zinc-400">WebCal / iCal URL</Label>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <Input
+                          readOnly
+                          value={calendarToken ? `${typeof window !== "undefined" ? window.location.origin : "http://localhost:3000"}/api/users/calendar/feed.ics?token=${calendarToken}` : "Wird geladen..."}
+                          className="bg-zinc-950 border-zinc-800 font-mono text-xs text-indigo-300 select-all"
+                        />
+                        <div className="flex gap-2 shrink-0">
+                          <Button
+                            type="button"
+                            onClick={() => {
+                              const link = `${typeof window !== "undefined" ? window.location.origin : "http://localhost:3000"}/api/users/calendar/feed.ics?token=${calendarToken}`;
+                              const webcalLink = link.replace(/^https?:\/\//i, "webcal://");
+                              navigator.clipboard.writeText(webcalLink);
+                              alert("WebCal-Link in Zwischenablage kopiert!");
+                            }}
+                            className="theme-bg-accent text-white text-xs"
+                          >
+                            📋 Link kopieren
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                              const link = `${typeof window !== "undefined" ? window.location.origin : "http://localhost:3000"}/api/users/calendar/feed.ics?token=${calendarToken}`;
+                              const webcalLink = link.replace(/^https?:\/\//i, "webcal://");
+                              window.location.href = webcalLink;
+                            }}
+                            className="border-indigo-700 bg-indigo-950/60 hover:bg-indigo-900 text-indigo-200 text-xs"
+                          >
+                            📱 In Kalender öffnen
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center pt-1 border-t border-indigo-900/40">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={calendarTokenLoading}
+                        onClick={handleRotateCalendarToken}
+                        className="text-xs text-zinc-400 hover:text-white p-0 h-auto font-mono"
+                      >
+                        🔄 Kalender-Token neu generieren (Sicherheitstoken zurücksetzen)
+                      </Button>
+                    </div>
+
+                    {/* Instructions per OS */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-indigo-900/40">
+                      <div className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800 space-y-1.5">
+                        <p className="text-xs font-bold text-zinc-200 flex items-center gap-1.5">
+                          <span>🍎 iPhone / iPad / Mac</span>
+                        </p>
+                        <p className="text-[11px] text-zinc-400 leading-relaxed">
+                          Klicke oben auf <strong>"In Kalender öffnen"</strong>. Apple Kalender öffnet sich und fragt nach Bestätigung.
+                        </p>
+                      </div>
+
+                      <div className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800 space-y-1.5">
+                        <p className="text-xs font-bold text-zinc-200 flex items-center gap-1.5">
+                          <span>🤖 Android / Google</span>
+                        </p>
+                        <p className="text-[11px] text-zinc-400 leading-relaxed">
+                          Öffne <a href="https://calendar.google.com" target="_blank" rel="noreferrer" className="text-indigo-400 underline font-semibold">calendar.google.com</a> ➔ <em>Weitere Kalender (+)</em> ➔ <em>Per URL hinzufügen</em>.
+                        </p>
+                      </div>
+
+                      <div className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800 space-y-1.5">
+                        <p className="text-xs font-bold text-zinc-200 flex items-center gap-1.5">
+                          <span>💼 Outlook / Desktop</span>
+                        </p>
+                        <p className="text-[11px] text-zinc-400 leading-relaxed">
+                          Wähle <strong>Kalender hinzufügen</strong> ➔ <em>Aus dem Internet abonnieren</em> ➔ Link einfügen.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800 space-y-2 text-xs text-zinc-400">
+                    <p className="text-zinc-300 font-semibold flex items-center gap-2">
+                      <span>ℹ️ WebCal Live-Sync ist aktuell deaktiviert</span>
+                    </p>
+                    <p className="leading-relaxed">
+                      Der Administrator hat die automatische WebCal-Live-Synchronisation deaktiviert (z. B. bei rein lokaler Server-Nutzung ohne Nginx/Domain).
+                      Du kannst deine Kündigungsfristen aber jederzeit über den Button oben als <strong>.ics-Datei herunterladen</strong> und in deinen Kalender importieren.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* System Settings Tab (Admin Only) */}
+        {currentUser.is_admin && activeTab === "system" && (
+          <div className="space-y-8">
+            {/* WebCal Live-Sync Admin Settings Card */}
             <Card className="border-zinc-800 bg-zinc-900/50 backdrop-blur-md shadow-xl">
               <CardHeader>
                 <CardTitle className="text-xl font-semibold flex items-center gap-2">
@@ -966,115 +1158,53 @@ export default function SettingsPage() {
                   <span>📅 Live-Kalender-Abonnement (WebCal / iCal Sync)</span>
                 </CardTitle>
                 <CardDescription className="mt-1">
-                  Synchronisiere alle Kündigungsfristen deiner Versicherungspolicen automatisch und in Echtzeit direkt mit deinem Smartphone (iPhone, Android, Google Kalender, Outlook).
+                  Aktiviere oder deaktiviere die Live-Synchronisation der Kündigungsfristen per WebCal-URL für deine Benutzer.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="p-4 rounded-xl bg-indigo-950/30 border border-indigo-800/50 space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                      <p className="text-xs font-mono text-indigo-300 font-bold uppercase tracking-wider">
-                        Dein persönlicher WebCal-Kalender-Link
-                      </p>
-                      <p className="text-xs text-zinc-400 mt-0.5">
-                        Dieser Link ist privat und verknüpft alle deine Kündigungsfristen mit Vorwarnung per Push-Erinnerung (14 Tage & 7 Tage vorher).
-                      </p>
-                    </div>
-                    {calendarTokenMsg && (
-                      <span className="text-xs px-2.5 py-1 rounded bg-emerald-950 border border-emerald-800 text-emerald-300 font-mono shrink-0">
-                        ✓ {calendarTokenMsg}
-                      </span>
-                    )}
+                <div className="flex items-center justify-between p-4 rounded-xl bg-zinc-950/60 border border-zinc-800">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="webcalEnabledToggle" className="text-sm font-semibold text-white cursor-pointer select-none">
+                      WebCal Live-Abonnement für Benutzer freigeben
+                    </Label>
+                    <p className="text-xs text-zinc-400">
+                      Erlaubt Benutzern das Erstellen eines privaten WebCal-Sync-Links für Smartphone-Kalender.
+                    </p>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-xs font-mono text-zinc-400">WebCal / iCal URL</Label>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <Input
-                        readOnly
-                        value={calendarToken ? `${typeof window !== "undefined" ? window.location.origin : "http://localhost:3000"}/api/users/calendar/feed.ics?token=${calendarToken}` : "Wird geladen..."}
-                        className="bg-zinc-950 border-zinc-800 font-mono text-xs text-indigo-300 select-all"
-                      />
-                      <div className="flex gap-2 shrink-0">
-                        <Button
-                          type="button"
-                          onClick={() => {
-                            const link = `${typeof window !== "undefined" ? window.location.origin : "http://localhost:3000"}/api/users/calendar/feed.ics?token=${calendarToken}`;
-                            const webcalLink = link.replace(/^https?:\/\//i, "webcal://");
-                            navigator.clipboard.writeText(webcalLink);
-                            alert("WebCal-Link in Zwischenablage kopiert!");
-                          }}
-                          className="theme-bg-accent text-white text-xs"
-                        >
-                          📋 Link kopieren
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => {
-                            const link = `${typeof window !== "undefined" ? window.location.origin : "http://localhost:3000"}/api/users/calendar/feed.ics?token=${calendarToken}`;
-                            const webcalLink = link.replace(/^https?:\/\//i, "webcal://");
-                            window.location.href = webcalLink;
-                          }}
-                          className="border-indigo-700 bg-indigo-950/60 hover:bg-indigo-900 text-indigo-200 text-xs"
-                        >
-                          📱 In Kalender öffnen
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-between items-center pt-1 border-t border-indigo-900/40">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      disabled={calendarTokenLoading}
-                      onClick={handleRotateCalendarToken}
-                      className="text-xs text-zinc-400 hover:text-white p-0 h-auto font-mono"
-                    >
-                      🔄 Kalender-Token neu generieren (Sicherheitstoken zurücksetzen)
-                    </Button>
-                  </div>
+                  <input
+                    type="checkbox"
+                    id="webcalEnabledToggle"
+                    checked={webcalEnabled}
+                    disabled={webcalSaving}
+                    onChange={e => handleSaveWebCalConfig(e.target.checked)}
+                    className="w-5 h-5 rounded border-zinc-700 bg-zinc-900 text-indigo-600 focus:ring-indigo-500 accent-indigo-600 cursor-pointer shrink-0 ml-4"
+                  />
                 </div>
 
-                {/* Instructions per OS */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
-                  <div className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800 space-y-1.5">
-                    <p className="text-xs font-bold text-zinc-200 flex items-center gap-1.5">
-                      <span>🍎 iPhone / iPad / Mac</span>
-                    </p>
-                    <p className="text-[11px] text-zinc-400 leading-relaxed">
-                      Klicke oben auf <strong>"In Kalender öffnen"</strong>. Apple Kalender öffnet sich und fragt nach Bestätigung zum Abonnieren.
-                    </p>
-                  </div>
+                {webcalMsg && (
+                  <p className="text-xs font-mono text-emerald-400 bg-emerald-950/50 border border-emerald-800 p-2.5 rounded-lg">
+                    ✓ {webcalMsg}
+                  </p>
+                )}
 
-                  <div className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800 space-y-1.5">
-                    <p className="text-xs font-bold text-zinc-200 flex items-center gap-1.5">
-                      <span>🤖 Android / Google</span>
-                    </p>
-                    <p className="text-[11px] text-zinc-400 leading-relaxed">
-                      Öffne <a href="https://calendar.google.com" target="_blank" rel="noreferrer" className="text-indigo-400 underline font-semibold">calendar.google.com</a> ➔ <em>Weitere Kalender (+)</em> ➔ <em>Per URL hinzufügen</em> ➔ Link einfügen.
-                    </p>
-                  </div>
-
-                  <div className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800 space-y-1.5">
-                    <p className="text-xs font-bold text-zinc-200 flex items-center gap-1.5">
-                      <span>💼 Outlook / Desktop</span>
-                    </p>
-                    <p className="text-[11px] text-zinc-400 leading-relaxed">
-                      Wähle <strong>Kalender hinzufügen</strong> ➔ <em>Aus dem Internet abonnieren</em> ➔ den kopierten Link einfügen.
-                    </p>
-                  </div>
+                {/* Important Server Accessibility Notice */}
+                <div className="p-4 rounded-xl bg-amber-950/30 border border-amber-800/50 text-amber-200 space-y-2 text-xs leading-relaxed">
+                  <h4 className="font-bold text-amber-300 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                    <span>⚠️ Wichtiger Hinweis zur Server-Erreichbarkeit (Nginx / Domain):</span>
+                  </h4>
+                  <p className="text-zinc-300">
+                    Das <strong>WebCal Live-Abonnement</strong> ermöglicht es externen Kalenderdiensten (z. B. <strong>Google Kalender Cloud, Apple iCloud, Outlook</strong>), Kündigungsfristen automatisch abzurufen.
+                  </p>
+                  <p className="text-zinc-300">
+                    <strong>Voraussetzung:</strong> Diese Funktion erfordert, dass dieser Server <strong>von außen erreichbar ist</strong> (z. B. über einen <strong>Nginx Reverse Proxy</strong>, Cloudflare Tunnel oder eine öffentliche IP/Domain).
+                  </p>
+                  <p className="text-amber-300/90 font-mono text-[11px]">
+                    💡 Wenn der Server rein lokal (z. B. <code>http://192.168.x.x:3000</code>) ohne externe Anbindung betrieben wird, können externe Kalender-Server nicht auf den Live-Link zugreifen. Deaktiviere in diesem Fall das WebCal-Live-Abonnement. Alle Benutzer können stattdessen weiterhin den <strong>manuellen .ics-Download</strong> nutzen!
+                  </p>
                 </div>
               </CardContent>
             </Card>
-          </div>
-        )}
 
-        {/* System Settings Tab (Admin Only) */}
-        {currentUser.is_admin && activeTab === "system" && (
-          <div className="space-y-8">
             {/* AI OCR Engine Settings Card */}
             <Card className="border-zinc-800 bg-zinc-900/50 backdrop-blur-md shadow-xl">
               <CardHeader>
