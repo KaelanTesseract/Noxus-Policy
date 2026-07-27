@@ -16,6 +16,7 @@ import { UploadModal } from "@/components/UploadModal";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { CancellationModal } from "@/components/CancellationModal";
 import { api } from "@/lib/api";
+import { Eye, RefreshCw, Pencil, Trash2 } from "lucide-react";
 
 interface PremiumHistoryItem {
   id: number;
@@ -985,14 +986,15 @@ export default function InsuranceDetailPage() {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-1.5 shrink-0">
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => setViewingDoc(doc)}
-                            className="border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs h-8 px-3"
+                            className="border-zinc-800 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 h-8 w-8 p-0 flex items-center justify-center rounded-lg transition-colors"
+                            title="Dokument anzeigen (PDF Vorschau)"
                           >
-                            Anzeigen
+                            <Eye className="w-4 h-4 text-zinc-300" />
                           </Button>
 
                           <Button
@@ -1000,34 +1002,34 @@ export default function InsuranceDetailPage() {
                             variant="outline"
                             disabled={analyzingDocId === doc.id}
                             onClick={() => handleReanalyzeDoc(doc.id)}
-                            className="border-indigo-800/80 bg-indigo-950/40 hover:bg-indigo-900/60 text-indigo-300 font-semibold text-xs h-8 px-2.5 flex items-center gap-1.5"
-                            title="Dokument erneut per KI/OCR analysieren und Stammdaten/Beiträge aktualisieren"
+                            className="border-zinc-800 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 h-8 w-8 p-0 flex items-center justify-center rounded-lg transition-colors"
+                            title="Dokument erneut analysieren & Stammdaten aktualisieren"
                           >
-                            {analyzingDocId === doc.id ? "🔄 Analysiert..." : "🤖 Neu analysieren"}
+                            <RefreshCw className={`w-4 h-4 text-zinc-300 ${analyzingDocId === doc.id ? "animate-spin text-indigo-400" : ""}`} />
                           </Button>
 
                           <Button
                             size="sm"
-                            variant="ghost"
+                            variant="outline"
                             onClick={() => {
                               setEditingDoc(doc);
                               setEditDocName(doc.custom_name || doc.original_filename);
                               setEditDocType(doc.doc_type || "Dokument");
                             }}
-                            className="text-zinc-400 hover:text-white h-8 w-8 p-0"
-                            title="Bearbeiten"
+                            className="border-zinc-800 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 h-8 w-8 p-0 flex items-center justify-center rounded-lg transition-colors"
+                            title="Eigenschaften bearbeiten"
                           >
-                            ✏️
+                            <Pencil className="w-4 h-4 text-zinc-300" />
                           </Button>
 
                           <Button
                             size="sm"
-                            variant="ghost"
+                            variant="outline"
                             onClick={() => handleDeleteDoc(doc.id, doc.custom_name || doc.original_filename)}
-                            className="text-zinc-500 hover:text-red-400 h-8 w-8 p-0"
-                            title="Löschen"
+                            className="border-zinc-800 bg-zinc-900/80 hover:bg-red-950/50 hover:border-red-800/80 text-zinc-400 hover:text-red-300 h-8 w-8 p-0 flex items-center justify-center rounded-lg transition-colors"
+                            title="Dokument löschen"
                           >
-                            ✕
+                            <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
                       </div>
