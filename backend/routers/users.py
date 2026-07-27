@@ -316,3 +316,112 @@ def delete_user(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=f"Fehler beim Löschen: {str(e)}")
+
+import secrets
+from fastapi import Response
+import datetime
+
+@router.get("/calendar-token")
+def get_calendar_token(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    if not current_user.calendar_token:
+        current_user.calendar_token = secrets.token_hex(20)
+        db.commit()
+        db.refresh(current_user)
+    return {"calendar_token": current_user.calendar_token}
+
+@router.post("/calendar-token/rotate")
+def rotate_calendar_token(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    current_user.calendar_token = secrets.token_hex(20)
+    db.commit()
+    db.refresh(current_user)
+    return {"calendar_token": current_user.calendar_token, "msg": "Neuer Kalender-Token wurde generiert."}
+
+@router.get("/calendar/feed.ics")
+def get_calendar_feed(
+    token: str,
+    db: Session = Depends(get_db)
+):
+    if not token or len(token) < 10:
+        raise HTTPException(status_code=401, detail="Ungültiger Token")
+
+    user = db.query(models.User).filter(models.User.calendar_token == token).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="Kalender-Abonnement nicht autorisiert")
+
+    insurances = db.query(models.Insurance).filter(models.Insurance.owner_id == user.id).all()
+
+    ics_lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Noxus Policy//Live Calendar Sync//DE",
+        "CALSCALE:GREGORIAN",
+        "METHOD:PUBLISH",
+        "X-WR-CALNAME:Noxus Policy - Kündigungsfristen",
+        "X-WR-CALDESC:Live-Synchronisation aller Kündigungsfristen deiner Versicherungspolicen.",
+        "REFRESH-INTERVAL;VALUE=DURATION:PT6H",
+        "X-PUBLISHED-TTL:PT6H"
+    ]
+
+    for ins in insurances:
+        deadline_date = ins.cancellation_date or ins.end_date
+        if not deadline_date:
+            continue
+
+        date_str = deadline_date.strftime("%Y%m%d")
+        created_str = datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+        uid = f"noxus-policy-ins-{ins.id}-{date_str}@noxus-policy"
+
+        title = f"⏰ Kündigungsfrist: {ins.name} ({ins.company or 'Unbekannt'})"
+        desc_parts = [
+            f"Versicherung: {ins.name}",
+            f"Gesellschaft: {ins.company or 'Nicht angegeben'}",
+            f"Schein-Nr: {ins.insurance_number or 'k.A.'}",
+            f"Kategorie: {ins.category or 'Sonstige'}",
+            f"Kosten: {ins.cost:.2f} € ({ins.payment_cycle or 'jährlich'})" if ins.cost else "Kosten: k.A."
+        ]
+        if ins.is_suspended:
+            desc_parts.append(f"Status: ⏸️ Vertag ruht ({ins.suspension_reason or 'Beitragsfrei'})")
+        
+        description = "\\n".join(desc_parts)
+
+        event_block = [
+            "BEGIN:VEVENT",
+            f"UID:{uid}",
+            f"DTSTAMP:{created_str}",
+            f"DTSTART;VALUE=DATE:{date_str}",
+            f"DTEND;VALUE=DATE:{date_str}",
+            f"SUMMARY:{title}",
+            f"DESCRIPTION:{description}",
+            "STATUS:CONFIRMED",
+            "BEGIN:VALARM",
+            "ACTION:DISPLAY",
+            "DESCRIPTION:Erinnerung Kündigungsfrist in 14 Tagen",
+            "TRIGGER:-P14D",
+            "END:VALARM",
+            "BEGIN:VALARM",
+            "ACTION:DISPLAY",
+            "DESCRIPTION:Eilige Erinnerung Kündigungsfrist in 7 Tagen",
+            "TRIGGER:-P7D",
+            "END:VALARM",
+            "END:VEVENT"
+        ]
+        ics_lines.extend(event_block)
+
+    ics_lines.append("END:VCALENDAR")
+    ics_content = "\r\n".join(ics_lines)
+
+    return Response(
+        content=ics_content,
+        media_type="text/calendar; charset=utf-8",
+        headers={
+            "Content-Disposition": f'inline; filename="noxus_policy_calendar_{user.id}.ics"',
+            "Cache-Control": "no-cache, no-store, must-revalidate"
+        }
+    )
+

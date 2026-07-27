@@ -115,9 +115,41 @@ export default function SettingsPage() {
   const [sendingEmailId, setSendingEmailId] = useState<number | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<number | null>(null);
 
+  // Live Calendar Token State
+  const [calendarToken, setCalendarToken] = useState("");
+  const [calendarTokenLoading, setCalendarTokenLoading] = useState(false);
+  const [calendarTokenMsg, setCalendarTokenMsg] = useState("");
+
   useEffect(() => {
     loadUserData();
   }, []);
+
+  const loadCalendarToken = async () => {
+    try {
+      const res = await api.get("/users/calendar-token");
+      if (res && res.calendar_token) {
+        setCalendarToken(res.calendar_token);
+      }
+    } catch (e) {
+      console.error("Error loading calendar token:", e);
+    }
+  };
+
+  const handleRotateCalendarToken = async () => {
+    if (!window.confirm("Möchtest du deinen persönlichen Kalender-Token wirklich erneuern? Bestehende Kalender-Abonnements auf deinen Geräten müssen danach einmalig aktualisiert werden.")) return;
+    setCalendarTokenLoading(true);
+    setCalendarTokenMsg("");
+    try {
+      const res = await api.post("/users/calendar-token/rotate", {});
+      setCalendarToken(res.calendar_token);
+      setCalendarTokenMsg("Neuer Kalender-Token generiert!");
+      setTimeout(() => setCalendarTokenMsg(""), 3500);
+    } catch (e: any) {
+      alert(e.message || "Fehler beim Erneuern des Tokens.");
+    } finally {
+      setCalendarTokenLoading(false);
+    }
+  };
 
   const loadUserData = async () => {
     try {
@@ -125,6 +157,7 @@ export default function SettingsPage() {
       setCurrentUser(user);
       setEmail(user.email);
       setEmailNotificationsEnabled(user.email_notifications_enabled ?? true);
+      loadCalendarToken();
 
       try {
         const smtpStatus = await api.get("/users/smtp-status");
@@ -920,6 +953,120 @@ export default function SettingsPage() {
                     </Button>
                   </div>
                 </form>
+              </CardContent>
+            </Card>
+
+            {/* Live Calendar Subscription Card */}
+            <Card className="border-zinc-800 bg-zinc-900/50 backdrop-blur-md shadow-xl">
+              <CardHeader>
+                <CardTitle className="text-xl font-semibold flex items-center gap-2">
+                  <svg className="w-5 h-5 fill-current text-indigo-400" viewBox="0 0 24 24">
+                    <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2zm-7 5h5v5h-5z"/>
+                  </svg>
+                  <span>📅 Live-Kalender-Abonnement (WebCal / iCal Sync)</span>
+                </CardTitle>
+                <CardDescription className="mt-1">
+                  Synchronisiere alle Kündigungsfristen deiner Versicherungspolicen automatisch und in Echtzeit direkt mit deinem Smartphone (iPhone, Android, Google Kalender, Outlook).
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="p-4 rounded-xl bg-indigo-950/30 border border-indigo-800/50 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <p className="text-xs font-mono text-indigo-300 font-bold uppercase tracking-wider">
+                        Dein persönlicher WebCal-Kalender-Link
+                      </p>
+                      <p className="text-xs text-zinc-400 mt-0.5">
+                        Dieser Link ist privat und verknüpft alle deine Kündigungsfristen mit Vorwarnung per Push-Erinnerung (14 Tage & 7 Tage vorher).
+                      </p>
+                    </div>
+                    {calendarTokenMsg && (
+                      <span className="text-xs px-2.5 py-1 rounded bg-emerald-950 border border-emerald-800 text-emerald-300 font-mono shrink-0">
+                        ✓ {calendarTokenMsg}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs font-mono text-zinc-400">WebCal / iCal URL</Label>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Input
+                        readOnly
+                        value={calendarToken ? `${typeof window !== "undefined" ? window.location.origin : "http://localhost:3000"}/api/users/calendar/feed.ics?token=${calendarToken}` : "Wird geladen..."}
+                        className="bg-zinc-950 border-zinc-800 font-mono text-xs text-indigo-300 select-all"
+                      />
+                      <div className="flex gap-2 shrink-0">
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            const link = `${typeof window !== "undefined" ? window.location.origin : "http://localhost:3000"}/api/users/calendar/feed.ics?token=${calendarToken}`;
+                            const webcalLink = link.replace(/^https?:\/\//i, "webcal://");
+                            navigator.clipboard.writeText(webcalLink);
+                            alert("WebCal-Link in Zwischenablage kopiert!");
+                          }}
+                          className="theme-bg-accent text-white text-xs"
+                        >
+                          📋 Link kopieren
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            const link = `${typeof window !== "undefined" ? window.location.origin : "http://localhost:3000"}/api/users/calendar/feed.ics?token=${calendarToken}`;
+                            const webcalLink = link.replace(/^https?:\/\//i, "webcal://");
+                            window.location.href = webcalLink;
+                          }}
+                          className="border-indigo-700 bg-indigo-950/60 hover:bg-indigo-900 text-indigo-200 text-xs"
+                        >
+                          📱 In Kalender öffnen
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center pt-1 border-t border-indigo-900/40">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={calendarTokenLoading}
+                      onClick={handleRotateCalendarToken}
+                      className="text-xs text-zinc-400 hover:text-white p-0 h-auto font-mono"
+                    >
+                      🔄 Kalender-Token neu generieren (Sicherheitstoken zurücksetzen)
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Instructions per OS */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+                  <div className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800 space-y-1.5">
+                    <p className="text-xs font-bold text-zinc-200 flex items-center gap-1.5">
+                      <span>🍎 iPhone / iPad / Mac</span>
+                    </p>
+                    <p className="text-[11px] text-zinc-400 leading-relaxed">
+                      Klicke oben auf <strong>"In Kalender öffnen"</strong>. Apple Kalender öffnet sich und fragt nach Bestätigung zum Abonnieren.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800 space-y-1.5">
+                    <p className="text-xs font-bold text-zinc-200 flex items-center gap-1.5">
+                      <span>🤖 Android / Google</span>
+                    </p>
+                    <p className="text-[11px] text-zinc-400 leading-relaxed">
+                      Öffne <a href="https://calendar.google.com" target="_blank" rel="noreferrer" className="text-indigo-400 underline font-semibold">calendar.google.com</a> ➔ <em>Weitere Kalender (+)</em> ➔ <em>Per URL hinzufügen</em> ➔ Link einfügen.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800 space-y-1.5">
+                    <p className="text-xs font-bold text-zinc-200 flex items-center gap-1.5">
+                      <span>💼 Outlook / Desktop</span>
+                    </p>
+                    <p className="text-[11px] text-zinc-400 leading-relaxed">
+                      Wähle <strong>Kalender hinzufügen</strong> ➔ <em>Aus dem Internet abonnieren</em> ➔ den kopierten Link einfügen.
+                    </p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>

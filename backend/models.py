@@ -14,6 +14,7 @@ class User(Base):
     is_admin = Column(Boolean, default=False)
     must_change_password = Column(Boolean, default=False)
     email_notifications_enabled = Column(Boolean, default=True)
+    calendar_token = Column(String, unique=True, index=True, nullable=True)
     
     insurances = relationship("Insurance", back_populates="owner")
 

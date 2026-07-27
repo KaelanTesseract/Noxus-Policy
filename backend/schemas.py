@@ -37,6 +37,7 @@ class UserResponse(UserBase):
     is_admin: bool
     must_change_password: bool
     email_notifications_enabled: Optional[bool] = True
+    calendar_token: Optional[str] = None
     class Config:
         from_attributes = True
 

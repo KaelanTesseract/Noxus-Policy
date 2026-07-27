@@ -88,6 +88,8 @@ def auto_migrate_sqlite():
                     usr_cols = [row[1] for row in cursor.fetchall()]
                     if "email_notifications_enabled" not in usr_cols:
                         cursor.execute("ALTER TABLE users ADD COLUMN email_notifications_enabled BOOLEAN DEFAULT 1")
+                    if "calendar_token" not in usr_cols:
+                        cursor.execute("ALTER TABLE users ADD COLUMN calendar_token VARCHAR")
                 except Exception as e:
                     print(f"[Auto-Migrate users] {e}")
 
