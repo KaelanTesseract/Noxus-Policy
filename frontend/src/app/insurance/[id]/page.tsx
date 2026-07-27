@@ -68,6 +68,9 @@ export default function InsuranceDetailPage() {
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Tab State
+  const [activeTab, setActiveTab] = useState<"stammdaten" | "historie" | "dokumente" | "schaden" | "notizen">("stammdaten");
+
   // Edit form state
   const [formData, setFormData] = useState({
     name: "",
@@ -231,7 +234,7 @@ export default function InsuranceDetailPage() {
     setNotesMsg("");
     setSavingNotes(true);
     try {
-      const res = await api.put(`/insurances/${insuranceId}/notes`, { notes: notesText });
+      await api.put(`/insurances/${insuranceId}/notes`, { notes: notesText });
       setNotesMsg("Speichert...");
       setTimeout(() => setNotesMsg("Gespeichert!"), 600);
       setTimeout(() => setNotesMsg(""), 2500);
@@ -412,7 +415,7 @@ export default function InsuranceDetailPage() {
     <div className="space-y-6 flex-1">
       <Navbar userEmail={currentUser?.email} />
 
-      <div className="max-w-6xl mx-auto space-y-8">
+      <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-5 border-b border-zinc-800/80 pb-5">
           <div className="flex items-start gap-3 sm:gap-4">
@@ -502,10 +505,87 @@ export default function InsuranceDetailPage() {
           </div>
         </div>
 
-        {/* Content Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Left Column: Insurance Form, Price History & Coverage Details */}
-          <div className="lg:col-span-7 space-y-6">
+        {/* Tab Navigation Bar */}
+        <div className="flex items-center gap-1.5 border-b border-zinc-800/80 overflow-x-auto whitespace-nowrap scrollbar-none pb-2 text-sm font-medium">
+          <button
+            onClick={() => setActiveTab("stammdaten")}
+            className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 font-semibold text-xs sm:text-sm ${
+              activeTab === "stammdaten"
+                ? "theme-bg-accent text-white shadow-lg theme-glow border border-emerald-500/50"
+                : "text-zinc-400 hover:text-white hover:bg-zinc-900/60"
+            }`}
+          >
+            <span>📋 Stammdaten & Leistungen</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("historie")}
+            className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 font-semibold text-xs sm:text-sm ${
+              activeTab === "historie"
+                ? "theme-bg-accent text-white shadow-lg theme-glow border border-emerald-500/50"
+                : "text-zinc-400 hover:text-white hover:bg-zinc-900/60"
+            }`}
+          >
+            <span>📈 Beitragsentwicklung</span>
+            {historyEntries.length > 0 && (
+              <span className={`px-2 py-0.5 text-[10px] rounded-full font-mono font-bold ${
+                activeTab === "historie" ? "bg-white/20 text-white" : "bg-zinc-800 text-emerald-400"
+              }`}>
+                {historyEntries.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab("dokumente")}
+            className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 font-semibold text-xs sm:text-sm ${
+              activeTab === "dokumente"
+                ? "theme-bg-accent text-white shadow-lg theme-glow border border-emerald-500/50"
+                : "text-zinc-400 hover:text-white hover:bg-zinc-900/60"
+            }`}
+          >
+            <span>📄 Dokumente</span>
+            <span className={`px-2 py-0.5 text-[10px] rounded-full font-mono font-bold ${
+              activeTab === "dokumente" ? "bg-white/20 text-white" : "bg-zinc-800 text-indigo-300"
+            }`}>
+              {documents.length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("schaden")}
+            className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 font-semibold text-xs sm:text-sm ${
+              activeTab === "schaden"
+                ? "theme-bg-accent text-white shadow-lg theme-glow border border-emerald-500/50"
+                : "text-zinc-400 hover:text-white hover:bg-zinc-900/60"
+            }`}
+          >
+            <span>💥 Schadensfälle</span>
+            {claimsList.length > 0 && (
+              <span className={`px-2 py-0.5 text-[10px] rounded-full font-mono font-bold ${
+                activeTab === "schaden" ? "bg-white/20 text-white" : "bg-zinc-800 text-amber-300"
+              }`}>
+                {claimsList.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab("notizen")}
+            className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 font-semibold text-xs sm:text-sm ${
+              activeTab === "notizen"
+                ? "theme-bg-accent text-white shadow-lg theme-glow border border-emerald-500/50"
+                : "text-zinc-400 hover:text-white hover:bg-zinc-900/60"
+            }`}
+          >
+            <span>📝 Notizen & Memos</span>
+          </button>
+        </div>
+
+        {/* Tab Content Panels */}
+        <div>
+          {/* TAB 1: Stammdaten & Leistungen */}
+          {activeTab === "stammdaten" && (
             <Card className="border-zinc-800 bg-zinc-900/40 backdrop-blur-md shadow-xl">
               <CardHeader>
                 <CardTitle className="text-xl font-semibold">Vertragsdetails & Stammdaten</CardTitle>
@@ -519,7 +599,7 @@ export default function InsuranceDetailPage() {
                       <Input id="name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required className="bg-zinc-950/50 border-zinc-800" />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="category" className="text-xs font-mono text-zinc-400">Versicherungsart (Kategorie)</Label>
                         <Input id="category" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} placeholder="z.B. Haftpflicht, Kfz, Hausrat" className="bg-zinc-950/50 border-zinc-800" />
@@ -530,7 +610,7 @@ export default function InsuranceDetailPage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="cost" className="text-xs font-mono text-emerald-400">Kosten / Beitrag (€)</Label>
                         <Input id="cost" type="number" step="0.01" value={formData.cost} onChange={e => setFormData({...formData, cost: e.target.value})} placeholder="148.50" className="bg-zinc-950/50 border-zinc-800 text-emerald-400 font-mono font-bold" />
@@ -557,7 +637,7 @@ export default function InsuranceDetailPage() {
                         <h4 className="text-xs font-bold text-cyan-300 uppercase tracking-wider flex items-center gap-2">
                           <span>🚗 KFZ-Tarifmerkmale</span>
                         </h4>
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                           <div className="space-y-1">
                             <Label htmlFor="sf_class" className="text-[11px] font-mono text-zinc-400">SF-Klasse</Label>
                             <Input id="sf_class" value={formData.sf_class} onChange={e => setFormData({...formData, sf_class: e.target.value})} placeholder="z.B. SF 15" className="bg-zinc-900 border-zinc-800 text-xs" />
@@ -614,7 +694,7 @@ export default function InsuranceDetailPage() {
                       <Input id="insurance_number" value={formData.insurance_number} onChange={e => setFormData({...formData, insurance_number: e.target.value})} className="bg-zinc-950/50 border-zinc-800" />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="start_date" className="text-xs font-mono text-zinc-400">Versicherungsbeginn</Label>
                         <Input id="start_date" type="date" value={formData.start_date} onChange={e => setFormData({...formData, start_date: e.target.value})} className="bg-zinc-950/50 border-zinc-800" />
@@ -699,13 +779,15 @@ export default function InsuranceDetailPage() {
                 </form>
               </CardContent>
             </Card>
+          )}
 
-            {/* Price Trend & Premium History Card (Proposal 1) */}
+          {/* TAB 2: Beitragsentwicklung & Preis-Historie */}
+          {activeTab === "historie" && (
             <Card className="border-zinc-800 bg-zinc-900/40 backdrop-blur-md shadow-xl">
               <CardHeader className="pb-3 border-b border-zinc-800/60">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                    <CardTitle className="text-xl font-semibold flex items-center gap-2">
                       <span>📈 Beitragsentwicklung & Preis-Historie</span>
                     </CardTitle>
                     <CardDescription className="text-xs mt-0.5">
@@ -728,19 +810,19 @@ export default function InsuranceDetailPage() {
                 {historyEntries.length > 0 ? (
                   <div className="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800/80 space-y-4">
                     <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Jahresbeitrag im Zeitverlauf</h4>
-                    <div className="flex items-end justify-around h-36 gap-2 pt-6 pb-2 border-b border-zinc-800/80 px-2">
+                    <div className="flex items-end justify-around h-44 gap-3 pt-6 pb-2 border-b border-zinc-800/80 px-4">
                       {historyEntries.map((h, i) => {
                         const heightPct = maxHistoryCost > 0 ? Math.max(15, Math.round((h.annual_cost / maxHistoryCost) * 100)) : 20;
                         const dateLabel = h.effective_date ? new Date(h.effective_date).getFullYear().toString() : `Eintrag ${i+1}`;
                         return (
-                          <div key={h.id || i} className="flex flex-col items-center flex-1 max-w-[64px] group">
-                            <span className="text-[10px] font-mono text-emerald-400 font-bold mb-1 opacity-90 group-hover:opacity-100">
+                          <div key={h.id || i} className="flex flex-col items-center flex-1 max-w-[80px] group">
+                            <span className="text-[11px] font-mono text-emerald-400 font-bold mb-1.5 opacity-90 group-hover:opacity-100">
                               {h.annual_cost.toFixed(0)}€
                             </span>
-                            <div className="w-full bg-zinc-800 rounded-t-lg relative overflow-hidden flex items-end" style={{ height: `${heightPct}%` }}>
-                              <div className="w-full h-full theme-bg-accent opacity-80 group-hover:opacity-100 transition-all rounded-t-lg"></div>
+                            <div className="w-full bg-zinc-800/80 rounded-t-lg relative overflow-hidden flex items-end" style={{ height: `${heightPct}%` }}>
+                              <div className="w-full h-full theme-bg-accent opacity-85 group-hover:opacity-100 transition-all rounded-t-lg shadow-md"></div>
                             </div>
-                            <span className="text-[10px] font-mono text-zinc-400 mt-2 truncate w-full text-center">
+                            <span className="text-xs font-mono text-zinc-300 mt-2.5 truncate w-full text-center">
                               {dateLabel}
                             </span>
                           </div>
@@ -758,14 +840,14 @@ export default function InsuranceDetailPage() {
                     <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Historische Anpassungen</h4>
                     <div className="divide-y divide-zinc-800/60 border border-zinc-800/80 rounded-xl overflow-hidden bg-zinc-950/40">
                       {historyEntries.map((h) => (
-                        <div key={h.id} className="p-3 flex items-center justify-between gap-3 text-xs">
+                        <div key={h.id} className="p-4 flex items-center justify-between gap-3 text-xs sm:text-sm">
                           <div>
                             <div className="flex items-center gap-2 font-mono font-bold text-white">
                               <span>💰 {h.cost.toFixed(2)} €</span>
-                              <span className="text-[10px] text-zinc-400 font-normal">({h.payment_cycle})</span>
-                              <span className="text-[10px] text-emerald-400">({h.annual_cost.toFixed(2)} € / Jahr)</span>
+                              <span className="text-xs text-zinc-400 font-normal">({h.payment_cycle})</span>
+                              <span className="text-xs text-emerald-400">({h.annual_cost.toFixed(2)} € / Jahr)</span>
                             </div>
-                            <div className="text-[11px] text-zinc-400 mt-0.5 flex items-center gap-2">
+                            <div className="text-xs text-zinc-400 mt-1 flex items-center gap-2">
                               {h.effective_date && <span>Gültig ab: {h.effective_date}</span>}
                               {h.note && <span className="italic">• {h.note}</span>}
                             </div>
@@ -775,7 +857,7 @@ export default function InsuranceDetailPage() {
                             size="sm"
                             variant="ghost"
                             onClick={() => handleDeletePremiumHistory(h.id)}
-                            className="text-zinc-500 hover:text-red-400 h-7 w-7 p-0 shrink-0"
+                            className="text-zinc-500 hover:text-red-400 h-8 w-8 p-0 shrink-0"
                           >
                             ✕
                           </Button>
@@ -786,11 +868,11 @@ export default function InsuranceDetailPage() {
                 )}
 
                 {/* Form to Add New Price Adjustment */}
-                <form onSubmit={handleAddPremiumHistory} className="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800 space-y-3">
+                <form onSubmit={handleAddPremiumHistory} className="p-5 rounded-xl bg-zinc-950/60 border border-zinc-800 space-y-4">
                   <h4 className="text-xs font-bold text-white uppercase tracking-wider">+ Neue Beitragsanpassung eintragen</h4>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="space-y-1">
-                      <Label htmlFor="h_cost" className="text-[11px] font-mono text-emerald-400">Neuer Beitrag (€)</Label>
+                      <Label htmlFor="h_cost" className="text-xs font-mono text-emerald-400">Neuer Beitrag (€)</Label>
                       <Input
                         id="h_cost"
                         type="number"
@@ -803,7 +885,7 @@ export default function InsuranceDetailPage() {
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label htmlFor="h_cycle" className="text-[11px] font-mono text-zinc-400">Zahlweise</Label>
+                      <Label htmlFor="h_cycle" className="text-xs font-mono text-zinc-400">Zahlweise</Label>
                       <Select value={newHCycle} onValueChange={(val) => setNewHCycle(val || "jährlich")}>
                         <SelectTrigger className="bg-zinc-900 border-zinc-800 text-xs h-9">
                           <SelectValue />
@@ -816,8 +898,8 @@ export default function InsuranceDetailPage() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-1 col-span-2 sm:col-span-1">
-                      <Label htmlFor="h_date" className="text-[11px] font-mono text-zinc-400">Gültig ab (Datum)</Label>
+                    <div className="space-y-1 col-span-1 sm:col-span-1">
+                      <Label htmlFor="h_date" className="text-xs font-mono text-zinc-400">Gültig ab (Datum)</Label>
                       <Input
                         id="h_date"
                         type="date"
@@ -828,7 +910,7 @@ export default function InsuranceDetailPage() {
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor="h_note" className="text-[11px] font-mono text-zinc-400">Anlass / Notiz (optional)</Label>
+                    <Label htmlFor="h_note" className="text-xs font-mono text-zinc-400">Anlass / Notiz (optional)</Label>
                     <Input
                       id="h_note"
                       value={newHNote}
@@ -843,173 +925,10 @@ export default function InsuranceDetailPage() {
                 </form>
               </CardContent>
             </Card>
+          )}
 
-            {/* Notes Card */}
-            <Card className="border-zinc-800 bg-zinc-900/40 backdrop-blur-md shadow-xl mt-6">
-              <CardHeader className="pb-3 border-b border-zinc-800/60">
-                <CardTitle className="text-lg font-semibold flex items-center justify-between">
-                  <span className="flex items-center gap-2">
-                    <span>📝 Notizen & Persönliche Memos</span>
-                  </span>
-                  {notesMsg && <span className="text-xs text-emerald-400 font-normal">{notesMsg}</span>}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-4 space-y-4">
-                <textarea
-                  rows={4}
-                  value={notesText}
-                  onChange={e => setNotesText(e.target.value)}
-                  placeholder="Hinterlege hier eigene Notizen, z.B. Selbstbeteiligung 150€, Ansprechpartner, Hotline-Nummer für Pannen..."
-                  className="w-full rounded-xl bg-zinc-950/60 border border-zinc-800/80 p-3 text-xs text-zinc-200 placeholder:text-zinc-500 focus:outline-none focus:border-zinc-700"
-                />
-                <div className="flex justify-end">
-                  <Button
-                    type="button"
-                    onClick={handleSaveNotes}
-                    disabled={savingNotes}
-                    className="border-zinc-800 bg-zinc-900 text-zinc-300 text-xs hover:bg-zinc-800"
-                    variant="outline"
-                  >
-                    {savingNotes ? "Speichert..." : "Notizen speichern"}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Right Column: Claims Tracker & Documents List */}
-          <div className="lg:col-span-5 space-y-6">
-            {/* Claims Tracker Card */}
-            <Card className="border-zinc-800 bg-zinc-900/40 backdrop-blur-md shadow-xl">
-              <CardHeader className="pb-3 border-b border-zinc-800/60">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                    <span>💥 Schadensfall-Tracker</span>
-                  </CardTitle>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setIsAddClaimOpen(!isAddClaimOpen)}
-                    className="border-indigo-800 bg-indigo-950/50 text-indigo-300 text-xs hover:bg-indigo-900"
-                  >
-                    + Schaden melden
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-4 space-y-4">
-                {isAddClaimOpen && (
-                  <form onSubmit={handleAddClaim} className="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800 space-y-3">
-                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">Neuen Schadensfall erfassen</h4>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label htmlFor="c_num" className="text-[11px] font-mono text-zinc-400">Schadennummer</Label>
-                        <Input
-                          id="c_num"
-                          value={newClaimNum}
-                          onChange={e => setNewClaimNum(e.target.value)}
-                          placeholder="z.B. SCH-2026-001"
-                          className="bg-zinc-900 border-zinc-800 text-xs"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="c_date" className="text-[11px] font-mono text-zinc-400">Schadendatum</Label>
-                        <Input
-                          id="c_date"
-                          type="date"
-                          value={newClaimDate}
-                          onChange={e => setNewClaimDate(e.target.value)}
-                          className="bg-zinc-900 border-zinc-800 text-xs"
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label htmlFor="c_amount" className="text-[11px] font-mono text-zinc-400">Schadenshöhe (€)</Label>
-                        <Input
-                          id="c_amount"
-                          type="number"
-                          step="0.01"
-                          value={newClaimAmount}
-                          onChange={e => setNewClaimAmount(e.target.value)}
-                          placeholder="z.B. 450.00"
-                          className="bg-zinc-900 border-zinc-800 text-xs font-mono"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="c_status" className="text-[11px] font-mono text-zinc-400">Status</Label>
-                        <Select value={newClaimStatus} onValueChange={(val) => setNewClaimStatus(val || "In Bearbeitung")}>
-                          <SelectTrigger className="bg-zinc-900 border-zinc-800 text-xs h-9">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-zinc-900 border-zinc-700 text-zinc-50">
-                            <SelectItem value="In Bearbeitung">In Bearbeitung</SelectItem>
-                            <SelectItem value="Erstattet / Reguliert">Erstattet / Reguliert</SelectItem>
-                            <SelectItem value="Abgelehnt">Abgelehnt</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="c_desc" className="text-[11px] font-mono text-zinc-400">Beschreibung des Schadens</Label>
-                      <Input
-                        id="c_desc"
-                        value={newClaimDesc}
-                        onChange={e => setNewClaimDesc(e.target.value)}
-                        placeholder="z.B. Steinschlag Windschutzscheibe, Wildunfall..."
-                        className="bg-zinc-900 border-zinc-800 text-xs"
-                      />
-                    </div>
-                    <div className="flex justify-end gap-2 pt-1">
-                      <Button type="button" variant="ghost" onClick={() => setIsAddClaimOpen(false)} className="text-xs h-8">Abbrechen</Button>
-                      <Button type="submit" disabled={addingClaim} className="theme-bg-accent text-white text-xs h-8">
-                        {addingClaim ? "Speichert..." : "Schadensfall speichern"}
-                      </Button>
-                    </div>
-                  </form>
-                )}
-
-                {claimsList.length > 0 ? (
-                  <div className="space-y-3">
-                    {claimsList.map((claim) => (
-                      <div key={claim.id} className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800/80 flex items-start justify-between gap-3 group hover:border-zinc-700 transition-all">
-                        <div className="space-y-1 text-xs">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono font-bold text-white">{claim.claim_number || "Schadensfall"}</span>
-                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                              claim.status === "Erstattet / Reguliert" 
-                                ? "bg-emerald-950/80 text-emerald-300 border-emerald-800" 
-                                : claim.status === "Abgelehnt"
-                                ? "bg-red-950/80 text-red-300 border-red-800"
-                                : "bg-amber-950/80 text-amber-300 border-amber-800"
-                            }`}>
-                              {claim.status}
-                            </span>
-                          </div>
-                          {claim.description && <p className="text-zinc-300">{claim.description}</p>}
-                          <div className="flex items-center gap-3 text-[11px] text-zinc-500 font-mono">
-                            {claim.claim_date && <span>Datum: {claim.claim_date}</span>}
-                            {claim.amount !== null && claim.amount !== undefined && <span className="text-emerald-400 font-bold">Höhe: {claim.amount.toFixed(2)} €</span>}
-                          </div>
-                        </div>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleDeleteClaim(claim.id)}
-                          className="text-zinc-500 hover:text-red-400 h-7 w-7 p-0 shrink-0"
-                        >
-                          ✕
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-zinc-500 italic">Keine Schadensfälle für diese Versicherung eingetragen.</p>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Documents Card */}
+          {/* TAB 3: Dokumente */}
+          {activeTab === "dokumente" && (
             <Card 
               onDragOver={handleCardDragOver}
               onDragLeave={handleCardDragLeave}
@@ -1020,7 +939,7 @@ export default function InsuranceDetailPage() {
             >
               <CardHeader className="pb-3 border-b border-zinc-800/60">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <CardTitle className="text-xl font-semibold flex items-center gap-2">
                     <span>📄 Hinterlegte Dokumente ({documents.length})</span>
                   </CardTitle>
                   <Button 
@@ -1032,31 +951,31 @@ export default function InsuranceDetailPage() {
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="pt-4 space-y-4">
+              <CardContent className="pt-5 space-y-4">
                 {documents.length > 0 ? (
                   <div className="space-y-3">
                     {documents.map((doc) => (
-                      <div key={doc.id} className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800/80 flex items-center justify-between gap-3 group hover:border-zinc-700 transition-all">
+                      <div key={doc.id} className="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800/80 flex items-center justify-between gap-4 group hover:border-zinc-700 transition-all">
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-9 h-9 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-lg shrink-0">
+                          <div className="w-10 h-10 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-xl shrink-0">
                             📄
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs font-medium text-white truncate">
+                            <p className="text-sm font-medium text-white truncate">
                               {doc.custom_name || doc.original_filename}
                             </p>
-                            <p className="text-[10px] text-zinc-500 font-mono mt-0.5">
+                            <p className="text-xs text-zinc-500 font-mono mt-0.5">
                               {doc.doc_type || "Dokument"} • Hochgeladen: {new Date(doc.upload_date).toLocaleDateString("de-DE")}
                             </p>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-1.5 shrink-0">
+                        <div className="flex items-center gap-2 shrink-0">
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => setViewingDoc(doc)}
-                            className="border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs h-8 px-2.5"
+                            className="border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs h-8 px-3"
                           >
                             Anzeigen
                           </Button>
@@ -1089,14 +1008,180 @@ export default function InsuranceDetailPage() {
                     ))}
                   </div>
                 ) : (
-                  <div className="py-8 text-center border-2 border-dashed border-zinc-800 rounded-xl bg-zinc-950/20">
-                    <p className="text-xs text-zinc-400">Keine Dokumente hinterlegt.</p>
-                    <p className="text-[11px] text-zinc-500 mt-1">Ziehe eine PDF hierher oder klicke oben auf Hinzufügen.</p>
+                  <div className="py-12 text-center border-2 border-dashed border-zinc-800 rounded-xl bg-zinc-950/20">
+                    <p className="text-sm text-zinc-400">Keine Dokumente hinterlegt.</p>
+                    <p className="text-xs text-zinc-500 mt-1">Ziehe eine PDF hierher oder klicke oben auf Hinzufügen.</p>
                   </div>
                 )}
               </CardContent>
             </Card>
-          </div>
+          )}
+
+          {/* TAB 4: Schadensfälle */}
+          {activeTab === "schaden" && (
+            <Card className="border-zinc-800 bg-zinc-900/40 backdrop-blur-md shadow-xl">
+              <CardHeader className="pb-3 border-b border-zinc-800/60">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xl font-semibold flex items-center gap-2">
+                    <span>💥 Schadensfall-Tracker</span>
+                  </CardTitle>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsAddClaimOpen(!isAddClaimOpen)}
+                    className="border-indigo-800 bg-indigo-950/50 text-indigo-300 text-xs hover:bg-indigo-900"
+                  >
+                    + Schaden melden
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-5 space-y-4">
+                {isAddClaimOpen && (
+                  <form onSubmit={handleAddClaim} className="p-5 rounded-xl bg-zinc-950/60 border border-zinc-800 space-y-4">
+                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">Neuen Schadensfall erfassen</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label htmlFor="c_num" className="text-xs font-mono text-zinc-400">Schadennummer</Label>
+                        <Input
+                          id="c_num"
+                          value={newClaimNum}
+                          onChange={e => setNewClaimNum(e.target.value)}
+                          placeholder="z.B. SCH-2026-001"
+                          className="bg-zinc-900 border-zinc-800 text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="c_date" className="text-xs font-mono text-zinc-400">Schadendatum</Label>
+                        <Input
+                          id="c_date"
+                          type="date"
+                          value={newClaimDate}
+                          onChange={e => setNewClaimDate(e.target.value)}
+                          className="bg-zinc-900 border-zinc-800 text-xs"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label htmlFor="c_amount" className="text-xs font-mono text-zinc-400">Schadenshöhe (€)</Label>
+                        <Input
+                          id="c_amount"
+                          type="number"
+                          step="0.01"
+                          value={newClaimAmount}
+                          onChange={e => setNewClaimAmount(e.target.value)}
+                          placeholder="z.B. 450.00"
+                          className="bg-zinc-900 border-zinc-800 text-xs font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="c_status" className="text-xs font-mono text-zinc-400">Status</Label>
+                        <Select value={newClaimStatus} onValueChange={(val) => setNewClaimStatus(val || "In Bearbeitung")}>
+                          <SelectTrigger className="bg-zinc-900 border-zinc-800 text-xs h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-zinc-900 border-zinc-700 text-zinc-50">
+                            <SelectItem value="In Bearbeitung">In Bearbeitung</SelectItem>
+                            <SelectItem value="Erstattet / Reguliert">Erstattet / Reguliert</SelectItem>
+                            <SelectItem value="Abgelehnt">Abgelehnt</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="c_desc" className="text-xs font-mono text-zinc-400">Beschreibung des Schadens</Label>
+                      <Input
+                        id="c_desc"
+                        value={newClaimDesc}
+                        onChange={e => setNewClaimDesc(e.target.value)}
+                        placeholder="z.B. Steinschlag Windschutzscheibe, Wildunfall..."
+                        className="bg-zinc-900 border-zinc-800 text-xs"
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2 pt-1">
+                      <Button type="button" variant="ghost" onClick={() => setIsAddClaimOpen(false)} className="text-xs h-8">Abbrechen</Button>
+                      <Button type="submit" disabled={addingClaim} className="theme-bg-accent text-white text-xs h-8">
+                        {addingClaim ? "Speichert..." : "Schadensfall speichern"}
+                      </Button>
+                    </div>
+                  </form>
+                )}
+
+                {claimsList.length > 0 ? (
+                  <div className="space-y-3">
+                    {claimsList.map((claim) => (
+                      <div key={claim.id} className="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800/80 flex items-start justify-between gap-3 group hover:border-zinc-700 transition-all">
+                        <div className="space-y-1.5 text-xs sm:text-sm">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-bold text-white">{claim.claim_number || "Schadensfall"}</span>
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                              claim.status === "Erstattet / Reguliert" 
+                                ? "bg-emerald-950/80 text-emerald-300 border-emerald-800" 
+                                : claim.status === "Abgelehnt"
+                                ? "bg-red-950/80 text-red-300 border-red-800"
+                                : "bg-amber-950/80 text-amber-300 border-amber-800"
+                            }`}>
+                              {claim.status}
+                            </span>
+                          </div>
+                          {claim.description && <p className="text-zinc-300">{claim.description}</p>}
+                          <div className="flex items-center gap-4 text-xs text-zinc-400 font-mono">
+                            {claim.claim_date && <span>Datum: {claim.claim_date}</span>}
+                            {claim.amount !== null && claim.amount !== undefined && <span className="text-emerald-400 font-bold">Höhe: {claim.amount.toFixed(2)} €</span>}
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDeleteClaim(claim.id)}
+                          className="text-zinc-500 hover:text-red-400 h-8 w-8 p-0 shrink-0"
+                        >
+                          ✕
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-zinc-500 italic">Keine Schadensfälle für diese Versicherung eingetragen.</p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* TAB 5: Notizen & Memos */}
+          {activeTab === "notizen" && (
+            <Card className="border-zinc-800 bg-zinc-900/40 backdrop-blur-md shadow-xl">
+              <CardHeader className="pb-3 border-b border-zinc-800/60">
+                <CardTitle className="text-xl font-semibold flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <span>📝 Notizen & Persönliche Memos</span>
+                  </span>
+                  {notesMsg && <span className="text-xs text-emerald-400 font-normal">{notesMsg}</span>}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-5 space-y-4">
+                <textarea
+                  rows={8}
+                  value={notesText}
+                  onChange={e => setNotesText(e.target.value)}
+                  placeholder="Hinterlege hier eigene Notizen, z.B. Selbstbeteiligung 150€, Ansprechpartner, Hotline-Nummer für Pannen, Schadens-Protokolle..."
+                  className="w-full rounded-xl bg-zinc-950/60 border border-zinc-800/80 p-4 text-xs sm:text-sm text-zinc-200 placeholder:text-zinc-500 focus:outline-none focus:border-zinc-700"
+                />
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    onClick={handleSaveNotes}
+                    disabled={savingNotes}
+                    className="border-zinc-800 bg-zinc-900 text-zinc-300 text-xs hover:bg-zinc-800 px-4 py-2"
+                    variant="outline"
+                  >
+                    {savingNotes ? "Speichert..." : "Notizen speichern"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 
