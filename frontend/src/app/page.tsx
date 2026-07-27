@@ -90,7 +90,7 @@ export default function Dashboard() {
     }
   };
 
-  const totalCostAnnual = insurances.reduce((acc, ins) => acc + (ins.cost || 0), 0);
+  const totalCostAnnual = insurances.reduce((acc, ins) => ins.is_suspended ? acc : acc + (ins.cost || 0), 0);
 
   // Calculate category statistics & breakdown
   const categoryStats = insurances.reduce((acc: any, ins: any) => {
@@ -99,7 +99,9 @@ export default function Dashboard() {
       acc[cat] = { count: 0, cost: 0 };
     }
     acc[cat].count += 1;
-    acc[cat].cost += ins.cost || 0;
+    if (!ins.is_suspended) {
+      acc[cat].cost += ins.cost || 0;
+    }
     return acc;
   }, {});
 
@@ -360,10 +362,26 @@ export default function Dashboard() {
                       <CardTitle className="text-base sm:text-lg font-bold text-white group-hover:theme-text-accent transition-colors leading-snug break-words">
                         {ins.name}
                       </CardTitle>
-                      <div>
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="inline-block text-[11px] px-2 py-0.5 rounded bg-zinc-800/90 text-zinc-300 font-mono border border-zinc-700/80 font-medium shadow-sm">
                           {ins.category || "Versicherung"}
                         </span>
+
+                        {ins.is_suspended && (
+                          <span className="inline-block text-[11px] px-2 py-0.5 rounded bg-amber-950/90 text-amber-300 font-mono border border-amber-700 font-bold shadow-sm">
+                            ⏸️ Ruhend
+                          </span>
+                        )}
+
+                        {ins.price_change_pct !== undefined && ins.price_change_pct !== null && ins.price_change_pct !== 0 && (
+                          <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded font-mono font-bold border ${
+                            ins.price_change_pct > 0 
+                              ? "bg-rose-950/80 text-rose-300 border-rose-800" 
+                              : "bg-emerald-950/80 text-emerald-300 border-emerald-800"
+                          }`}>
+                            {ins.price_change_pct > 0 ? `+${ins.price_change_pct}%` : `${ins.price_change_pct}%`}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -374,6 +392,26 @@ export default function Dashboard() {
                       <span className="text-zinc-500">Gesellschaft:</span>
                       <span className="font-medium text-zinc-200">{ins.company || "Nicht angegeben"}</span>
                     </div>
+
+                    {(ins.sf_class || ins.regional_class || ins.type_class) && (
+                      <div className="flex items-center gap-1.5 text-[11px] font-mono text-zinc-300 pt-1 pb-1 flex-wrap">
+                        {ins.sf_class && (
+                          <span className="bg-cyan-950/80 text-cyan-300 border border-cyan-800 px-1.5 py-0.5 rounded font-bold">
+                            🚗 {ins.sf_class}
+                          </span>
+                        )}
+                        {ins.regional_class && (
+                          <span className="bg-violet-950/80 text-violet-300 border border-violet-800 px-1.5 py-0.5 rounded font-bold">
+                            📍 Regio: {ins.regional_class}
+                          </span>
+                        )}
+                        {ins.type_class && (
+                          <span className="bg-indigo-950/80 text-indigo-300 border border-indigo-800 px-1.5 py-0.5 rounded font-bold">
+                            🚘 Typ: {ins.type_class}
+                          </span>
+                        )}
+                      </div>
+                    )}
                     
                     <div className="flex items-center justify-between text-xs font-mono text-zinc-400">
                       <span className="text-zinc-500">Versicherungsschein-Nr:</span>
@@ -384,8 +422,10 @@ export default function Dashboard() {
 
                     <div className="flex items-center justify-between text-xs font-mono text-zinc-400">
                       <span className="text-zinc-500">Beitrag / Kosten:</span>
-                      <span className="font-bold text-emerald-400">
-                        {ins.cost ? `${ins.cost.toFixed(2)} € / ${ins.payment_cycle || "jährlich"}` : "k.A."}
+                      <span className={`font-bold ${ins.is_suspended ? "text-amber-400" : "text-emerald-400"}`}>
+                        {ins.is_suspended 
+                          ? "⏸️ Ruhend (0 €)" 
+                          : ins.cost ? `${ins.cost.toFixed(2)} € / ${ins.payment_cycle || "jährlich"}` : "k.A."}
                       </span>
                     </div>
                   </div>

@@ -38,11 +38,34 @@ class Insurance(Base):
     coverage_details = Column(String, nullable=True)
     notes = Column(String, nullable=True)
     
+    # KFZ Specific Attributes
+    sf_class = Column(String, nullable=True)
+    regional_class = Column(String, nullable=True)
+    type_class = Column(String, nullable=True)
+    
+    # Ruhend-Stellung (Beitragsfreistellung / Suspension)
+    is_suspended = Column(Boolean, default=False)
+    suspension_reason = Column(String, nullable=True)
+    
     owner_id = Column(Integer, ForeignKey("users.id"))
     owner = relationship("User", back_populates="insurances")
     
     documents = relationship("Document", back_populates="insurance", cascade="all, delete-orphan")
     claims = relationship("Claim", back_populates="insurance", cascade="all, delete-orphan")
+    premium_history = relationship("PremiumHistory", back_populates="insurance", cascade="all, delete-orphan", order_by="PremiumHistory.effective_date.asc()")
+
+class PremiumHistory(Base):
+    __tablename__ = "premium_history"
+    id = Column(Integer, primary_key=True, index=True)
+    cost = Column(Float, nullable=False)
+    payment_cycle = Column(String, nullable=True, default="jährlich")
+    annual_cost = Column(Float, nullable=False)
+    effective_date = Column(Date, nullable=True)
+    note = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    
+    insurance_id = Column(Integer, ForeignKey("insurances.id"))
+    insurance = relationship("Insurance", back_populates="premium_history")
 
 class Claim(Base):
     __tablename__ = "claims"

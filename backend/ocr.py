@@ -130,6 +130,12 @@ def extract_with_mini_ai(text: str) -> dict:
         '  "cost": 123.45,\n'
         '  "payment_cycle": "monatlich", "vierteljährlich", "halbjährlich" oder "jährlich",\n'
         '  "category": "Kfz", "Haftpflicht", "Hausrat", "Leben", "Gesundheit", "Rechtsschutz" oder "Sonstige",\n'
+        '  "sf_class": "Schadenfreiheitsklasse (z.B. SF 15, SF 1/2 oder SF 3)",\n'
+        '  "regional_class": "Regionalklasse (z.B. R4 oder 04)",\n'
+        '  "type_class": "Typklasse (z.B. 18 oder TK18)",\n'
+        '  "is_price_change": true oder false (wenn das Dokument eine Beitragsanpassung/Beitragserhöhung ist),\n'
+        '  "previous_cost": 100.00,\n'
+        '  "new_cost": 120.00,\n'
         '  "coverage_details": ["Kfz-Haftpflichtversicherung (Personen- & Sachschäden an Dritten, Erstattung berechtigter Ansprüche)", "Schutzbrief (Organisatorische & finanzielle Hilfe bei Panne oder Unfall)"]\n'
         "}<|im_end|>\n"
         f"<|im_start|>user\nVERTRAGSTEXT:\n{truncated_text}<|im_end|>\n"
@@ -182,19 +188,38 @@ def extract_with_mini_ai(text: str) -> dict:
         s_date, e_date, c_date = calculate_insurance_dates(raw_s, raw_e, raw_c, text)
         ins_num = extract_policy_number_fallback(text, ins_num)
 
-        print(f"[Mini-AI] Successfully extracted data with Qwen2.5-1.5B: Company='{company}', Policy='{ins_num}', Start='{s_date}', End='{e_date}', Canc='{c_date}'")
+        sf_class = str(parsed.get("sf_class", "")).strip() or None
+        regional_class = str(parsed.get("regional_class", "")).strip() or None
+        type_class = str(parsed.get("type_class", "")).strip() or None
+        is_price_change = bool(parsed.get("is_price_change", False))
+        prev_cost = None
+        try:
+            if parsed.get("previous_cost") is not None: prev_cost = float(parsed.get("previous_cost"))
+        except: pass
+        new_cost = None
+        try:
+            if parsed.get("new_cost") is not None: new_cost = float(parsed.get("new_cost"))
+        except: pass
+
+        print(f"[Mini-AI] Successfully extracted data with Qwen2.5-1.5B: Company='{company}', Policy='{ins_num}', Start='{s_date}', End='{e_date}', Canc='{c_date}', SF='{sf_class}'")
         return {
             "company": company,
             "insurance_number": ins_num,
             "category": category,
             "doc_type": ins_type,
             "suggested_title": f"{company or ins_type} - {ins_num or 'Polizze'}",
-            "cost": cost,
+            "cost": new_cost or cost,
             "payment_cycle": payment_cycle,
             "start_date": s_date,
             "end_date": e_date,
             "cancellation_date": c_date,
             "coverage_details": cov_details,
+            "sf_class": sf_class,
+            "regional_class": regional_class,
+            "type_class": type_class,
+            "is_price_change": is_price_change,
+            "previous_cost": prev_cost,
+            "new_cost": new_cost or cost,
             "ai_used": True,
             "ai_model": "Qwen2.5-1.5B (Embedded)"
         }
@@ -522,6 +547,24 @@ def extract_insurance_data_regex(text: str) -> dict:
         coverage_details.append("Berufsunfähigkeitsversicherung (Monatliche Rente & Beitragsbefreiung bei Berufs- oder Erwerbsunfähigkeit)")
     if re.search(r'(?i)(risikoleben|hinterbliebenenschutz)', text):
         coverage_details.append("Risikolebensversicherung (Absicherung der Familie & Hinterbliebenen im Todesfall)")
+
+    # KFZ Specific Regex Extraction
+    match_sf = re.search(r'(?i)\b(?:sf|schadenfreiheitsklasse)\s*[-:]?\s*([0-9/]+|(?:1/2))\b', text)
+    if match_sf:
+        data["sf_class"] = f"SF {match_sf.group(1).upper()}"
+
+    match_regio = re.search(r'(?i)\b(?:regional\s*klasse|regio\s*klasse|r\-klasse)\s*[-:]?\s*([a-z0-9]{1,4})\b', text)
+    if match_regio:
+        data["regional_class"] = match_regio.group(1).upper()
+
+    match_typ = re.search(r'(?i)\b(?:typ\s*klasse|tk)\s*[-:]?\s*([0-9]{1,3})\b', text)
+    if match_typ:
+        data["type_class"] = match_typ.group(1)
+
+    # Price Adjustment / Price Change Regex Extraction
+    if re.search(r'(?i)(beitragsanpassung|beitragserhöhung|neuer beitrag|beitragsänderung|jahresrechnung)', text):
+        data["is_price_change"] = True
+        data["doc_type"] = "Beitragsanpassung"
 
     data["coverage_details"] = coverage_details
     return data

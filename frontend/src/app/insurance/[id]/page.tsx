@@ -17,6 +17,15 @@ import { CompanyLogo } from "@/components/CompanyLogo";
 import { CancellationModal } from "@/components/CancellationModal";
 import { api } from "@/lib/api";
 
+interface PremiumHistoryItem {
+  id: number;
+  cost: number;
+  payment_cycle: string;
+  annual_cost: number;
+  effective_date?: string;
+  note?: string;
+}
+
 interface Insurance {
   id: number;
   name: string;
@@ -30,6 +39,14 @@ interface Insurance {
   cancellation_date: string;
   contact_info: string;
   coverage_details?: string[];
+  notes?: string;
+  sf_class?: string;
+  regional_class?: string;
+  type_class?: string;
+  is_suspended?: boolean;
+  suspension_reason?: string;
+  price_change_pct?: number;
+  premium_history?: PremiumHistoryItem[];
 }
 
 interface DocumentItem {
@@ -61,7 +78,12 @@ export default function InsuranceDetailPage() {
     payment_cycle: "jährlich",
     start_date: "",
     end_date: "",
-    cancellation_date: ""
+    cancellation_date: "",
+    sf_class: "",
+    regional_class: "",
+    type_class: "",
+    is_suspended: false,
+    suspension_reason: ""
   });
   const [coverageList, setCoverageList] = useState<string[]>([]);
   const [newCoverageItem, setNewCoverageItem] = useState("");
@@ -69,6 +91,13 @@ export default function InsuranceDetailPage() {
   const [saveMsg, setSaveMsg] = useState("");
   const [saveErr, setSaveErr] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Premium History form state
+  const [newHCost, setNewHCost] = useState("");
+  const [newHCycle, setNewHCycle] = useState("jährlich");
+  const [newHDate, setNewHDate] = useState("");
+  const [newHNote, setNewHNote] = useState("");
+  const [addingHistory, setAddingHistory] = useState(false);
 
   // Upload modal state
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -106,6 +135,21 @@ export default function InsuranceDetailPage() {
     }
   }, [insuranceId]);
 
+  const isSuspensionEligible = (cat: string) => {
+    const c = (cat || "").toLowerCase();
+    return (
+      c.includes("kfz") || c.includes("auto") || c.includes("fahrzeug") || c.includes("motorrad") ||
+      c.includes("kranken") || c.includes("pkv") || c.includes("zusatz") || c.includes("gesundheit") ||
+      c.includes("leben") || c.includes("rente") || c.includes("riester") || c.includes("rürup") || c.includes("vorsorge") ||
+      c.includes("berufsunfähigkeit") || c.includes("bu") || c.includes("unfall") || c.includes("rechtsschutz")
+    );
+  };
+
+  const isKfzCategory = (cat: string) => {
+    const c = (cat || "").toLowerCase();
+    return c.includes("kfz") || c.includes("auto") || c.includes("fahrzeug") || c.includes("motorrad");
+  };
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -124,12 +168,16 @@ export default function InsuranceDetailPage() {
         payment_cycle: insData.payment_cycle || "jährlich",
         start_date: insData.start_date || "",
         end_date: insData.end_date || "",
-        cancellation_date: insData.cancellation_date || ""
+        cancellation_date: insData.cancellation_date || "",
+        sf_class: insData.sf_class || "",
+        regional_class: insData.regional_class || "",
+        type_class: insData.type_class || "",
+        is_suspended: !!insData.is_suspended,
+        suspension_reason: insData.suspension_reason || ""
       });
 
       setNotesText(insData.notes || "");
       setClaimsList(insData.claims || []);
-
       setCoverageList(insData.coverage_details || []);
 
       const docsData = await api.get(`/documents/insurance/${insuranceId}`);
@@ -175,82 +223,20 @@ export default function InsuranceDetailPage() {
     setNewCoverageItem("");
   };
 
-  const handleRemoveCoverageItem = (index: number) => {
-    setCoverageList(coverageList.filter((_, idx) => idx !== index));
-  };
-
-  const handleDeleteInsurance = async () => {
-    if (!window.confirm(`Möchtest du die Versicherung "${insurance?.name}" wirklich unwiderruflich löschen?`)) {
-      return;
-    }
-
-    try {
-      await api.delete(`/insurances/${insuranceId}`);
-      router.push("/");
-    } catch (err: any) {
-      alert("Fehler beim Löschen: " + err.message);
-    }
-  };
-
-  const [reanalyzingId, setReanalyzingId] = useState<number | null>(null);
-
-  const handleReanalyzeDocument = async (docId: number) => {
-    setReanalyzingId(docId);
-    try {
-      const res = await api.post(`/documents/${docId}/reanalyze`, {});
-      alert(res.message || "Dokument erfolgreich erneut analysiert!");
-      await loadData();
-    } catch (err: any) {
-      alert("Fehler beim Re-Analysieren: " + (err.message || "Unbekannter Fehler"));
-    } finally {
-      setReanalyzingId(null);
-    }
-  };
-
-  const handleDeleteDocument = async (docId: number, docName: string) => {
-    if (!window.confirm(`Möchtest du das Dokument "${docName}" wirklich unwiderruflich löschen?`)) {
-      return;
-    }
-
-    try {
-      await api.delete(`/documents/${docId}`);
-      const docsData = await api.get(`/documents/insurance/${insuranceId}`);
-      setDocuments(docsData);
-    } catch (err: any) {
-      alert("Fehler beim Löschen des Dokuments: " + err.message);
-    }
-  };
-
-  const openEditDocModal = (doc: DocumentItem) => {
-    setEditingDoc(doc);
-    setEditDocName(doc.custom_name || doc.original_filename);
-    setEditDocType(doc.doc_type || "Versicherungsschein / Polizze");
-  };
-
-  const handleUpdateDocument = async () => {
-    if (!editingDoc) return;
-    try {
-      await api.put(`/documents/${editingDoc.id}`, {
-        custom_name: editDocName,
-        doc_type: editDocType
-      });
-      setEditingDoc(null);
-      const docsData = await api.get(`/documents/insurance/${insuranceId}`);
-      setDocuments(docsData);
-    } catch (err: any) {
-      alert("Fehler beim Aktualisieren des Dokuments: " + err.message);
-    }
+  const handleRemoveCoverageItem = (idx: number) => {
+    setCoverageList(coverageList.filter((_, i) => i !== idx));
   };
 
   const handleSaveNotes = async () => {
-    setSavingNotes(true);
     setNotesMsg("");
+    setSavingNotes(true);
     try {
-      await api.put(`/insurances/${insuranceId}/notes`, { notes: notesText });
-      setNotesMsg("✓ Notizen gespeichert!");
-      setTimeout(() => setNotesMsg(""), 3000);
+      const res = await api.put(`/insurances/${insuranceId}/notes`, { notes: notesText });
+      setNotesMsg("Speichert...");
+      setTimeout(() => setNotesMsg("Gespeichert!"), 600);
+      setTimeout(() => setNotesMsg(""), 2500);
     } catch (err: any) {
-      console.error("Failed to save notes:", err);
+      alert(err.message || "Fehler beim Speichern der Notiz.");
     } finally {
       setSavingNotes(false);
     }
@@ -260,14 +246,15 @@ export default function InsuranceDetailPage() {
     e.preventDefault();
     setAddingClaim(true);
     try {
-      const created = await api.post(`/insurances/${insuranceId}/claims`, {
+      const payload = {
         claim_number: newClaimNum || undefined,
         claim_date: newClaimDate || undefined,
-        amount: newClaimAmount ? parseFloat(newClaimAmount) : undefined,
+        amount: newClaimAmount ? parseFloat(newClaimAmount.replace(',', '.')) : null,
         status: newClaimStatus,
-        description: newClaimDesc
-      });
-      setClaimsList([...claimsList, created]);
+        description: newClaimDesc || undefined
+      };
+      const added = await api.post(`/insurances/${insuranceId}/claims`, payload);
+      setClaimsList([...claimsList, added]);
       setIsAddClaimOpen(false);
       setNewClaimNum("");
       setNewClaimDate("");
@@ -275,19 +262,87 @@ export default function InsuranceDetailPage() {
       setNewClaimStatus("In Bearbeitung");
       setNewClaimDesc("");
     } catch (err: any) {
-      console.error("Failed to add claim:", err);
+      alert(err.message || "Fehler beim Hinzufügen der Schadensmeldung.");
     } finally {
       setAddingClaim(false);
     }
   };
 
   const handleDeleteClaim = async (claimId: number) => {
-    if (!confirm("Schadensmeldung wirklich löschen?")) return;
+    if (!window.confirm("Möchtest du diese Schadensmeldung wirklich löschen?")) return;
     try {
       await api.delete(`/insurances/${insuranceId}/claims/${claimId}`);
       setClaimsList(claimsList.filter(c => c.id !== claimId));
     } catch (err: any) {
-      console.error("Failed to delete claim:", err);
+      alert(err.message || "Fehler beim Löschen der Schadensmeldung.");
+    }
+  };
+
+  const handleAddPremiumHistory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newHCost) return;
+    setAddingHistory(true);
+    try {
+      const payload = {
+        cost: parseFloat(newHCost.replace(',', '.')),
+        payment_cycle: newHCycle,
+        effective_date: newHDate || undefined,
+        note: newHNote || "Beitragsanpassung"
+      };
+      await api.post(`/insurances/${insuranceId}/premium-history`, payload);
+      setNewHCost("");
+      setNewHNote("");
+      setNewHDate("");
+      loadData();
+    } catch (err: any) {
+      alert(err.message || "Fehler beim Hinzufügen der Beitragsanpassung.");
+    } finally {
+      setAddingHistory(false);
+    }
+  };
+
+  const handleDeletePremiumHistory = async (historyId: number) => {
+    if (!window.confirm("Möchtest du diesen historischen Beitrags-Eintrag wirklich löschen?")) return;
+    try {
+      await api.delete(`/insurances/${insuranceId}/premium-history/${historyId}`);
+      loadData();
+    } catch (err: any) {
+      alert(err.message || "Fehler beim Löschen.");
+    }
+  };
+
+  const handleDeleteInsurance = async () => {
+    if (!window.confirm(`⚠️ ACHTUNG: Möchtest du die Versicherung "${insurance?.name}" wirklich unwiderruflich löschen? Alle verknüpften Dokumente und Notizen werden ebenfalls entfernt.`)) {
+      return;
+    }
+    try {
+      await api.delete(`/insurances/${insuranceId}`);
+      router.push("/");
+    } catch (err: any) {
+      alert(err.message || "Fehler beim Löschen der Versicherung.");
+    }
+  };
+
+  const handleSaveDocEdit = async (docId: number) => {
+    try {
+      const updated = await api.put(`/documents/${docId}`, {
+        custom_name: editDocName,
+        doc_type: editDocType
+      });
+      setDocuments(prev => prev.map(d => d.id === docId ? { ...d, custom_name: updated.custom_name, doc_type: updated.doc_type } : d));
+      setEditingDoc(null);
+    } catch (err: any) {
+      alert(err.message || "Fehler beim Speichern des Dokuments.");
+    }
+  };
+
+  const handleDeleteDoc = async (docId: number, name: string) => {
+    if (!window.confirm(`Möchtest du das Dokument "${name}" wirklich löschen?`)) return;
+    try {
+      await api.delete(`/documents/${docId}`);
+      setDocuments(prev => prev.filter(d => d.id !== docId));
+    } catch (err: any) {
+      alert(err.message || "Fehler beim Löschen des Dokuments.");
     }
   };
 
@@ -348,6 +403,11 @@ export default function InsuranceDetailPage() {
     URL.revokeObjectURL(url);
   };
 
+  const historyEntries = insurance.premium_history || [];
+  const maxHistoryCost = historyEntries.length > 0 
+    ? Math.max(...historyEntries.map(h => h.annual_cost || 0), insurance.cost || 1) 
+    : (insurance.cost || 1);
+
   return (
     <div className="space-y-6 flex-1">
       <Navbar userEmail={currentUser?.email} />
@@ -363,17 +423,60 @@ export default function InsuranceDetailPage() {
                 <span className="text-xs font-mono px-2.5 py-1 rounded-md theme-bg-accent text-white font-medium shadow-md">
                   {insurance.category || "Versicherung"}
                 </span>
+
+                {insurance.is_suspended && (
+                  <span className="text-xs font-mono px-2.5 py-1 rounded-md bg-amber-950/90 border border-amber-700 text-amber-300 font-bold shadow-md">
+                    ⏸️ Vertrag ruht
+                  </span>
+                )}
+
                 <span className="text-xs font-mono px-2.5 py-1 rounded-md bg-indigo-950/80 border border-indigo-800/80 text-indigo-300 font-bold">
                   📋 VSN: {insurance.insurance_number || "Nicht angegeben"}
                 </span>
+
                 {insurance.cost && (
                   <span className="text-xs font-mono px-2.5 py-1 rounded-md bg-emerald-950/80 border border-emerald-800 text-emerald-300 font-bold">
                     💰 {insurance.cost.toFixed(2)} € / {insurance.payment_cycle || "Jahr"}
                   </span>
                 )}
+
+                {insurance.price_change_pct !== undefined && insurance.price_change_pct !== null && insurance.price_change_pct !== 0 && (
+                  <span className={`text-xs font-mono px-2.5 py-1 rounded-md font-bold shadow-md border ${
+                    insurance.price_change_pct > 0 
+                      ? "bg-rose-950/90 border-rose-800 text-rose-300" 
+                      : "bg-emerald-950/90 border-emerald-800 text-emerald-300"
+                  }`}>
+                    {insurance.price_change_pct > 0 ? `📈 +${insurance.price_change_pct}% Erhöhung` : `📉 ${insurance.price_change_pct}% Senkung`}
+                  </span>
+                )}
               </div>
+
+              {/* KFZ Badges */}
+              {(insurance.sf_class || insurance.regional_class || insurance.type_class) && (
+                <div className="flex items-center gap-2 flex-wrap mt-2">
+                  {insurance.sf_class && (
+                    <span className="text-xs font-mono px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-800 text-cyan-300 font-bold">
+                      🚗 {insurance.sf_class}
+                    </span>
+                  )}
+                  {insurance.regional_class && (
+                    <span className="text-xs font-mono px-2 py-0.5 rounded bg-violet-950/80 border border-violet-800 text-violet-300 font-bold">
+                      📍 Regio: {insurance.regional_class}
+                    </span>
+                  )}
+                  {insurance.type_class && (
+                    <span className="text-xs font-mono px-2 py-0.5 rounded bg-indigo-950/80 border border-indigo-800 text-indigo-300 font-bold">
+                      🚘 Typklasse: {insurance.type_class}
+                    </span>
+                  )}
+                </div>
+              )}
+
               <p className="text-xs sm:text-sm text-zinc-400 mt-2">
                 Gesellschaft: <span className="text-zinc-200 font-medium">{insurance.company || "Nicht angegeben"}</span>
+                {insurance.is_suspended && insurance.suspension_reason && (
+                  <span className="text-amber-300 ml-2 font-mono text-xs">({insurance.suspension_reason})</span>
+                )}
               </p>
             </div>
           </div>
@@ -401,7 +504,7 @@ export default function InsuranceDetailPage() {
 
         {/* Content Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Left Column: Insurance Form & Coverage Details */}
+          {/* Left Column: Insurance Form, Price History & Coverage Details */}
           <div className="lg:col-span-7 space-y-6">
             <Card className="border-zinc-800 bg-zinc-900/40 backdrop-blur-md shadow-xl">
               <CardHeader>
@@ -447,6 +550,64 @@ export default function InsuranceDetailPage() {
                         </Select>
                       </div>
                     </div>
+
+                    {/* KFZ Specific Attributes Form Row */}
+                    {(isKfzCategory(formData.category) || formData.sf_class || formData.regional_class || formData.type_class) && (
+                      <div className="p-4 rounded-xl bg-zinc-950/40 border border-cyan-900/40 space-y-3">
+                        <h4 className="text-xs font-bold text-cyan-300 uppercase tracking-wider flex items-center gap-2">
+                          <span>🚗 KFZ-Tarifmerkmale</span>
+                        </h4>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="space-y-1">
+                            <Label htmlFor="sf_class" className="text-[11px] font-mono text-zinc-400">SF-Klasse</Label>
+                            <Input id="sf_class" value={formData.sf_class} onChange={e => setFormData({...formData, sf_class: e.target.value})} placeholder="z.B. SF 15" className="bg-zinc-900 border-zinc-800 text-xs" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="regional_class" className="text-[11px] font-mono text-zinc-400">Regionalklasse</Label>
+                            <Input id="regional_class" value={formData.regional_class} onChange={e => setFormData({...formData, regional_class: e.target.value})} placeholder="z.B. R4" className="bg-zinc-900 border-zinc-800 text-xs" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="type_class" className="text-[11px] font-mono text-zinc-400">Typklasse</Label>
+                            <Input id="type_class" value={formData.type_class} onChange={e => setFormData({...formData, type_class: e.target.value})} placeholder="z.B. 18" className="bg-zinc-900 border-zinc-800 text-xs" />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Ruhendstellung / Beitragsfreistellung Switch */}
+                    {isSuspensionEligible(formData.category) && (
+                      <div className="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800/80 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <Label htmlFor="is_suspended" className="text-sm font-bold text-white flex items-center gap-2 cursor-pointer">
+                              <span>⏸️ Vertrag ruht / ist beitragsfrei gestellt</span>
+                            </Label>
+                            <p className="text-xs text-zinc-400 mt-0.5">
+                              Für Fahrzeug-Abmeldungen, Saison, Anwartschaften oder Beitragsfreistellungen.
+                            </p>
+                          </div>
+                          <input
+                            type="checkbox"
+                            id="is_suspended"
+                            checked={formData.is_suspended}
+                            onChange={e => setFormData({...formData, is_suspended: e.target.checked})}
+                            className="w-5 h-5 accent-amber-500 rounded cursor-pointer shrink-0"
+                          />
+                        </div>
+                        {formData.is_suspended && (
+                          <div className="pt-2 border-t border-zinc-800/60">
+                            <Label htmlFor="suspension_reason" className="text-xs font-mono text-zinc-400">Grund der Ruhendstellung (optional)</Label>
+                            <Input
+                              id="suspension_reason"
+                              value={formData.suspension_reason}
+                              onChange={e => setFormData({...formData, suspension_reason: e.target.value})}
+                              placeholder="z.B. Fahrzeug vorübergehend abgemeldet, Elternzeit, Anwartschaft..."
+                              className="bg-zinc-900 border-zinc-800 text-xs mt-1"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     <div className="space-y-2">
                       <Label htmlFor="insurance_number" className="text-xs font-mono text-zinc-400">Versicherungsnummer</Label>
@@ -498,33 +659,23 @@ export default function InsuranceDetailPage() {
                             size="sm"
                             variant="ghost"
                             onClick={() => handleRemoveCoverageItem(idx)}
-                            className="text-zinc-500 hover:text-red-400 h-7 w-7 p-0 rounded-lg hover:bg-zinc-900"
+                            className="text-zinc-500 hover:text-red-400 h-8 w-8 p-0"
                           >
                             ✕
                           </Button>
                         </div>
                       ))}
-
-                      {coverageList.length === 0 && (
-                        <p className="text-xs text-zinc-500 italic py-2">
-                          Noch keine einzelnen Leistungen hinterlegt. Lade ein Dokument hoch oder füge manuell Leistungen hinzu.
-                        </p>
-                      )}
                     </div>
 
-                    <div className="flex gap-2 pt-1">
+                    <div className="flex gap-2 pt-2">
                       <Input
                         value={newCoverageItem}
                         onChange={e => setNewCoverageItem(e.target.value)}
-                        placeholder="z.B. Schutzbrief, Teilkasko, Schlüsselverlust"
-                        onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleAddCoverageItem(); } }}
+                        onKeyDown={e => e.key === "Enter" && (e.preventDefault(), handleAddCoverageItem())}
+                        placeholder="z.B. Schutzbrief, Teilkasko, Schlüsselverlust..."
                         className="bg-zinc-950/50 border-zinc-800 text-xs"
                       />
-                      <Button
-                        type="button"
-                        onClick={handleAddCoverageItem}
-                        className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs shrink-0"
-                      >
+                      <Button type="button" onClick={handleAddCoverageItem} variant="outline" className="border-zinc-800 bg-zinc-900 text-zinc-300 text-xs shrink-0">
                         + Hinzufügen
                       </Button>
                     </div>
@@ -549,6 +700,150 @@ export default function InsuranceDetailPage() {
               </CardContent>
             </Card>
 
+            {/* Price Trend & Premium History Card (Proposal 1) */}
+            <Card className="border-zinc-800 bg-zinc-900/40 backdrop-blur-md shadow-xl">
+              <CardHeader className="pb-3 border-b border-zinc-800/60">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                      <span>📈 Beitragsentwicklung & Preis-Historie</span>
+                    </CardTitle>
+                    <CardDescription className="text-xs mt-0.5">
+                      Verfolge die Preisentwicklung deiner Beitragsanpassungen über die Jahre.
+                    </CardDescription>
+                  </div>
+                  {insurance.price_change_pct !== undefined && insurance.price_change_pct !== null && (
+                    <span className={`text-xs font-mono px-2.5 py-1 rounded-md font-bold border ${
+                      insurance.price_change_pct > 0 
+                        ? "bg-rose-950/90 border-rose-800 text-rose-300" 
+                        : "bg-emerald-950/90 border-emerald-800 text-emerald-300"
+                    }`}>
+                      {insurance.price_change_pct > 0 ? `📈 +${insurance.price_change_pct}%` : `📉 ${insurance.price_change_pct}%`}
+                    </span>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6 pt-5">
+                {/* Visual SVG Bar Chart */}
+                {historyEntries.length > 0 ? (
+                  <div className="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800/80 space-y-4">
+                    <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Jahresbeitrag im Zeitverlauf</h4>
+                    <div className="flex items-end justify-around h-36 gap-2 pt-6 pb-2 border-b border-zinc-800/80 px-2">
+                      {historyEntries.map((h, i) => {
+                        const heightPct = maxHistoryCost > 0 ? Math.max(15, Math.round((h.annual_cost / maxHistoryCost) * 100)) : 20;
+                        const dateLabel = h.effective_date ? new Date(h.effective_date).getFullYear().toString() : `Eintrag ${i+1}`;
+                        return (
+                          <div key={h.id || i} className="flex flex-col items-center flex-1 max-w-[64px] group">
+                            <span className="text-[10px] font-mono text-emerald-400 font-bold mb-1 opacity-90 group-hover:opacity-100">
+                              {h.annual_cost.toFixed(0)}€
+                            </span>
+                            <div className="w-full bg-zinc-800 rounded-t-lg relative overflow-hidden flex items-end" style={{ height: `${heightPct}%` }}>
+                              <div className="w-full h-full theme-bg-accent opacity-80 group-hover:opacity-100 transition-all rounded-t-lg"></div>
+                            </div>
+                            <span className="text-[10px] font-mono text-zinc-400 mt-2 truncate w-full text-center">
+                              {dateLabel}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-zinc-500 italic">Noch keine historischen Beitragsanpassungen erfasst.</p>
+                )}
+
+                {/* History Entries List */}
+                {historyEntries.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Historische Anpassungen</h4>
+                    <div className="divide-y divide-zinc-800/60 border border-zinc-800/80 rounded-xl overflow-hidden bg-zinc-950/40">
+                      {historyEntries.map((h) => (
+                        <div key={h.id} className="p-3 flex items-center justify-between gap-3 text-xs">
+                          <div>
+                            <div className="flex items-center gap-2 font-mono font-bold text-white">
+                              <span>💰 {h.cost.toFixed(2)} €</span>
+                              <span className="text-[10px] text-zinc-400 font-normal">({h.payment_cycle})</span>
+                              <span className="text-[10px] text-emerald-400">({h.annual_cost.toFixed(2)} € / Jahr)</span>
+                            </div>
+                            <div className="text-[11px] text-zinc-400 mt-0.5 flex items-center gap-2">
+                              {h.effective_date && <span>Gültig ab: {h.effective_date}</span>}
+                              {h.note && <span className="italic">• {h.note}</span>}
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDeletePremiumHistory(h.id)}
+                            className="text-zinc-500 hover:text-red-400 h-7 w-7 p-0 shrink-0"
+                          >
+                            ✕
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Form to Add New Price Adjustment */}
+                <form onSubmit={handleAddPremiumHistory} className="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800 space-y-3">
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider">+ Neue Beitragsanpassung eintragen</h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="h_cost" className="text-[11px] font-mono text-emerald-400">Neuer Beitrag (€)</Label>
+                      <Input
+                        id="h_cost"
+                        type="number"
+                        step="0.01"
+                        value={newHCost}
+                        onChange={e => setNewHCost(e.target.value)}
+                        placeholder="165.00"
+                        required
+                        className="bg-zinc-900 border-zinc-800 text-xs font-mono"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="h_cycle" className="text-[11px] font-mono text-zinc-400">Zahlweise</Label>
+                      <Select value={newHCycle} onValueChange={(val) => setNewHCycle(val || "jährlich")}>
+                        <SelectTrigger className="bg-zinc-900 border-zinc-800 text-xs h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-zinc-900 border-zinc-700 text-zinc-50">
+                          <SelectItem value="monatlich">Monatlich</SelectItem>
+                          <SelectItem value="quartalsweise">Quartalsweise</SelectItem>
+                          <SelectItem value="halbjährlich">Halbjährlich</SelectItem>
+                          <SelectItem value="jährlich">Jährlich</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1 col-span-2 sm:col-span-1">
+                      <Label htmlFor="h_date" className="text-[11px] font-mono text-zinc-400">Gültig ab (Datum)</Label>
+                      <Input
+                        id="h_date"
+                        type="date"
+                        value={newHDate}
+                        onChange={e => setNewHDate(e.target.value)}
+                        className="bg-zinc-900 border-zinc-800 text-xs"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="h_note" className="text-[11px] font-mono text-zinc-400">Anlass / Notiz (optional)</Label>
+                    <Input
+                      id="h_note"
+                      value={newHNote}
+                      onChange={e => setNewHNote(e.target.value)}
+                      placeholder="z.B. Jährliche Beitragsanpassung 2026..."
+                      className="bg-zinc-900 border-zinc-800 text-xs"
+                    />
+                  </div>
+                  <Button type="submit" disabled={addingHistory} className="theme-bg-accent text-white text-xs w-full mt-2">
+                    {addingHistory ? "Speichert..." : "+ Beitragsanpassung speichern"}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+
             {/* Notes Card */}
             <Card className="border-zinc-800 bg-zinc-900/40 backdrop-blur-md shadow-xl mt-6">
               <CardHeader className="pb-3 border-b border-zinc-800/60">
@@ -559,92 +854,233 @@ export default function InsuranceDetailPage() {
                   {notesMsg && <span className="text-xs text-emerald-400 font-normal">{notesMsg}</span>}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-4 sm:p-6 space-y-4">
+              <CardContent className="pt-4 space-y-4">
                 <textarea
                   rows={4}
                   value={notesText}
-                  onChange={(e) => setNotesText(e.target.value)}
+                  onChange={e => setNotesText(e.target.value)}
                   placeholder="Hinterlege hier eigene Notizen, z.B. Selbstbeteiligung 150€, Ansprechpartner, Hotline-Nummer für Pannen..."
-                  className="w-full bg-zinc-950/60 border border-zinc-800 rounded-xl p-3 text-xs sm:text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-700"
+                  className="w-full rounded-xl bg-zinc-950/60 border border-zinc-800/80 p-3 text-xs text-zinc-200 placeholder:text-zinc-500 focus:outline-none focus:border-zinc-700"
                 />
                 <div className="flex justify-end">
                   <Button
                     type="button"
                     onClick={handleSaveNotes}
                     disabled={savingNotes}
-                    className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs px-4"
+                    className="border-zinc-800 bg-zinc-900 text-zinc-300 text-xs hover:bg-zinc-800"
+                    variant="outline"
                   >
                     {savingNotes ? "Speichert..." : "Notizen speichern"}
                   </Button>
                 </div>
               </CardContent>
             </Card>
+          </div>
 
-            {/* Claims History Card */}
-            <Card className="border-zinc-800 bg-zinc-900/40 backdrop-blur-md shadow-xl mt-6">
-              <CardHeader className="pb-3 border-b border-zinc-800/60 flex flex-row items-center justify-between">
-                <div>
+          {/* Right Column: Claims Tracker & Documents List */}
+          <div className="lg:col-span-5 space-y-6">
+            {/* Claims Tracker Card */}
+            <Card className="border-zinc-800 bg-zinc-900/40 backdrop-blur-md shadow-xl">
+              <CardHeader className="pb-3 border-b border-zinc-800/60">
+                <div className="flex items-center justify-between">
                   <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                    <span>💥 Schadensfälle & Melde-Historie</span>
+                    <span>💥 Schadensfall-Tracker</span>
                   </CardTitle>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsAddClaimOpen(!isAddClaimOpen)}
+                    className="border-indigo-800 bg-indigo-950/50 text-indigo-300 text-xs hover:bg-indigo-900"
+                  >
+                    + Schaden melden
+                  </Button>
                 </div>
-                <Button
-                  type="button"
-                  onClick={() => setIsAddClaimOpen(true)}
-                  className="theme-bg-accent text-white text-xs font-medium px-3 py-1.5"
-                >
-                  + Schadensfall melden
-                </Button>
               </CardHeader>
-              <CardContent className="p-4 sm:p-6 space-y-3">
-                {claimsList.length === 0 ? (
-                  <p className="text-xs text-zinc-500 italic py-2">
-                    Bisher keine Schadensfälle oder Regulierungsmeldungen für diesen Vertrag erfasst.
-                  </p>
-                ) : (
+              <CardContent className="pt-4 space-y-4">
+                {isAddClaimOpen && (
+                  <form onSubmit={handleAddClaim} className="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800 space-y-3">
+                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">Neuen Schadensfall erfassen</h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label htmlFor="c_num" className="text-[11px] font-mono text-zinc-400">Schadennummer</Label>
+                        <Input
+                          id="c_num"
+                          value={newClaimNum}
+                          onChange={e => setNewClaimNum(e.target.value)}
+                          placeholder="z.B. SCH-2026-001"
+                          className="bg-zinc-900 border-zinc-800 text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="c_date" className="text-[11px] font-mono text-zinc-400">Schadendatum</Label>
+                        <Input
+                          id="c_date"
+                          type="date"
+                          value={newClaimDate}
+                          onChange={e => setNewClaimDate(e.target.value)}
+                          className="bg-zinc-900 border-zinc-800 text-xs"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label htmlFor="c_amount" className="text-[11px] font-mono text-zinc-400">Schadenshöhe (€)</Label>
+                        <Input
+                          id="c_amount"
+                          type="number"
+                          step="0.01"
+                          value={newClaimAmount}
+                          onChange={e => setNewClaimAmount(e.target.value)}
+                          placeholder="z.B. 450.00"
+                          className="bg-zinc-900 border-zinc-800 text-xs font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="c_status" className="text-[11px] font-mono text-zinc-400">Status</Label>
+                        <Select value={newClaimStatus} onValueChange={(val) => setNewClaimStatus(val || "In Bearbeitung")}>
+                          <SelectTrigger className="bg-zinc-900 border-zinc-800 text-xs h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-zinc-900 border-zinc-700 text-zinc-50">
+                            <SelectItem value="In Bearbeitung">In Bearbeitung</SelectItem>
+                            <SelectItem value="Erstattet / Reguliert">Erstattet / Reguliert</SelectItem>
+                            <SelectItem value="Abgelehnt">Abgelehnt</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="c_desc" className="text-[11px] font-mono text-zinc-400">Beschreibung des Schadens</Label>
+                      <Input
+                        id="c_desc"
+                        value={newClaimDesc}
+                        onChange={e => setNewClaimDesc(e.target.value)}
+                        placeholder="z.B. Steinschlag Windschutzscheibe, Wildunfall..."
+                        className="bg-zinc-900 border-zinc-800 text-xs"
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2 pt-1">
+                      <Button type="button" variant="ghost" onClick={() => setIsAddClaimOpen(false)} className="text-xs h-8">Abbrechen</Button>
+                      <Button type="submit" disabled={addingClaim} className="theme-bg-accent text-white text-xs h-8">
+                        {addingClaim ? "Speichert..." : "Schadensfall speichern"}
+                      </Button>
+                    </div>
+                  </form>
+                )}
+
+                {claimsList.length > 0 ? (
                   <div className="space-y-3">
                     {claimsList.map((claim) => (
-                      <div
-                        key={claim.id}
-                        className="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                      >
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs font-mono font-bold text-white">{claim.claim_number}</span>
-                            <span
-                              className={`text-[10px] font-mono px-2 py-0.5 rounded font-semibold border ${
-                                claim.status === "Reguliert / Bezahlt"
-                                  ? "bg-emerald-950/80 border-emerald-800 text-emerald-300"
-                                  : claim.status === "Abgelehnt"
-                                  ? "bg-red-950/80 border-red-800 text-red-300"
-                                  : "bg-amber-950/80 border-amber-800 text-amber-300"
-                              }`}
-                            >
+                      <div key={claim.id} className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800/80 flex items-start justify-between gap-3 group hover:border-zinc-700 transition-all">
+                        <div className="space-y-1 text-xs">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-bold text-white">{claim.claim_number || "Schadensfall"}</span>
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                              claim.status === "Erstattet / Reguliert" 
+                                ? "bg-emerald-950/80 text-emerald-300 border-emerald-800" 
+                                : claim.status === "Abgelehnt"
+                                ? "bg-red-950/80 text-red-300 border-red-800"
+                                : "bg-amber-950/80 text-amber-300 border-amber-800"
+                            }`}>
                               {claim.status}
                             </span>
-                            {claim.claim_date && (
-                              <span className="text-[11px] text-zinc-400 font-mono">
-                                📅 {new Date(claim.claim_date).toLocaleDateString("de-DE")}
-                              </span>
-                            )}
                           </div>
-                          {claim.description && (
-                            <p className="text-xs text-zinc-300 mt-1">{claim.description}</p>
-                          )}
+                          {claim.description && <p className="text-zinc-300">{claim.description}</p>}
+                          <div className="flex items-center gap-3 text-[11px] text-zinc-500 font-mono">
+                            {claim.claim_date && <span>Datum: {claim.claim_date}</span>}
+                            {claim.amount !== null && claim.amount !== undefined && <span className="text-emerald-400 font-bold">Höhe: {claim.amount.toFixed(2)} €</span>}
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDeleteClaim(claim.id)}
+                          className="text-zinc-500 hover:text-red-400 h-7 w-7 p-0 shrink-0"
+                        >
+                          ✕
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-zinc-500 italic">Keine Schadensfälle für diese Versicherung eingetragen.</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Documents Card */}
+            <Card 
+              onDragOver={handleCardDragOver}
+              onDragLeave={handleCardDragLeave}
+              onDrop={handleCardDrop}
+              className={`border-zinc-800 bg-zinc-900/40 backdrop-blur-md shadow-xl transition-all ${
+                isCardDragOver ? "border-indigo-500 bg-indigo-950/20 scale-[1.01]" : ""
+              }`}
+            >
+              <CardHeader className="pb-3 border-b border-zinc-800/60">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                    <span>📄 Hinterlegte Dokumente ({documents.length})</span>
+                  </CardTitle>
+                  <Button 
+                    onClick={() => setIsUploadModalOpen(true)} 
+                    size="sm" 
+                    className="theme-bg-accent text-white text-xs font-medium"
+                  >
+                    + Hinzufügen
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-4">
+                {documents.length > 0 ? (
+                  <div className="space-y-3">
+                    {documents.map((doc) => (
+                      <div key={doc.id} className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800/80 flex items-center justify-between gap-3 group hover:border-zinc-700 transition-all">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-lg shrink-0">
+                            📄
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-white truncate">
+                              {doc.custom_name || doc.original_filename}
+                            </p>
+                            <p className="text-[10px] text-zinc-500 font-mono mt-0.5">
+                              {doc.doc_type || "Dokument"} • Hochgeladen: {new Date(doc.upload_date).toLocaleDateString("de-DE")}
+                            </p>
+                          </div>
                         </div>
 
-                        <div className="flex items-center gap-4 shrink-0 justify-between sm:justify-end">
-                          {claim.amount !== null && claim.amount !== undefined && (
-                            <span className="text-sm font-mono font-bold text-emerald-400">
-                              💰 {claim.amount.toFixed(2)} €
-                            </span>
-                          )}
+                        <div className="flex items-center gap-1.5 shrink-0">
                           <Button
-                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setViewingDoc(doc)}
+                            className="border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs h-8 px-2.5"
+                          >
+                            Anzeigen
+                          </Button>
+
+                          <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => handleDeleteClaim(claim.id)}
-                            className="text-zinc-500 hover:text-red-400 h-8 w-8 p-0 rounded-lg"
+                            onClick={() => {
+                              setEditingDoc(doc);
+                              setEditDocName(doc.custom_name || doc.original_filename);
+                              setEditDocType(doc.doc_type || "Dokument");
+                            }}
+                            className="text-zinc-400 hover:text-white h-8 w-8 p-0"
+                            title="Bearbeiten"
+                          >
+                            ✏️
+                          </Button>
+
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDeleteDoc(doc.id, doc.custom_name || doc.original_filename)}
+                            className="text-zinc-500 hover:text-red-400 h-8 w-8 p-0"
+                            title="Löschen"
                           >
                             ✕
                           </Button>
@@ -652,148 +1088,10 @@ export default function InsuranceDetailPage() {
                       </div>
                     ))}
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Right Column: Uploaded Documents & Viewer */}
-          <div className="lg:col-span-5 space-y-6">
-            <Card
-              onDragOver={handleCardDragOver}
-              onDragLeave={handleCardDragLeave}
-              onDrop={handleCardDrop}
-              className={`border-zinc-800 bg-zinc-900/40 backdrop-blur-md shadow-xl transition-all ${
-                isCardDragOver ? "theme-border-accent bg-zinc-900/80 theme-glow scale-[1.01]" : ""
-              }`}
-            >
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="text-xl font-semibold">Unterlagen & Dokumente</CardTitle>
-                  <CardDescription className="text-xs mt-0.5">Drag & Drop oder Durchsuchen</CardDescription>
-                </div>
-                <Button size="sm" onClick={() => setIsUploadModalOpen(true)} className="theme-bg-accent text-white text-xs theme-glow">
-                  + Datei hochladen
-                </Button>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {documents.map(doc => {
-                  const isPdf = doc.original_filename.toLowerCase().endsWith(".pdf");
-                  const displayName = doc.custom_name || doc.original_filename;
-                  const docCategory = doc.doc_type || "Vertragsschreiben";
-
-                  return (
-                    <div key={doc.id} className="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800/80 space-y-3 group hover:border-zinc-700 transition-all shadow-md">
-                      {/* Top Section: Icon + Full Document Title */}
-                      <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-xl shrink-0 shadow-inner mt-0.5">
-                          {isPdf ? "📄" : "🖼️"}
-                        </div>
-                        <div className="flex-1 min-w-0 space-y-1.5">
-                          <h4 className="text-sm font-bold text-zinc-100 break-words leading-snug">
-                            {displayName}
-                          </h4>
-                          
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-950/80 text-indigo-300 border border-indigo-800/80 font-medium">
-                              {docCategory}
-                            </span>
-                            <span className="text-[11px] text-zinc-400 font-mono truncate max-w-[200px]" title={doc.original_filename}>
-                              {doc.original_filename}
-                            </span>
-                            <span className="text-[11px] text-zinc-500 font-mono">
-                              • {doc.upload_date ? new Date(doc.upload_date).toLocaleDateString("de-DE") : ""}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Bottom Action Toolbar */}
-                      <div className="flex items-center justify-between pt-2.5 border-t border-zinc-900/80 gap-2">
-                        <div className="text-[11px] text-zinc-500 font-mono">
-                          Aktionen
-                        </div>
-
-                        <div className="flex items-center gap-1.5">
-                          {/* 1. Re-analyze button */}
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={reanalyzingId === doc.id}
-                            onClick={() => handleReanalyzeDocument(doc.id)}
-                            title="Erneut mit KI analysieren & Daten aktualisieren"
-                            className="border-indigo-800/80 bg-indigo-950/60 hover:bg-indigo-900 text-indigo-300 hover:text-white h-8 w-8 p-0 rounded-lg flex items-center justify-center transition-all"
-                          >
-                            {reanalyzingId === doc.id ? (
-                              <div className="w-3.5 h-3.5 border-2 border-t-transparent border-indigo-300 rounded-full animate-spin" />
-                            ) : (
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                              </svg>
-                            )}
-                          </Button>
-
-                          {/* 2. Edit Name & Type */}
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => openEditDocModal(doc)}
-                            title="Name & Dokumenten-Typ bearbeiten"
-                            className="border-zinc-800 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white h-8 w-8 p-0 rounded-lg flex items-center justify-center transition-all"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                            </svg>
-                          </Button>
-
-                          {/* 3. Preview */}
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setViewingDoc(doc)}
-                            title="Vorschau im Browser ansehen"
-                            className="border-zinc-800 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white h-8 w-8 p-0 rounded-lg flex items-center justify-center transition-all"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                          </Button>
-
-                          {/* 4. Download */}
-                          <a
-                            href={`/api/documents/${doc.id}/download`}
-                            download={doc.original_filename}
-                            title="Dokument herunterladen"
-                            className="inline-flex items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white h-8 w-8 transition-all"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                            </svg>
-                          </a>
-
-                          {/* 5. Delete */}
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleDeleteDocument(doc.id, displayName)}
-                            title="Dokument löschen"
-                            className="bg-red-950/80 hover:bg-red-900 border border-red-800 text-red-300 hover:text-white h-8 w-8 p-0 rounded-lg flex items-center justify-center transition-all"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {documents.length === 0 && (
-                  <div className="text-center py-10 text-zinc-500 bg-zinc-950/30 rounded-xl border border-dashed border-zinc-800/80">
-                    <p className="text-sm">Keine Dokumente für diese Polizze hinterlegt.</p>
-                    <p className="text-xs text-zinc-600 mt-1">Ziehe eine Datei hierher oder klicke oben auf "+ Datei hochladen"</p>
+                ) : (
+                  <div className="py-8 text-center border-2 border-dashed border-zinc-800 rounded-xl bg-zinc-950/20">
+                    <p className="text-xs text-zinc-400">Keine Dokumente hinterlegt.</p>
+                    <p className="text-[11px] text-zinc-500 mt-1">Ziehe eine PDF hierher oder klicke oben auf Hinzufügen.</p>
                   </div>
                 )}
               </CardContent>
@@ -802,207 +1100,69 @@ export default function InsuranceDetailPage() {
         </div>
       </div>
 
-      {/* Upload Modal with preselected insurance */}
+      {/* Upload Modal */}
       {isUploadModalOpen && (
-        <UploadModal
-          isOpen={isUploadModalOpen}
-          onClose={() => setIsUploadModalOpen(false)}
+        <UploadModal 
+          isOpen={isUploadModalOpen} 
+          onClose={() => setIsUploadModalOpen(false)} 
+          targetInsuranceId={Number(insuranceId)}
           onSuccess={() => loadData()}
-          insurances={insurance ? [insurance] : []}
-          preselectedInsuranceId={String(insurance.id)}
         />
       )}
 
-      {/* Edit Document Modal */}
-      {editingDoc && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="relative w-full max-w-md bg-zinc-950 border border-zinc-800 rounded-2xl p-6 space-y-4 shadow-2xl">
-            <h3 className="text-xl font-bold text-white">Dokument-Details bearbeiten</h3>
-            
-            <div className="space-y-2">
-              <Label className="text-xs font-mono text-zinc-400">Dokumenten-Name (Titel)</Label>
-              <Input
-                value={editDocName}
-                onChange={e => setEditDocName(e.target.value)}
-                className="bg-zinc-900 border-zinc-800 text-zinc-200"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-xs font-mono text-zinc-400">Dokumenten-Typ (Kategorie)</Label>
-              <Select value={editDocType} onValueChange={(val) => setEditDocType(val || "Versicherungsschein / Polizze")}>
-                <SelectTrigger className="bg-zinc-900 border-zinc-800 text-zinc-200">
-                  <SelectValue placeholder="Typ wählen" />
-                </SelectTrigger>
-                <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-50">
-                  <SelectItem value="Versicherungsschein / Polizze">Versicherungsschein / Polizze</SelectItem>
-                  <SelectItem value="Informationsblatt / Kundeninformation">Informationsblatt / Kundeninformation</SelectItem>
-                  <SelectItem value="SEPA-Lastschriftmandat">SEPA-Lastschriftmandat</SelectItem>
-                  <SelectItem value="Versicherungsbedingungen (AKB)">Versicherungsbedingungen (AKB)</SelectItem>
-                  <SelectItem value="Beitragsrechnung">Beitragsrechnung</SelectItem>
-                  <SelectItem value="Beratungsprotokoll">Beratungsprotokoll</SelectItem>
-                  <SelectItem value="Schadenmeldung">Schadenmeldung</SelectItem>
-                  <SelectItem value="Kündigungsbestätigung">Kündigungsbestätigung</SelectItem>
-                  <SelectItem value="Nachtrag / Änderungsschein">Nachtrag / Änderungsschein</SelectItem>
-                  <SelectItem value="Sonstiges Schreiben">Sonstiges Schreiben</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-4 border-t border-zinc-800">
-              <Button variant="outline" onClick={() => setEditingDoc(null)} className="border-zinc-800 text-zinc-300">
-                Abbrechen
-              </Button>
-              <Button onClick={handleUpdateDocument} className="theme-bg-accent text-white theme-glow">
-                Speichern
-              </Button>
-            </div>
-          </div>
-        </div>
+      {/* Cancellation Modal */}
+      {isCancellationModalOpen && (
+        <CancellationModal
+          isOpen={isCancellationModalOpen}
+          onClose={() => setIsCancellationModalOpen(false)}
+          insurance={insurance}
+        />
       )}
 
-      {/* Add Claim Modal */}
-      {isAddClaimOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl">
-            <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <span>💥 Schadensfall melden</span>
-              </h3>
-              <button onClick={() => setIsAddClaimOpen(false)} className="text-zinc-400 hover:text-white text-lg">✕</button>
-            </div>
-
-            <form onSubmit={handleAddClaim} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="claimNum" className="text-xs text-zinc-300">Schadennummer (optional)</Label>
-                <Input
-                  id="claimNum"
-                  value={newClaimNum}
-                  onChange={e => setNewClaimNum(e.target.value)}
-                  placeholder="z.B. SCH-2026-001"
-                  className="bg-zinc-950/50 border-zinc-800 text-xs font-mono text-white"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="claimDate" className="text-xs text-zinc-300">Schadensdatum</Label>
-                  <Input
-                    id="claimDate"
-                    type="date"
-                    value={newClaimDate}
-                    onChange={e => setNewClaimDate(e.target.value)}
-                    className="bg-zinc-950/50 border-zinc-800 text-xs text-white"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="claimAmount" className="text-xs text-zinc-300">Schadenshöhe (€)</Label>
-                  <Input
-                    id="claimAmount"
-                    type="number"
-                    step="0.01"
-                    value={newClaimAmount}
-                    onChange={e => setNewClaimAmount(e.target.value)}
-                    placeholder="0.00"
-                    className="bg-zinc-950/50 border-zinc-800 text-xs font-mono text-white"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="claimStatus" className="text-xs text-zinc-300">Status</Label>
-                <select
-                  id="claimStatus"
-                  value={newClaimStatus}
-                  onChange={e => setNewClaimStatus(e.target.value)}
-                  className="w-full bg-zinc-950/50 border border-zinc-800 rounded-md p-2 text-xs text-white"
-                >
-                  <option value="In Bearbeitung">In Bearbeitung</option>
-                  <option value="Reguliert / Bezahlt">Reguliert / Bezahlt</option>
-                  <option value="Abgelehnt">Abgelehnt</option>
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="claimDesc" className="text-xs text-zinc-300">Beschreibung des Schadens</Label>
-                <textarea
-                  id="claimDesc"
-                  rows={3}
-                  value={newClaimDesc}
-                  onChange={e => setNewClaimDesc(e.target.value)}
-                  placeholder="z.B. Steinschlag in Windschutzscheibe / Wildunfall / Wasserrohrbruch im Bad..."
-                  className="w-full bg-zinc-950/50 border border-zinc-800 rounded-xl p-3 text-xs text-zinc-200 focus:outline-none"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-3 border-t border-zinc-800">
-                <Button type="button" variant="outline" onClick={() => setIsAddClaimOpen(false)} className="border-zinc-800 text-zinc-300 text-xs">
-                  Abbrechen
-                </Button>
-                <Button type="submit" disabled={addingClaim} className="theme-bg-accent text-white text-xs theme-glow">
-                  {addingClaim ? "Speichert..." : "Schadensfall eintragen"}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Embedded Document Viewer Modal */}
+      {/* Document View Modal */}
       {viewingDoc && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="relative w-full max-w-5xl h-[85vh] bg-zinc-950 border border-zinc-800 rounded-2xl flex flex-col shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-900/60">
-              <div className="flex items-center gap-3">
-                <span className="text-xl">📄</span>
-                <div>
-                  <h3 className="text-base font-bold text-white">{viewingDoc.custom_name || viewingDoc.original_filename}</h3>
-                  <p className="text-xs text-zinc-400 font-mono">{viewingDoc.doc_type || "Dokument-Vorschau"}</p>
-                </div>
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            <div className="p-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/50">
+              <div>
+                <h3 className="text-sm font-bold text-white">{viewingDoc.custom_name || viewingDoc.original_filename}</h3>
+                <p className="text-xs text-zinc-400 font-mono">{viewingDoc.doc_type || "Dokument"}</p>
               </div>
-              <div className="flex items-center gap-3">
-                <a
-                  href={`/api/documents/${viewingDoc.id}/view`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-xs px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-300 hover:bg-zinc-800 transition-colors"
-                >
-                  ↗ In neuem Tab öffnen
-                </a>
-                <a
-                  href={`/api/documents/${viewingDoc.id}/download`}
-                  download={viewingDoc.original_filename}
-                  className="text-xs px-3 py-1.5 rounded-lg theme-bg-accent text-white transition-colors"
-                >
-                  ⬇️ Herunterladen
-                </a>
-                <button
-                  onClick={() => setViewingDoc(null)}
-                  className="w-8 h-8 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center text-lg transition-colors ml-2"
-                >
-                  ✕
-                </button>
-              </div>
+              <Button variant="ghost" onClick={() => setViewingDoc(null)} className="text-zinc-400 hover:text-white h-8 w-8 p-0">✕</Button>
             </div>
-
-            <div className="flex-1 bg-zinc-900/30 p-2 overflow-hidden flex items-center justify-center">
+            <div className="flex-1 p-2 bg-zinc-950 overflow-auto min-h-[500px]">
               <iframe
-                src={`/api/documents/${viewingDoc.id}/view`}
-                className="w-full h-full rounded-xl border border-zinc-800/60 bg-white"
-                title={viewingDoc.original_filename}
+                src={`/api/documents/${viewingDoc.id}/file`}
+                className="w-full h-full min-h-[500px] border-0 rounded-lg"
+                title="Dokument-Vorschau"
               />
             </div>
           </div>
         </div>
       )}
 
-      {/* Cancellation Letter Generator Modal */}
-      <CancellationModal
-        isOpen={isCancellationModalOpen}
-        onClose={() => setIsCancellationModalOpen(false)}
-        insurance={insurance}
-        userEmail={currentUser?.email}
-      />
+      {/* Document Edit Modal */}
+      {editingDoc && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <h3 className="text-base font-bold text-white">Dokument-Eigenschaften bearbeiten</h3>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label htmlFor="doc_name" className="text-xs text-zinc-400">Anzeigename</Label>
+                <Input id="doc_name" value={editDocName} onChange={e => setEditDocName(e.target.value)} className="bg-zinc-950 border-zinc-800 text-xs" />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="doc_type_sel" className="text-xs text-zinc-400">Dokumententyp</Label>
+                <Input id="doc_type_sel" value={editDocType} onChange={e => setEditDocType(e.target.value)} placeholder="z.B. Polizze, Rechnung, Beitragsanpassung..." className="bg-zinc-950 border-zinc-800 text-xs" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="ghost" onClick={() => setEditingDoc(null)} className="text-xs h-8">Abbrechen</Button>
+              <Button onClick={() => handleSaveDocEdit(editingDoc.id)} className="theme-bg-accent text-white text-xs h-8">Speichern</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -58,6 +58,16 @@ def auto_migrate_sqlite():
                         cursor.execute("ALTER TABLE insurances ADD COLUMN notes VARCHAR")
                     if "contact_info" not in ins_cols:
                         cursor.execute("ALTER TABLE insurances ADD COLUMN contact_info VARCHAR")
+                    if "sf_class" not in ins_cols:
+                        cursor.execute("ALTER TABLE insurances ADD COLUMN sf_class VARCHAR")
+                    if "regional_class" not in ins_cols:
+                        cursor.execute("ALTER TABLE insurances ADD COLUMN regional_class VARCHAR")
+                    if "type_class" not in ins_cols:
+                        cursor.execute("ALTER TABLE insurances ADD COLUMN type_class VARCHAR")
+                    if "is_suspended" not in ins_cols:
+                        cursor.execute("ALTER TABLE insurances ADD COLUMN is_suspended BOOLEAN DEFAULT 0")
+                    if "suspension_reason" not in ins_cols:
+                        cursor.execute("ALTER TABLE insurances ADD COLUMN suspension_reason VARCHAR")
                 except Exception as e:
                     print(f"[Auto-Migrate insurances] {e}")
 

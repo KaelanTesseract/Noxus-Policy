@@ -40,6 +40,24 @@ class UserResponse(UserBase):
     class Config:
         from_attributes = True
 
+# Premium History / Price Adjustments
+class PremiumHistoryBase(BaseModel):
+    cost: float
+    payment_cycle: Optional[str] = "jährlich"
+    effective_date: Optional[date] = None
+    note: Optional[str] = None
+
+class PremiumHistoryCreate(PremiumHistoryBase):
+    pass
+
+class PremiumHistoryResponse(PremiumHistoryBase):
+    id: int
+    insurance_id: int
+    annual_cost: float
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
 # Claims
 class ClaimBase(BaseModel):
     claim_number: Optional[str] = None
@@ -71,6 +89,15 @@ class InsuranceBase(BaseModel):
     contact_info: Optional[str] = None
     coverage_details: Optional[List[str]] = None
     notes: Optional[str] = None
+    
+    # KFZ Attributes
+    sf_class: Optional[str] = None
+    regional_class: Optional[str] = None
+    type_class: Optional[str] = None
+    
+    # Ruhend Status
+    is_suspended: Optional[bool] = False
+    suspension_reason: Optional[str] = None
 
 class InsuranceCreate(InsuranceBase):
     pass
@@ -81,7 +108,9 @@ class InsuranceUpdate(InsuranceBase):
 class InsuranceResponse(InsuranceBase):
     id: int
     owner_id: int
+    price_change_pct: Optional[float] = None
     claims: Optional[List[ClaimResponse]] = []
+    premium_history: Optional[List[PremiumHistoryResponse]] = []
     class Config:
         from_attributes = True
 
@@ -114,6 +143,17 @@ class ExtractionResult(BaseModel):
     cancellation_date: Optional[date] = None
     document_date: Optional[date] = None
     coverage_details: Optional[List[str]] = None
+    
+    # KFZ fields
+    sf_class: Optional[str] = None
+    regional_class: Optional[str] = None
+    type_class: Optional[str] = None
+    
+    # Beitragsanpassung fields
+    is_price_change: Optional[bool] = False
+    previous_cost: Optional[float] = None
+    new_cost: Optional[float] = None
+    
     extracted_text: str
     ai_used: Optional[bool] = False
     ai_model: Optional[str] = None

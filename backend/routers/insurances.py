@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Dennis Guse. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in project root.
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -12,6 +15,15 @@ from database import get_db
 
 router = APIRouter(prefix="/api/insurances", tags=["insurances"])
 
+def calc_annual_cost(cost: float, payment_cycle: str) -> float:
+    if not cost:
+        return 0.0
+    c = str(payment_cycle or "jährlich").lower()
+    if c == "monatlich": return cost * 12.0
+    if c == "vierteljährlich": return cost * 4.0
+    if c == "halbjährlich": return cost * 2.0
+    return cost
+
 def format_insurance_dict(ins: models.Insurance) -> dict:
     claims_list = []
     if hasattr(ins, "claims") and ins.claims:
@@ -25,6 +37,28 @@ def format_insurance_dict(ins: models.Insurance) -> dict:
                 "status": c.status,
                 "description": c.description
             })
+
+    history_list = []
+    price_change_pct = None
+    if hasattr(ins, "premium_history") and ins.premium_history:
+        sorted_h = sorted(ins.premium_history, key=lambda x: x.effective_date or datetime.date(1970,1,1))
+        for h in sorted_h:
+            history_list.append({
+                "id": h.id,
+                "insurance_id": h.insurance_id,
+                "cost": h.cost,
+                "payment_cycle": h.payment_cycle,
+                "annual_cost": h.annual_cost,
+                "effective_date": h.effective_date,
+                "note": h.note,
+                "created_at": h.created_at
+            })
+
+        if len(history_list) >= 2:
+            prev = history_list[-2]["annual_cost"]
+            curr = history_list[-1]["annual_cost"]
+            if prev > 0:
+                price_change_pct = round(((curr - prev) / prev) * 100.0, 1)
 
     res = {
         "id": ins.id,
@@ -41,7 +75,14 @@ def format_insurance_dict(ins: models.Insurance) -> dict:
         "contact_info": ins.contact_info,
         "coverage_details": [],
         "notes": ins.notes,
-        "claims": claims_list
+        "sf_class": ins.sf_class,
+        "regional_class": ins.regional_class,
+        "type_class": ins.type_class,
+        "is_suspended": bool(ins.is_suspended),
+        "suspension_reason": ins.suspension_reason,
+        "claims": claims_list,
+        "premium_history": history_list,
+        "price_change_pct": price_change_pct
     }
     if ins.coverage_details:
         try:
@@ -60,6 +101,22 @@ def create_insurance(insurance: schemas.InsuranceCreate, db: Session = Depends(g
     db.add(db_insurance)
     db.commit()
     db.refresh(db_insurance)
+
+    # Initial Premium History entry if cost > 0
+    if db_insurance.cost and db_insurance.cost > 0:
+        annual = calc_annual_cost(db_insurance.cost, db_insurance.payment_cycle)
+        h_entry = models.PremiumHistory(
+            insurance_id=db_insurance.id,
+            cost=db_insurance.cost,
+            payment_cycle=db_insurance.payment_cycle or "jährlich",
+            annual_cost=annual,
+            effective_date=db_insurance.start_date or datetime.date.today(),
+            note="Vertragsabschluss / Initialer Beitrag"
+        )
+        db.add(h_entry)
+        db.commit()
+        db.refresh(db_insurance)
+
     return format_insurance_dict(db_insurance)
 
 @router.get("", response_model=List[schemas.InsuranceResponse])
@@ -80,12 +137,29 @@ def update_insurance(insurance_id: int, insurance: schemas.InsuranceUpdate, db: 
     if db_insurance is None:
         raise HTTPException(status_code=404, detail="Insurance not found")
     
+    old_cost = db_insurance.cost
+    old_cycle = db_insurance.payment_cycle
+
     data = insurance.model_dump(exclude_unset=True)
     if "coverage_details" in data and isinstance(data["coverage_details"], list):
         data["coverage_details"] = json.dumps(data["coverage_details"])
 
     for key, value in data.items():
         setattr(db_insurance, key, value)
+    
+    # Auto-add PremiumHistory if cost changed
+    if db_insurance.cost and (old_cost is None or abs(db_insurance.cost - old_cost) > 0.01 or old_cycle != db_insurance.payment_cycle):
+        annual = calc_annual_cost(db_insurance.cost, db_insurance.payment_cycle)
+        h_entry = models.PremiumHistory(
+            insurance_id=db_insurance.id,
+            cost=db_insurance.cost,
+            payment_cycle=db_insurance.payment_cycle or "jährlich",
+            annual_cost=annual,
+            effective_date=datetime.date.today(),
+            note="Beitragsanpassung / Aktualisierung"
+        )
+        db.add(h_entry)
+
     db.commit()
     db.refresh(db_insurance)
     return format_insurance_dict(db_insurance)
@@ -110,23 +184,18 @@ def delete_insurance(insurance_id: int, db: Session = Depends(get_db), current_u
                     if os.path.exists(filepath):
                         try:
                             os.remove(filepath)
-                        except Exception as e:
-                            print(f"Error deleting physical file {filepath}: {e}")
+                        except Exception as file_err:
+                            print(f"Error deleting physical file {filepath}: {file_err}")
         except Exception as file_err:
             print(f"Notice during file cleanup: {file_err}")
 
-        # 2. Execute direct SQL deletions to bypass ORM cascade/foreign key locks
-        db.execute(text("DELETE FROM claims WHERE insurance_id = :iid"), {"iid": insurance_id})
-        db.execute(text("DELETE FROM documents WHERE insurance_id = :iid"), {"iid": insurance_id})
-        db.execute(text("DELETE FROM insurances WHERE id = :iid"), {"iid": insurance_id})
+        # 2. Delete insurance (cascade deletes claims, documents, premium_history)
+        db.delete(db_insurance)
         db.commit()
-
-        return {"msg": "Deleted successfully"}
-    except HTTPException as he:
-        raise he
+        return {"msg": "Insurance deleted successfully"}
     except Exception as e:
-        db.rollback()
         print(f"Delete insurance exception: {e}")
+        db.rollback()
         raise HTTPException(status_code=500, detail=f"Fehler beim Löschen: {str(e)}")
 
 class NotesUpdatePayload(BaseModel):
@@ -189,3 +258,51 @@ def delete_claim(
     db.delete(db_claim)
     db.commit()
     return {"msg": "Schadensmeldung gelöscht."}
+
+@router.post("/{insurance_id}/premium-history", response_model=schemas.PremiumHistoryResponse)
+def add_premium_history_entry(
+    insurance_id: int,
+    payload: schemas.PremiumHistoryCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    db_insurance = db.query(models.Insurance).filter(models.Insurance.id == insurance_id).first()
+    if not db_insurance:
+        raise HTTPException(status_code=404, detail="Versicherung nicht gefunden.")
+    if db_insurance.owner_id != current_user.id and not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Nicht berechtigt.")
+
+    annual = calc_annual_cost(payload.cost, payload.payment_cycle or db_insurance.payment_cycle or "jährlich")
+    new_entry = models.PremiumHistory(
+        insurance_id=insurance_id,
+        cost=payload.cost,
+        payment_cycle=payload.payment_cycle or db_insurance.payment_cycle or "jährlich",
+        annual_cost=annual,
+        effective_date=payload.effective_date or datetime.date.today(),
+        note=payload.note or "Beitragsanpassung"
+    )
+    db.add(new_entry)
+    
+    # Update main insurance cost to match latest adjustment
+    db_insurance.cost = payload.cost
+    if payload.payment_cycle:
+        db_insurance.payment_cycle = payload.payment_cycle
+
+    db.commit()
+    db.refresh(new_entry)
+    return new_entry
+
+@router.delete("/{insurance_id}/premium-history/{history_id}")
+def delete_premium_history_entry(
+    insurance_id: int,
+    history_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    db_entry = db.query(models.PremiumHistory).filter(models.PremiumHistory.id == history_id, models.PremiumHistory.insurance_id == insurance_id).first()
+    if not db_entry:
+        raise HTTPException(status_code=404, detail="Beitragseintrag nicht gefunden.")
+
+    db.delete(db_entry)
+    db.commit()
+    return {"msg": "Beitragseintrag gelöscht."}
