@@ -339,6 +339,21 @@ export default function InsuranceDetailPage() {
     }
   };
 
+  const [analyzingDocId, setAnalyzingDocId] = useState<number | null>(null);
+
+  const handleReanalyzeDoc = async (docId: number) => {
+    setAnalyzingDocId(docId);
+    try {
+      const res = await api.post(`/documents/${docId}/reanalyze`, {});
+      alert(res.message || "Dokument erfolgreich erneut analysiert!");
+      loadData();
+    } catch (err: any) {
+      alert(err.message || "Fehler bei der erneuten Dokumenten-Analyse.");
+    } finally {
+      setAnalyzingDocId(null);
+    }
+  };
+
   const handleDeleteDoc = async (docId: number, name: string) => {
     if (!window.confirm(`Möchtest du das Dokument "${name}" wirklich löschen?`)) return;
     try {
@@ -978,6 +993,17 @@ export default function InsuranceDetailPage() {
                             className="border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs h-8 px-3"
                           >
                             Anzeigen
+                          </Button>
+
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={analyzingDocId === doc.id}
+                            onClick={() => handleReanalyzeDoc(doc.id)}
+                            className="border-indigo-800/80 bg-indigo-950/40 hover:bg-indigo-900/60 text-indigo-300 font-semibold text-xs h-8 px-2.5 flex items-center gap-1.5"
+                            title="Dokument erneut per KI/OCR analysieren und Stammdaten/Beiträge aktualisieren"
+                          >
+                            {analyzingDocId === doc.id ? "🔄 Analysiert..." : "🤖 Neu analysieren"}
                           </Button>
 
                           <Button

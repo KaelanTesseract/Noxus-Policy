@@ -147,6 +147,31 @@ def reanalyze_document(
         if extracted.get("contact_info"):
             ins.contact_info = extracted["contact_info"]
 
+        # KFZ fields
+        if extracted.get("sf_class"):
+            ins.sf_class = extracted["sf_class"]
+        if extracted.get("regional_class"):
+            ins.regional_class = extracted["regional_class"]
+        if extracted.get("type_class"):
+            ins.type_class = extracted["type_class"]
+
+        # Auto-create PremiumHistory if doc is a Beitragsanpassung or cost changed
+        new_c = extracted.get("new_cost") or extracted.get("cost")
+        if new_c and new_c > 0 and extracted.get("is_price_change"):
+            import datetime
+            from routers.insurances import calc_annual_cost
+            annual = calc_annual_cost(new_c, extracted.get("payment_cycle") or ins.payment_cycle or "jährlich")
+            h_entry = models.PremiumHistory(
+                insurance_id=ins.id,
+                cost=new_c,
+                payment_cycle=extracted.get("payment_cycle") or ins.payment_cycle or "jährlich",
+                annual_cost=annual,
+                effective_date=extracted.get("start_date") or datetime.date.today(),
+                note=f"Neu-Analyse: {doc.custom_name or doc.original_filename}"
+            )
+            db.add(h_entry)
+            ins.cost = new_c
+
         # Update coverage details with clean formatted AI items
         new_items = extracted.get("coverage_details") or []
         if new_items:
