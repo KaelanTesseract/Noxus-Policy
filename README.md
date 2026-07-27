@@ -1,18 +1,18 @@
-# 🛡️ Noxus Policy — KI-gestützte Dokumentenanalyse & Versicherungsmanager
+# 🛡️ Noxus Policy — Versicherungsmanager mit KI-gestützter Dokumentenanalyse
 
 <p align="center">
   <img src="https://github.com/KaelanTesseract/Noxus-Policy/blob/fcd19a9946ac18d64a184fe4778384bd5b48a888/logo.png" alt="Noxus Policy Logo" width="140" />
 </p>
 
 <p align="center">
-  <b>Moderne, selbsgehostete Open-Source Plattform zur automatischen Analyse, Verwaltung und Fristen-Überwachung von Versicherungspolicen.</b><br>
+  <b>Moderne, selbstgehostete Open-Source Plattform zur automatischen Analyse, Verwaltung und Fristen-Überwachung von Versicherungspolicen.</b><br>
   <i>100% Datenschutzkonform • Lokale KI (Qwen2.5-1.5B) • Proxmox LXC 1-Klick Installation</i>
 </p>
 
 <p align="center">
   <a href="#-proxmox-ve--linux-1-klick-installation"><img src="https://img.shields.io/badge/Proxmox_VE-Helper_Script-orange.svg?style=for-the-badge&logo=proxmox" alt="Proxmox Script"></a>
   <a href="#-tech-stack"><img src="https://img.shields.io/badge/Docker-Ready-2496ED.svg?style=for-the-badge&logo=docker" alt="Docker"></a>
-  <a href="#-tech-stack"><img src="https://img.shields.io/badge/Next.js_16-v1.0.6-black.svg?style=for-the-badge&logo=next.js" alt="Next.js"></a>
+  <a href="#-tech-stack"><img src="https://img.shields.io/badge/Next.js_16-v1.0.7-black.svg?style=for-the-badge&logo=next.js" alt="Next.js"></a>
   <a href="#-tech-stack"><img src="https://img.shields.io/badge/FastAPI-Python-009688.svg?style=for-the-badge&logo=fastapi" alt="FastAPI"></a>
   <a href="#-lokale-ki-engine-qwen25-15b"><img src="https://img.shields.io/badge/Local_AI-Qwen2.5_1.5B-purple.svg?style=for-the-badge" alt="Local AI"></a>
 </p>
@@ -66,8 +66,6 @@ Das Skript erstellt **automatisch ein Vorab-Sicherheitsbackup** der Datenbank im
 [█████████████████░░░░░░░░░░░░]  55% | 3/5: Lade neueste Version herunter...
 ```
 
-Das System prüft im Hintergrund automatisch, ob eine neue Version auf GitHub verfügbar ist, und zeigt dies **dezent im Fußbereich des Dashboards** an.
-
 ---
 
 ## ✨ Hauptfunktionen
@@ -75,54 +73,55 @@ Das System prüft im Hintergrund automatisch, ob eine neue Version auf GitHub ve
 ### 👥 1. Benutzer- & Rollenverwaltung
 * **Erster Admin-Setup (`/admin-setup`):** Sichere Ersteinrichtung mit erzwungener Passwort-Änderung für den ersten Administrator.
 * **Benutzerregistrierung & Admin-Panel:** Admins können neue Benutzer anlegen, Passwörter zurücksetzen und Systemeinstellungen verwalten.
-* **Automatische Session-Abmeldung (`/session-expired`):** Läuft eine Sitzung ab (401 Unauthorized), wird der Nutzer auf eine Infoseite weitergeleitet und automatisch nach 5 Sekunden zum Login zurückgeführt.
+* **Automatische Session-Abmeldung (`/session-expired`):** Läuft eine Sitzung ab (401 Unauthorized), wird der Nutzer automatisch zum Login zurückgeführt.
 
-### 📅 2. iCal-Kalender-Export, Kündigungsschreiben-Generator & E-Mail-Erinnerungen
-* **✍️ Kündigungsschreiben-Generator:** Generiert aus jeder Versicherung automatisch ein rechtssicheres Kündigungsschreiben (ordentliche Kündigung oder Sonderkündigung).
-* **⚠️ Integrierter Prüfhinweis:** Fordert den Nutzer explizit auf, alle Daten (Anschrift, Polizzen-Nummer, Frist) vor dem Absenden noch einmal gründlich zu überprüfen.
-* **🖨️ 1-Klick Druck & PDF-Export:** Ausdrucken oder direkt als PDF speichern sowie Text in die Zwischenablage kopieren.
-* **1-Klick iCal-Export (.ics):** Generierung von `.ics`-Kalenderterminen für **Apple Kalender, Google Calendar oder Outlook**.
-* **Automatische E-Mail-Vorwarnungen:** Automatische E-Mail-Benachrichtigung 30 Tage vor Ablauf einer Kündigungsfrist.
+### 📈 2. Beitragsanpassungs-Tracker & Preis-Historie
+* **Automatische KI-/OCR-Erkennung:** Liest Preisanpassungen aus Beitragsrechnungen automatisch aus.
+* **Interaktives SVG-Balkendiagramm:** Visualisiert die Preisentwicklung über die Jahre mit prozentualen Trend-Badges (z. B. `📈 +12.5%` Erhöhung oder `📉 -5.0%` Senkung).
 
-### 💥 3. Schadensfälle- & Melde-Historie / Notizen & Memos
-* **💥 Schadensfall-Tracker:** Erfasse und verwalte Schadensfälle pro Versicherung (Schadensdatum, Schadensnummer, Schadenshöhe in €, Beschreibung und Status: *In Bearbeitung*, *Reguliert / Bezahlt*, *Abgelehnt*).
-* **📝 Notizen- & Memo-Funktion:** Hinterlege individuelle Freitext-Notizen zu jedem Vertrag (z.B. Selbstbeteiligung, Telefon-Hotline für Pannen, persönliche Ansprechpartner).
+### 🚗 3. KFZ-Sondertarifklassen
+* **Tarifklassen-Erkennung:** Automatische Extraktion & Anzeige von **Schadenfreiheitsklasse (SF-Klasse)**, **Regionalklasse** und **Typklasse** in der Dashboard-Übersicht und Detailansicht.
 
-### 📱 4. Responsive Mobile-First Optimierung
-* **100% Touch- & Smartphone-Optimiert:** Sämtliche Ansichten, Formulare, Modals, Diagramme und Header-Aktionen passen sich nahtlos auf allen mobilen Bildschirmen an.
-* **Unterstützung aller 6 Design-Stile auf Mobilgeräten:** Vollwertiges Nutzererlebnis auf Smartphones & Tablets.
+### ⏸️ 4. Ruhendstellung & Beitragsfreistellung
+* **Vertragspausierung:** Verträge können ruhend bzw. beitragsfrei gestellt werden (KFZ, Kranken, BU, Leben, Unfall, Rechtsschutz).
+* **0 € Berechnung:** Ruhende Verträge fließen automatisch mit 0 € in die aktiven Jahresausgaben ein und werden optisch als `⏸️ Ruhend (0 €)` markiert.
 
-### 📊 5. Visuelles Kosten- & Sparten-Diagramm
-* **Interaktives Balkendiagramm:** Visuelle Aufschlüsselung der jährlichen Gesamtausgaben nach Versicherungskategorie (z.B. *Kfz, Privathaftpflicht, Hausrat, Rechtsschutz*).
-* **Individuell Ein-/Ausschaltbar:** Jeder Benutzer kann das Diagramm in seinen persönlichen Einstellungen (*Einstellungen ➔ Design & Erscheinungsbild*) beliebig aktivieren oder deaktivieren.
-* **Interaktive Sparten-Filter:** Ein Klick auf ein Segment im Diagramm oder einen Sparten-Chip filtert die Verträge sofort in Echtzeit.
-* **Echtzeit-Suchleiste & Sortierung:** Schnellsuche nach Vertragsnamen, Gesellschaft oder Scheinnummer sowie Sortierung nach Kündigungsfrist, Kosten oder Alphabet.
+### ✍️ 5. Sonderkündigungsrechts-Assistent & Generator
+* **Rechtlich fundierte Kündigungsschreiben:** Auswahl zwischen Ordentlicher Kündigung zum Vertragsende (§ 11 VVG), Sonderkündigung wegen Beitragserhöhung (§ 40 VVG), Sonderkündigung nach Schadensfall (§ 92 VVG) und Risikowegfall (§ 80 VVG).
+* **Automatischer DIN A4 PDF-Druck:** Erzeugt juristisch einwandfreie Kündigungsschreiben inkl. SEPA-Widerruf, Bestätigungsanforderung und DSGVO-Löschklauseln zum Drucken oder PDF-Speichern.
 
-### 💾 6. Auto-Backup & Wiederherstellungs-System
-* **Automatisches Vorab-Backup:** Bei jedem System-Update per `update` wird eine Sicherungskopie der Datenbank unter `/opt/versicherungsmanager/backups/insurance_backup_DATUM_UHRZEIT.db` angelegt.
-* **Manuelle & Geplante Sicherung:** Über die Web-Oberfläche (`/settings` ➔ Systemeinstellungen) können Admins jederzeit 1-Klick-Datenbank-Sicherungen auslösen oder herunterladen.
+### 📅 6. Live-Kalender-Abonnement (WebCal) & iCal-Export
+* **Live WebCal-Sync:** Einmalig per URL in Smartphone (Apple Kalender, Google Kalender, Outlook) einbinden – Kündigungsfristen aktualisieren sich von selbst mit 14d & 7d Push-Erinnerungen.
+* **Admin-Toggle & Server-Hinweise:** WebCal-Abonnement im Admin-Panel aktivierbar/deaktivierbar (inkl. Erreichbarkeitshinweisen für Nginx/Domain).
+* **1-Klick .ics-Downloads:** Einzel- und Gesamt-Download aller Kündigungsfristen als `.ics`-Datei für Offline-Nutzung.
 
-### 🤖 7. Lokale KI-Engine (Qwen2.5-1.5B via Llama-cpp)
+### 📑 7. Steuererklärungs- & Haushalts-PDF-Export
+* **Klassifizierung nach § 10 / § 9 EStG:** Automatisches Sortieren in absetzbare Vorsorgeaufwendungen, Werbungskosten und Sachversicherungen.
+* **Jahressummen-Berechnung & PDF-Druck:** 1-Klick-Generierung einer gebündelten Jahresübersicht für das Finanzamt oder den Steuerberater sowie CSV-Export (WISO / Elster / Excel).
+
+### 📑 8. Dynamische Tab-Navigation auf der Detailseite
+* **Strukturierte Vertragsansicht:** Aufteilung in 5 übersichtliche Tabs (`📋 Stammdaten & Leistungen`, `📈 Beitragsentwicklung`, `📄 Dokumente`, `💥 Schadensfälle`, `📝 Notizen & Memos`).
+
+### 💥 9. Schadensfälle- & Melde-Historie / Notizen & Memos
+* **Schadensfall-Tracker:** Erfasse Schadensfälle (Datum, Schadensnummer, Höhe in €, Status: *In Bearbeitung*, *Reguliert*, *Abgelehnt*).
+* **Notizen- & Memo-Funktion:** Hinterlege Freitext-Notizen zu jedem Vertrag (z. B. Selbstbeteiligung, Hotline, Ansprechpartner).
+
+### 🎨 10. 6 Design-Themen & monochrome Aktions-Icons
+* **6 Wunderschöne Themes:** Dunkel Neon, Klassisch Business Hell, Skandinavisch Warm, Executive Slate, Mint Frisch, Cyberpunk.
+* **Monochrome Icon-Buttons:** Schlanke, hochkontrastreiche Aktions-Buttons (`Eye`, `RefreshCw`, `Pencil`, `Trash2`) in der Dokumentenliste.
+
+### 📊 11. Visuelles Kosten- & Sparten-Diagramm / Suche & Sortierung
+* **Interaktives Balkendiagramm:** Ausgaben nach Kategorie (Kfz, Privathaftpflicht, Hausrat, Rechtsschutz).
+* **Echtzeit-Suchleiste & Sortierung:** Suche nach Name, Gesellschaft oder Scheinnummer sowie Sortierung nach Kündigungsfrist, Kosten oder Alphabet.
+
+### 🤖 12. Lokale KI-Engine (Qwen2.5-1.5B via Llama-cpp)
 * **100% Lokal & Privat:** Kein Versenden vertraulicher Versicherungsdokumente an externe Cloud-APIs.
-* **Intelligente Datensatz-Erkennung:** Extraktion von *Gesellschaft, Polizzen-Nummer, Kündigungsfrist, Ablaufdatum, Beiträgen & Zahlungsintervallen*.
-* **Semantische Leistungs-Analyse:** Auswertung komplexer Deckungsbausteine als saubere Nomen-Stichpunkte in Klammern.
+* **Intelligente Datensatz-Erkennung:** Extraktion von Gesellschaft, Polizzen-Nummer, Fristen, KFZ-Klassen, Beiträgen & Deckungsbausteinen.
+* **Dual-Engine OCR:** Umschaltbar zwischen lokaler KI und superschneller klassischer OCR-Erkennung.
 
-### ⚡ 8. Dual-Engine & Neutrales Branding
-* **Admin-Toggle in den Einstellungen:** Switsche beliebig zwischen KI-Analyse und klassischer OCR.
-* **Dynamisches Branding:** Bei deaktivierter KI werden sämtliche `[AI]`-Badges und KI-Erwähnungen in der gesamten Oberfläche neutralisiert.
-
-### 🏢 9. Automatisches Firmen-Logo & DACH-Abdeckung (70+ Versicherer)
-* **Automatische Firmen-Logos:** Erkennt Gesellschaften (HUK24, Allianz, AXA, Generali, ERGO, DEVK, Barmenia u.v.m.) und lädt die Marken-Logos transparent ohne manuelles Hochladen.
-* **Sämtliche Versicherungssparten:** Kfz, Privathaftpflicht, Hausrat, Wohngebäude, Berufsunfähigkeit (BU), Rechtsschutz, Zahnzusatz, Krankenkasse, Tierhalter- & Reiseversicherungen.
-
-### 🎨 10. 6 Wunderschöne Design-Themen & Akzentfarben
-Jeder Benutzer kann unter **Einstellungen ➔ Design & Erscheinungsbild** sein persönliches Layout wählen:
-* ☀️ **Klassisch Business (Hell):** Strahlend helle Oberfläche mit weißen Karten & klaren Kontrasten.
-* 🌙 **Dark Neon Glass (Standard):** Modernes dunkles Glasmorphismus-Design mit Neoneffekten.
-* 🌾 **Skandinavisch Warm (Soft):** Beruhigender Creme-Ton mit natürlicher Ästhetik.
-* 🏙️ **Executive Slate (Dunkel-Blau):** Elegantes Nachtblau-Silber für ruhiges Arbeiten.
-* 🍃 **Mint Frisch (Hell):** Erfrischendes helles Design mit Minz- & Teal-Nuancen.
-* ⚡ **Cyberpunk Neon (Gamer):** Futuristisches tiefes Schwarz mit Violett-Bordüren.
+### 💾 13. Auto-Backup & Wiederherstellungs-System
+* **Vorab-Sicherheitsbackup:** Automatische Datenbank-Sicherung bei jedem `update` im Ordner `/opt/versicherungsmanager/backups/`.
+* **Manuelle & Geplante Sicherungen:** 1-Klick-Backups und Wiederherstellung über die Web-Oberfläche.
 
 ---
 
