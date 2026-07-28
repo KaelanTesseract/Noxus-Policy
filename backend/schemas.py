@@ -1,7 +1,7 @@
 # Copyright (c) 2026 Dennis Guse. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in project root.
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional, List
 from datetime import date, datetime
 
@@ -99,6 +99,13 @@ class InsuranceBase(BaseModel):
     # Ruhend Status
     is_suspended: Optional[bool] = False
     suspension_reason: Optional[str] = None
+
+    @field_validator("start_date", "end_date", "cancellation_date", mode="before")
+    @classmethod
+    def empty_string_to_none(cls, v):
+        if v == "" or v is None:
+            return None
+        return v
 
 class InsuranceCreate(InsuranceBase):
     pass

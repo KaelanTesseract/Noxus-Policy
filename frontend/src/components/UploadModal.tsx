@@ -169,6 +169,9 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
       if (insId === "new") {
         const payload = {
           ...formData,
+          start_date: formData.start_date || null,
+          end_date: formData.end_date || null,
+          cancellation_date: formData.cancellation_date || null,
           cost: formData.cost ? parseFloat(formData.cost.replace(',', '.')) : null,
           coverage_details: extractedData?.coverage_details || []
         };
