@@ -145,8 +145,8 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
         start_date: data.start_date || (existingIns ? existingIns.start_date : ""),
         end_date: data.end_date || (existingIns ? existingIns.end_date : ""),
         cancellation_date: data.cancellation_date || (existingIns ? existingIns.cancellation_date : ""),
-        is_suspended: false,
-        suspension_reason: ""
+        is_suspended: existingIns ? !!existingIns.is_suspended : false,
+        suspension_reason: existingIns ? (existingIns.suspension_reason || "") : ""
       });
     } catch (err: any) {
       clearInterval(progressInterval);
@@ -204,8 +204,8 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
         start_date: formData.start_date || (existingTargetIns ? existingTargetIns.start_date : null),
         end_date: formData.end_date || (existingTargetIns ? existingTargetIns.end_date : null),
         cancellation_date: formData.cancellation_date || (existingTargetIns ? existingTargetIns.cancellation_date : null),
-        is_suspended: formData.is_suspended || false,
-        suspension_reason: formData.suspension_reason || null,
+        is_suspended: existingTargetIns ? !!existingTargetIns.is_suspended : (formData.is_suspended || false),
+        suspension_reason: existingTargetIns ? (existingTargetIns.suspension_reason || null) : (formData.suspension_reason || null),
         coverage_details: includeCoverageDetails ? (extractedData?.coverage_details || []) : []
       };
 
