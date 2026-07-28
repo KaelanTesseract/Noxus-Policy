@@ -16,7 +16,7 @@ import { UploadModal } from "@/components/UploadModal";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { CancellationModal } from "@/components/CancellationModal";
 import { api } from "@/lib/api";
-import { Eye, RefreshCw, Pencil, Trash2 } from "lucide-react";
+import { Eye, RefreshCw, Pencil, Trash2, Car, MapPin, Shield } from "lucide-react";
 
 interface PremiumHistoryItem {
   id: number;
@@ -486,18 +486,21 @@ export default function InsuranceDetailPage() {
               {(insurance.sf_class || insurance.regional_class || insurance.type_class) && (
                 <div className="flex items-center gap-2 flex-wrap mt-2">
                   {insurance.sf_class && (
-                    <span className="text-xs font-mono px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-800 text-cyan-300 font-bold">
-                      🚗 {insurance.sf_class}
+                    <span className="text-xs font-mono px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-800 text-cyan-300 font-bold inline-flex items-center gap-1">
+                      <Car className="w-3.5 h-3.5 text-cyan-300 shrink-0" />
+                      <span>{insurance.sf_class}</span>
                     </span>
                   )}
                   {insurance.regional_class && (
-                    <span className="text-xs font-mono px-2 py-0.5 rounded bg-violet-950/80 border border-violet-800 text-violet-300 font-bold">
-                      📍 Regio: {insurance.regional_class}
+                    <span className="text-xs font-mono px-2 py-0.5 rounded bg-violet-950/80 border border-violet-800 text-violet-300 font-bold inline-flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5 text-violet-300 shrink-0" />
+                      <span>Regio: {insurance.regional_class}</span>
                     </span>
                   )}
                   {insurance.type_class && (
-                    <span className="text-xs font-mono px-2 py-0.5 rounded bg-indigo-950/80 border border-indigo-800 text-indigo-300 font-bold">
-                      🚘 Typklasse: {insurance.type_class}
+                    <span className="text-xs font-mono px-2 py-0.5 rounded bg-indigo-950/80 border border-indigo-800 text-indigo-300 font-bold inline-flex items-center gap-1">
+                      <Shield className="w-3.5 h-3.5 text-indigo-300 shrink-0" />
+                      <span>Typklasse: {insurance.type_class}</span>
                     </span>
                   )}
                 </div>
@@ -663,7 +666,7 @@ export default function InsuranceDetailPage() {
                     {(isKfzCategory(formData.category) || formData.sf_class || formData.regional_class || formData.type_class) && (
                       <div className="p-4 rounded-xl bg-zinc-950/40 border border-cyan-900/40 space-y-3">
                         <h4 className="text-xs font-bold text-cyan-300 uppercase tracking-wider flex items-center gap-2">
-                          <span>🚗 KFZ-Tarifmerkmale</span>
+                          <span className="flex items-center gap-1.5"><Car className="w-4 h-4 text-cyan-400" /> KFZ-Tarifmerkmale</span>
                         </h4>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                           <div className="space-y-1">
@@ -865,7 +868,10 @@ export default function InsuranceDetailPage() {
                 {/* History Entries List */}
                 {historyEntries.length > 0 && (
                   <div className="space-y-2">
-                    <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Historische Anpassungen</h4>
+                    <div className="flex items-center gap-1.5 text-xs font-mono text-cyan-300 font-semibold uppercase tracking-wider">
+                      <Shield className="w-4 h-4 text-cyan-400" />
+                      <span>Historische Anpassungen</span>
+                    </div>
                     <div className="divide-y divide-zinc-800/60 border border-zinc-800/80 rounded-xl overflow-hidden bg-zinc-950/40">
                       {historyEntries.map((h) => (
                         <div key={h.id} className="p-4 flex items-center justify-between gap-3 text-xs sm:text-sm">

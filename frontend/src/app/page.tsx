@@ -14,6 +14,7 @@ import { UploadModal } from "@/components/UploadModal";
 import { TaxExportModal } from "@/components/TaxExportModal";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { useTheme } from "@/components/ThemeProvider";
+import { Car, MapPin, Shield } from "lucide-react";
 
 const CATEGORY_COLORS = [
   { bg: "bg-indigo-500", text: "text-indigo-400", border: "border-indigo-500/30", lightBg: "bg-indigo-500/10" },
@@ -399,18 +400,21 @@ export default function Dashboard() {
                     {(ins.sf_class || ins.regional_class || ins.type_class) && (
                       <div className="flex items-center gap-1.5 text-[11px] font-mono text-zinc-300 pt-1 pb-1 flex-wrap">
                         {ins.sf_class && (
-                          <span className="bg-cyan-950/80 text-cyan-300 border border-cyan-800 px-1.5 py-0.5 rounded font-bold">
-                            🚗 {ins.sf_class}
+                          <span className="bg-cyan-950/80 text-cyan-300 border border-cyan-800 px-2 py-0.5 rounded font-bold inline-flex items-center gap-1">
+                            <Car className="w-3.5 h-3.5 text-cyan-300 shrink-0" />
+                            <span>{ins.sf_class}</span>
                           </span>
                         )}
                         {ins.regional_class && (
-                          <span className="bg-violet-950/80 text-violet-300 border border-violet-800 px-1.5 py-0.5 rounded font-bold">
-                            📍 Regio: {ins.regional_class}
+                          <span className="bg-violet-950/80 text-violet-300 border border-violet-800 px-2 py-0.5 rounded font-bold inline-flex items-center gap-1">
+                            <MapPin className="w-3.5 h-3.5 text-violet-300 shrink-0" />
+                            <span>Regio: {ins.regional_class}</span>
                           </span>
                         )}
                         {ins.type_class && (
-                          <span className="bg-indigo-950/80 text-indigo-300 border border-indigo-800 px-1.5 py-0.5 rounded font-bold">
-                            🚘 Typ: {ins.type_class}
+                          <span className="bg-indigo-950/80 text-indigo-300 border border-indigo-800 px-2 py-0.5 rounded font-bold inline-flex items-center gap-1">
+                            <Shield className="w-3.5 h-3.5 text-indigo-300 shrink-0" />
+                            <span>Typ: {ins.type_class}</span>
                           </span>
                         )}
                       </div>
