@@ -195,6 +195,7 @@ def extract_with_mini_ai(text: str) -> dict:
 
         sf_class = str(parsed.get("sf_class", "")).strip() or None
         regional_class = str(parsed.get("regional_class", "")).strip() or None
+        regional_class = extract_regionalklasse_fallback(text, regional_class)
         type_class = str(parsed.get("type_class", "")).strip() or None
         is_price_change = bool(parsed.get("is_price_change", False))
         prev_cost = None
@@ -279,6 +280,29 @@ def extract_policy_number_fallback(text: str, current_num: str = None) -> str:
         return str(current_num).strip()
 
     return current_num
+
+def extract_regionalklasse_fallback(text: str, current_regio: str = None) -> str:
+    if current_regio and re.match(r'^R\s*[-:]?\s*\d{1,2}$', str(current_regio).strip(), re.I):
+        val = str(current_regio).strip().upper().replace(" ", "").replace("-", "")
+        if not val.startswith("R"):
+            val = f"R{val}"
+        return val
+
+    patterns = [
+        r'(?i)\b(R\s*[-:]?\s*[0-9O]{1,2})\b',
+        r'(?i)(?:regionalklasse|regio|r\-klasse|tarifgruppe)[^\n]*?\b(R\s*[-:]?\s*[0-9O]{1,2})\b',
+        r'(?i)(?:regional|regio)[^\n]*?\b([0-9O]{1,2})\b'
+    ]
+    for pat in patterns:
+        m = re.search(pat, text)
+        if m:
+            raw = m.group(1).upper().replace(" ", "").replace("-", "").replace("O", "0")
+            if not raw.startswith("R"):
+                raw = f"R{raw}"
+            if re.match(r'^R\d{1,2}$', raw):
+                return raw
+
+    return current_regio if current_regio else None
 
 def extract_cost_fallback(text: str) -> float:
     # Priority 1: Total line match (e.g. "Gesamtbeitrag inkl. 19 % Versicherungsteuer (7,91 €) 49,53 €")
@@ -599,11 +623,9 @@ def extract_insurance_data_regex(text: str) -> dict:
     if match_sf:
         data["sf_class"] = f"SF {match_sf.group(1).upper()}"
 
-    match_regio = re.search(r'(?i)(?:regional\s*klasse|regio\s*klasse|r\-klasse|tarifgruppe)\b[^\n]*?\b(R\s*\d{1,2}|R\d{2})\b', text)
-    if not match_regio:
-        match_regio = re.search(r'\b(R0[1-9]|R[1-9]\d)\b', text)
-    if match_regio:
-        data["regional_class"] = match_regio.group(1).upper().replace(" ", "")
+    regio_val = extract_regionalklasse_fallback(text, data.get("regional_class"))
+    if regio_val:
+        data["regional_class"] = regio_val
 
     match_typ = re.search(r'(?i)\b(?:typ\s*klasse|typ-?klasse|tk)\b[^\n\d]*?(\d{1,2})\b', text)
     if match_typ:

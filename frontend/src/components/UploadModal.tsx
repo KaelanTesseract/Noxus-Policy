@@ -113,20 +113,24 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
         ? data.doc_type 
         : (categoryMap[data.category] || data.category || "Versicherung");
 
-      const autoTitle = data.company 
-        ? `${data.company} (${unifiedType})` 
-        : selectedFile.name.replace(/\.[^/.]+$/, "");
+      const existingIns = selectedInsuranceId !== "new"
+        ? insuranceList.find((i: any) => String(i.id) === String(selectedInsuranceId))
+        : null;
+
+      const autoTitle = existingIns 
+        ? existingIns.name 
+        : (data.company ? `${data.company} (${unifiedType})` : selectedFile.name.replace(/\.[^/.]+$/, ""));
 
       setFormData({
         name: autoTitle,
-        company: data.company || "",
-        insurance_number: data.insurance_number || "",
-        category: data.category || "Haftpflicht",
-        cost: data.cost ? String(data.cost) : "",
-        payment_cycle: data.payment_cycle || "jährlich",
-        start_date: data.start_date || "",
-        end_date: data.end_date || "",
-        cancellation_date: data.cancellation_date || "",
+        company: data.company || (existingIns ? existingIns.company : ""),
+        insurance_number: data.insurance_number || (existingIns ? existingIns.insurance_number : ""),
+        category: data.category || (existingIns ? existingIns.category : "Haftpflicht"),
+        cost: data.cost ? String(data.cost) : (existingIns ? String(existingIns.cost) : ""),
+        payment_cycle: data.payment_cycle || (existingIns ? existingIns.payment_cycle : "jährlich"),
+        start_date: data.start_date || (existingIns ? existingIns.start_date : ""),
+        end_date: data.end_date || (existingIns ? existingIns.end_date : ""),
+        cancellation_date: data.cancellation_date || (existingIns ? existingIns.cancellation_date : ""),
         is_suspended: false,
         suspension_reason: ""
       });
@@ -172,17 +176,20 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
     
     try {
       let insId = selectedInsuranceId;
+      const existingTargetIns = insId !== "new" 
+        ? insuranceList.find((i: any) => String(i.id) === String(insId))
+        : null;
       
       const payload = {
-        name: formData.name || "Versicherung",
-        company: formData.company || null,
-        insurance_number: formData.insurance_number || null,
-        category: formData.category || "Haftpflicht",
-        cost: formData.cost ? parseFloat(formData.cost.replace(',', '.')) : null,
-        payment_cycle: formData.payment_cycle || "jährlich",
-        start_date: formData.start_date || null,
-        end_date: formData.end_date || null,
-        cancellation_date: formData.cancellation_date || null,
+        name: existingTargetIns ? existingTargetIns.name : (formData.name || "Versicherung"),
+        company: formData.company || (existingTargetIns ? existingTargetIns.company : null),
+        insurance_number: formData.insurance_number || (existingTargetIns ? existingTargetIns.insurance_number : null),
+        category: formData.category || (existingTargetIns ? existingTargetIns.category : "Haftpflicht"),
+        cost: formData.cost ? parseFloat(formData.cost.replace(',', '.')) : (existingTargetIns ? existingTargetIns.cost : null),
+        payment_cycle: formData.payment_cycle || (existingTargetIns ? existingTargetIns.payment_cycle : "jährlich"),
+        start_date: formData.start_date || (existingTargetIns ? existingTargetIns.start_date : null),
+        end_date: formData.end_date || (existingTargetIns ? existingTargetIns.end_date : null),
+        cancellation_date: formData.cancellation_date || (existingTargetIns ? existingTargetIns.cancellation_date : null),
         is_suspended: formData.is_suspended || false,
         suspension_reason: formData.suspension_reason || null,
         coverage_details: extractedData?.coverage_details || []
