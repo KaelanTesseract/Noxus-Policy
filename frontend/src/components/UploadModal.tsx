@@ -22,6 +22,7 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
   const [progress, setProgress] = useState(0);
   const [progressText, setProgressText] = useState("Dokument wird vorbereitet...");
   const [useAi, setUseAi] = useState(true);
+  const [includeCoverageDetails, setIncludeCoverageDetails] = useState<boolean>(true);
   
   const initialPreId = preselectedInsuranceId || targetInsuranceId;
   const [selectedInsuranceId, setSelectedInsuranceId] = useState<string>(initialPreId ? String(initialPreId) : "new");
@@ -192,7 +193,7 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
         cancellation_date: formData.cancellation_date || (existingTargetIns ? existingTargetIns.cancellation_date : null),
         is_suspended: formData.is_suspended || false,
         suspension_reason: formData.suspension_reason || null,
-        coverage_details: extractedData?.coverage_details || []
+        coverage_details: includeCoverageDetails ? (extractedData?.coverage_details || []) : []
       };
 
       if (insId === "new") {
@@ -416,17 +417,28 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
               </div>
 
             {extractedData?.coverage_details && extractedData.coverage_details.length > 0 && (
-              <div className="p-4 rounded-xl bg-emerald-950/30 border border-emerald-800/50 space-y-2">
-                <p className="text-xs font-mono text-emerald-300 font-semibold uppercase tracking-wider">
-                  🛡️ Erfasste Versicherungsleistungen ({extractedData.coverage_details.length})
-                </p>
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {extractedData.coverage_details.map((item: string, idx: number) => (
-                    <span key={idx} className="text-xs px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-200 font-medium">
-                      ✓ {item}
-                    </span>
-                  ))}
+              <div className="p-4 rounded-xl bg-emerald-950/30 border border-emerald-800/50 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2.5 text-xs font-mono text-emerald-300 font-semibold uppercase tracking-wider cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={includeCoverageDetails}
+                      onChange={(e) => setIncludeCoverageDetails(e.target.checked)}
+                      className="rounded accent-emerald-500 w-4 h-4 cursor-pointer"
+                    />
+                    <span>Erfasste Versicherungsleistungen übernehmen ({extractedData.coverage_details.length} erkannt)</span>
+                  </label>
                 </div>
+                
+                {includeCoverageDetails && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {extractedData.coverage_details.map((item: string, idx: number) => (
+                      <span key={idx} className="text-xs px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-200 font-medium">
+                        ✓ {item}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
             </div>
