@@ -188,6 +188,11 @@ def extract_with_mini_ai(text: str) -> dict:
         s_date, e_date, c_date = calculate_insurance_dates(raw_s, raw_e, raw_c, text)
         ins_num = extract_policy_number_fallback(text, ins_num)
 
+        exact_cost = extract_cost_fallback(text)
+        final_cost = new_cost or cost
+        if exact_cost and (not final_cost or final_cost == 150.0 or final_cost == 150 or re.search(r'150[^\n]*selbstbeteiligung', text, re.I)):
+            final_cost = exact_cost
+
         sf_class = str(parsed.get("sf_class", "")).strip() or None
         regional_class = str(parsed.get("regional_class", "")).strip() or None
         type_class = str(parsed.get("type_class", "")).strip() or None
@@ -208,7 +213,7 @@ def extract_with_mini_ai(text: str) -> dict:
             "category": category,
             "doc_type": ins_type,
             "suggested_title": f"{company or ins_type} - {ins_num or 'Polizze'}",
-            "cost": new_cost or cost,
+            "cost": final_cost,
             "payment_cycle": payment_cycle,
             "start_date": s_date,
             "end_date": e_date,
@@ -219,7 +224,7 @@ def extract_with_mini_ai(text: str) -> dict:
             "type_class": type_class,
             "is_price_change": is_price_change,
             "previous_cost": prev_cost,
-            "new_cost": new_cost or cost,
+            "new_cost": final_cost,
             "ai_used": True,
             "ai_model": "Qwen2.5-1.5B (Embedded)"
         }
@@ -241,17 +246,7 @@ def is_invalid_policy_num(candidate: str) -> bool:
     return False
 
 def extract_policy_number_fallback(text: str, current_num: str = None) -> str:
-    if current_num and not is_invalid_policy_num(current_num):
-        return str(current_num).strip()
-
-    # 1. Hashes pattern like #4#23375102## or ##23375102##
-    hash_match = re.search(r'#\d*#?([A-Za-z0-9\-/]{6,25})##', text)
-    if hash_match:
-        val = hash_match.group(1).strip()
-        if not is_invalid_policy_num(val):
-            return val
-
-    # 2. Multi-line label search: e.g., "Versicherungsschein-Nummer\nLJ-23375102-001" or "zur Kraftfahrtversicherung LJ-23375102-001"
+    # 1. Multi-line label search: e.g., "Versicherungsschein-Nummer\nLJ-23375102-001" or "zur Kraftfahrtversicherung LJ-23375102-001"
     multiline_patterns = [
         r'(?i)(?:versicherungsschein-?nummer|policennummer|vertragsnummer|schein-?nummer|vsnr)\b.*?\n+\s*(?:[a-z0-9\s]*?\s+)?([A-Za-z0-9\-/]{5,30})',
         r'(?i)(?:versicherungsschein-?nr|policen-?nr|schein-?nr|vertrags-?nr|vsnr)\.?:?\s*([A-Za-z0-9\-/]{5,30})',
@@ -263,14 +258,61 @@ def extract_policy_number_fallback(text: str, current_num: str = None) -> str:
             if not is_invalid_policy_num(val):
                 return val
 
-    # 3. Direct pattern like LJ-23375102-001 or 123/456789-A
+    # 2. Direct pattern like LJ-23375102-001 or 123/456789-A
     direct_match = re.search(r'\b([A-Z]{1,4}-\d{6,12}-\d{1,3}|\d{3}/\d{6}-[A-Za-z0-9])\b', text)
     if direct_match:
         val = direct_match.group(1).strip()
         if not is_invalid_policy_num(val):
             return val
 
+    # 3. Hashes pattern like #4#23375102## or ##23375102##
+    hash_match = re.search(r'#\d*#?([A-Za-z0-9\-/]{6,25})##', text)
+    if hash_match:
+        val = hash_match.group(1).strip()
+        if not is_invalid_policy_num(val):
+            return val
+
+    if current_num and not is_invalid_policy_num(current_num):
+        return str(current_num).strip()
+
     return current_num
+
+def extract_cost_fallback(text: str) -> float:
+    # Priority 1: Explicit total premium line with tax e.g. "Beitrag (inklusive Versicherungsteuer) 43,40 €"
+    m1 = re.search(r'(?i)(?:beitrag\s*\(inklusive\s*versicherungsteuer\)|zahlbeitrag|gesamtbeitrag|monatlicher\s*beitrag|jahresbeitrag)\b[^\n\d]*(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s*(?:€|EUR)', text)
+    if m1:
+        try:
+            return float(m1.group(1).replace('.', '').replace(',', '.'))
+        except:
+            pass
+
+    # Priority 2: "Ihr monatlicher Beitrag ... 43,40 €"
+    m2 = re.search(r'(?i)(?:ihr\s*(?:monatlicher|jährlicher)\s*beitrag)[^\n\d]*(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s*(?:€|EUR)', text)
+    if m2:
+        try:
+            return float(m2.group(1).replace('.', '').replace(',', '.'))
+        except:
+            pass
+
+    # Priority 3: Scan lines ignoring Selbstbeteiligung, Guthaben, Erstattung
+    lines = text.split('\n')
+    valid_costs = []
+    for line in lines:
+        if re.search(r'(?i)(selbstbeteiligung|selbstbehalt|guthaben|erstatten|pauschal|deckungssumme|umweltschadensgesetz|personenschäden)', line):
+            continue
+        m = re.search(r'(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s*(?:€|EUR|Euro)', line)
+        if m:
+            try:
+                val = float(m.group(1).replace('.', '').replace(',', '.'))
+                if 5.0 <= val <= 5000.0:
+                    valid_costs.append(val)
+            except:
+                pass
+
+    if valid_costs:
+        return valid_costs[0]
+
+    return None
 
 def calculate_insurance_dates(start_date_str, end_date_str, cancellation_date_str, text: str):
     import datetime
@@ -453,34 +495,7 @@ def extract_insurance_data_regex(text: str) -> dict:
     data["suggested_title"] = f"{comp_str} {data['doc_type']} {num_str}".strip()
 
     # 4. Cost / Premium
-    cost_found = None
-    labeled_match = re.search(
-        r'(?i)(?:beitrag\s*\(inklusive\s*versicherungsteuer\)|jahresbeitrag|gesamtbeitrag|erstbeitrag|zahlbeitrag|aktuelle forderung|unsere forderung|prämie)\b[^\n\d]*(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s*(?:€|EUR|Euro)',
-        text
-    )
-    if labeled_match:
-        val_str = labeled_match.group(1).replace('.', '').replace(',', '.')
-        try:
-            cost_found = float(val_str)
-        except:
-            pass
-
-    if not cost_found:
-        cost_matches = re.findall(r'(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s*(?:€|EUR|Euro)', text)
-        if cost_matches:
-            valid_costs = []
-            for cm in cost_matches:
-                val_str = cm.replace('.', '').replace(',', '.')
-                try:
-                    val = float(val_str)
-                    if 5.0 <= val <= 5000.0:
-                        valid_costs.append(val)
-                except:
-                    pass
-            if valid_costs:
-                data["cost"] = valid_costs[0]
-    else:
-        data["cost"] = cost_found
+    data["cost"] = extract_cost_fallback(text)
 
     # 5. Payment Cycle
     if re.search(r'(?i)(monatlich|monatlicher)', text):
