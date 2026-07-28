@@ -166,17 +166,26 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
     try {
       let insId = selectedInsuranceId;
       
+      const payload = {
+        name: formData.name || "Versicherung",
+        company: formData.company || null,
+        insurance_number: formData.insurance_number || null,
+        category: formData.category || "Haftpflicht",
+        cost: formData.cost ? parseFloat(formData.cost.replace(',', '.')) : null,
+        payment_cycle: formData.payment_cycle || "jährlich",
+        start_date: formData.start_date || null,
+        end_date: formData.end_date || null,
+        cancellation_date: formData.cancellation_date || null,
+        is_suspended: formData.is_suspended || false,
+        suspension_reason: formData.suspension_reason || null,
+        coverage_details: extractedData?.coverage_details || []
+      };
+
       if (insId === "new") {
-        const payload = {
-          ...formData,
-          start_date: formData.start_date || null,
-          end_date: formData.end_date || null,
-          cancellation_date: formData.cancellation_date || null,
-          cost: formData.cost ? parseFloat(formData.cost.replace(',', '.')) : null,
-          coverage_details: extractedData?.coverage_details || []
-        };
         const newIns = await api.post("/insurances", payload);
         insId = newIns.id;
+      } else {
+        await api.put(`/insurances/${insId}`, payload);
       }
       
       const fd = new FormData();
