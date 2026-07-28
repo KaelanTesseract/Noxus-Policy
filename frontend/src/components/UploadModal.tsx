@@ -51,7 +51,9 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
     payment_cycle: "jährlich",
     start_date: "",
     end_date: "",
-    cancellation_date: ""
+    cancellation_date: "",
+    is_suspended: false,
+    suspension_reason: ""
   });
 
   const processFile = async (selectedFile: File) => {
@@ -100,7 +102,9 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
         payment_cycle: data.payment_cycle || "jährlich",
         start_date: data.start_date || "",
         end_date: data.end_date || "",
-        cancellation_date: data.cancellation_date || ""
+        cancellation_date: data.cancellation_date || "",
+        is_suspended: false,
+        suspension_reason: ""
       });
     } catch (err: any) {
       clearInterval(progressInterval);
@@ -184,7 +188,9 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
       payment_cycle: "jährlich",
       start_date: "",
       end_date: "",
-      cancellation_date: ""
+      cancellation_date: "",
+      is_suspended: false,
+      suspension_reason: ""
     });
   };
 
@@ -444,6 +450,27 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
                 <div className="space-y-2 col-span-2">
                   <Label className="text-xs font-mono text-amber-400">Kündigungsfrist (berechnet)</Label>
                   <Input type="date" value={formData.cancellation_date} onChange={e => setFormData({...formData, cancellation_date: e.target.value})} className="bg-zinc-950 border-amber-800/60 text-amber-400 font-mono" />
+                </div>
+
+                {/* Ruhendstellung / Beitragsfreistellung Toggle */}
+                <div className="col-span-2 p-3.5 rounded-xl bg-amber-950/30 border border-amber-800/50 space-y-2.5">
+                  <label className="flex items-center gap-2.5 text-xs font-semibold text-amber-200 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.is_suspended}
+                      onChange={e => setFormData({ ...formData, is_suspended: e.target.checked })}
+                      className="rounded accent-amber-500 w-4 h-4"
+                    />
+                    <span>⏸️ Vertrag ruht / ist beitragsfrei gestellt (0 € Jahresbeitrag)</span>
+                  </label>
+                  {formData.is_suspended && (
+                    <Input
+                      value={formData.suspension_reason}
+                      onChange={e => setFormData({ ...formData, suspension_reason: e.target.value })}
+                      placeholder="Grund der Ruhendstellung (z.B. Saisonpause / Elterngeld / Beitragsfreistellung)"
+                      className="bg-zinc-950 border-amber-800/60 text-xs text-amber-100"
+                    />
+                  )}
                 </div>
               </div>
             )}

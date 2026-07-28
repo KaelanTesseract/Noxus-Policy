@@ -228,22 +228,48 @@ def extract_with_mini_ai(text: str) -> dict:
 
     return None
 
+def is_invalid_policy_num(candidate: str) -> bool:
+    if not candidate:
+        return True
+    s = candidate.strip().lower()
+    if len(s) < 4:
+        return True
+    if s.startswith(('ist', 'der', 'des', 'von', 'und', 'null', 'seite', 'bitte', 'satz', 'tarif', 'abgang')):
+        return True
+    if re.search(r'vers\.st|ust|iban|bic|hrb|amtsgericht|v90815006286', s):
+        return True
+    return False
+
 def extract_policy_number_fallback(text: str, current_num: str = None) -> str:
-    if current_num and len(str(current_num).strip()) >= 4 and not str(current_num).lower().startswith(('ist', 'der', 'des', 'von', 'und', 'null')):
+    if current_num and not is_invalid_policy_num(current_num):
         return str(current_num).strip()
 
-    patterns = [
-        r'\b(\d{3}/\d{6}-[a-zA-Z0-9])\b',
-        r'(?i)(?:versicherungs-?schein-?nr|policen-?nr|schein-?nr|vertrags-?nr|vsnr)\.?:?\s*([a-z0-9/\-\.]{5,25})',
-        r'(?i)(?:versicherungsscheinnummer|policennummer|vertragsnummer)\.?:?\s*([a-z0-9/\-\.]{5,25})',
-        r'(?i)Nr\.\s*([a-z0-9/\-\.]{5,25})'
+    # 1. Hashes pattern like #4#23375102## or ##23375102##
+    hash_match = re.search(r'#\d*#?([A-Za-z0-9\-/]{6,25})##', text)
+    if hash_match:
+        val = hash_match.group(1).strip()
+        if not is_invalid_policy_num(val):
+            return val
+
+    # 2. Multi-line label search: e.g., "Versicherungsschein-Nummer\nLJ-23375102-001" or "zur Kraftfahrtversicherung LJ-23375102-001"
+    multiline_patterns = [
+        r'(?i)(?:versicherungsschein-?nummer|policennummer|vertragsnummer|schein-?nummer|vsnr)\b.*?\n+\s*(?:[a-z0-9\s]*?\s+)?([A-Za-z0-9\-/]{5,30})',
+        r'(?i)(?:versicherungsschein-?nr|policen-?nr|schein-?nr|vertrags-?nr|vsnr)\.?:?\s*([A-Za-z0-9\-/]{5,30})',
+        r'(?i)versicherungs-?schein-?nummer\s*([A-Za-z0-9\-/]{5,30})'
     ]
-    for pat in patterns:
-        match = re.search(pat, text)
-        if match:
+    for pat in multiline_patterns:
+        for match in re.finditer(pat, text):
             val = match.group(1).strip()
-            if len(val) >= 4 and not val.lower().startswith(('ist', 'der', 'des', 'von', 'und')):
+            if not is_invalid_policy_num(val):
                 return val
+
+    # 3. Direct pattern like LJ-23375102-001 or 123/456789-A
+    direct_match = re.search(r'\b([A-Z]{1,4}-\d{6,12}-\d{1,3}|\d{3}/\d{6}-[A-Za-z0-9])\b', text)
+    if direct_match:
+        val = direct_match.group(1).strip()
+        if not is_invalid_policy_num(val):
+            return val
+
     return current_num
 
 def calculate_insurance_dates(start_date_str, end_date_str, cancellation_date_str, text: str):
@@ -277,8 +303,8 @@ def calculate_insurance_dates(start_date_str, end_date_str, cancellation_date_st
         if parsed_end:
             e_date = parsed_end
 
-    # 3. Search for explicit Beginn date in text
-    match_start = re.search(r'(?i)(?:versicherungsbeginn|vertragsbeginn|beginn|gültig ab)\.?:?\s*(\d{2}\.\d{2}\.\d{4})', text)
+    # 3. Search for explicit Beginn date in text (including "Beginn der Änderung")
+    match_start = re.search(r'(?i)(?:beginn der änderung|versicherungsbeginn|vertragsbeginn|beginn|gültig ab)\.?:?\s*(\d{2}\.\d{2}\.\d{4})', text)
     if match_start and not s_date:
         parsed_start = parse_date(match_start.group(1))
         if parsed_start:
@@ -318,6 +344,10 @@ def sanitize_coverage_details(coverage_list: list) -> list:
         if not isinstance(item, str) or not item.strip():
             continue
         s = item.strip()
+
+        # Filter out negative statements or non-covered items
+        if re.search(r'(?i)(:\s*nein|ist nicht vertragsinhalt|nicht versichert|erloschen|ausgeschlossen)', s):
+            continue
 
         # Convert raw copied sentences to grammatically perfect German
         if "Leistet, wenn mit dem versicherten Fahrzeug" in s or "berechtigte Ansprüche" in s:
@@ -379,7 +409,6 @@ def extract_insurance_data_regex(text: str) -> dict:
             break
 
     if not data["company"]:
-        # Dynamic company extraction: search for "... AG", "... SE", "... VVaG", "... Versicherung"
         comp_match = re.search(r'([A-ZÄÖÜa-zäöü0-9\-\s]{3,30}\s+(?:Versicherung(?:en)?|AG|SE|VVaG|Krankenkasse))', text)
         if comp_match:
             comp_candidate = comp_match.group(1).strip()
@@ -387,19 +416,7 @@ def extract_insurance_data_regex(text: str) -> dict:
                 data["company"] = comp_candidate
             
     # 2. Insurance Number
-    patterns_num = [
-        r'\b(\d{3}/\d{6}-[a-zA-Z0-9])\b',
-        r'(?i)(?:versicherungs-?schein-?nr|policen-?nr|schein-?nr|vertrags-?nr|vsnr)\.?:?\s*([a-z0-9/\-\.]{5,25})',
-        r'(?i)(?:versicherungsscheinnummer|policennummer|vertragsnummer)\.?:?\s*([a-z0-9/\-\.]{5,25})',
-        r'(?i)vsnr\.?:?\s*([a-z0-9/\-\.]{5,25})'
-    ]
-    for pat in patterns_num:
-        match = re.search(pat, text)
-        if match:
-            num = match.group(1).strip()
-            if len(num) > 3 and not num.lower().startswith(('ist', 'der', 'des', 'von', 'und')):
-                data["insurance_number"] = num
-                break
+    data["insurance_number"] = extract_policy_number_fallback(text, None)
 
     # 3. Category & Doc Type (Expanded for all DACH insurance categories)
     if re.search(r'(?i)(kfz|auto|fahrzeug|kraftfahrt|teilkasko|vollkasko|pkw|moped|motorrad)', text):
@@ -438,7 +455,7 @@ def extract_insurance_data_regex(text: str) -> dict:
     # 4. Cost / Premium
     cost_found = None
     labeled_match = re.search(
-        r'(?i)(?:jahresbeitrag|gesamtbeitrag|erstbeitrag|zahlbeitrag|beitrag|aktuelle forderung|unsere forderung|prämie)\b[^\n\d]*(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s*(?:€|EUR|Euro)',
+        r'(?i)(?:beitrag\s*\(inklusive\s*versicherungsteuer\)|jahresbeitrag|gesamtbeitrag|erstbeitrag|zahlbeitrag|aktuelle forderung|unsere forderung|prämie)\b[^\n\d]*(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s*(?:€|EUR|Euro)',
         text
     )
     if labeled_match:
@@ -481,31 +498,28 @@ def extract_insurance_data_regex(text: str) -> dict:
     data["end_date"] = e_date
     data["cancellation_date"] = c_date
 
-    data["insurance_number"] = extract_policy_number_fallback(text, data["insurance_number"])
-
-    # Suggested Title
-    comp_str = data["company"] or "Unbekannt"
-    num_str = f"({data['insurance_number']})" if data["insurance_number"] else ""
-    data["suggested_title"] = f"{comp_str} {data['doc_type']} {num_str}".strip()
-
-    # Coverage Details (Universal Regex Rules across all major categories)
+    # Coverage Details (Excluding negative matches)
     coverage_details = []
     
     # Kfz
     if re.search(r'(?i)(kfz\-haftpflicht|kraftfahrt-haftpflicht)', text):
         coverage_details.append("Kfz-Haftpflichtversicherung (Schäden an Drittfahrzeugen, Personenschäden & Abwehr unberechtigter Ansprüche)")
-    if re.search(r'(?i)(schutzbrief)', text):
+    if re.search(r'(?i)(schutzbrief)', text) and not re.search(r'(?i)schutzbrief[^\n]*ist nicht vertragsinhalt', text):
         coverage_details.append("Schutzbrief (Organisatorische & finanzielle Hilfe bei Panne oder Unfall, Abschleppen & Mietwagen)")
     if re.search(r'(?i)(teilkasko)', text):
         coverage_details.append("Teilkasko (Schutz bei Glasbruch, Diebstahl, Hagel, Sturm & Wildunfällen)")
-    if re.search(r'(?i)(vollkasko)', text):
+    if re.search(r'(?i)(vollkasko)', text) and not re.search(r'(?i)vollkasko[^\n]*ist nicht vertragsinhalt', text):
         coverage_details.append("Vollkasko (Abdeckung von Unfallschäden am eigenen Fahrzeug & Vandalismus)")
-    if re.search(r'(?i)(fahrerschutz)', text):
+    if re.search(r'(?i)(fahrerschutz)', text) and not re.search(r'(?i)fahrerschutz[^\n]*ist nicht vertragsinhalt', text):
         coverage_details.append("Fahrerschutz (Übernahme von Personenschäden & Genesungskosten des Fahrers bei Unfall)")
-    if re.search(r'(?i)(ausland\-schadenschutz)', text):
+    if re.search(r'(?i)(ausland\-schadenschutz)', text) and not re.search(r'(?i)ausland\-schadenschutz[^\n]*ist nicht vertragsinhalt', text):
         coverage_details.append("Ausland-Schadenschutz (Schadenregulierung bei Unfällen im Ausland nach deutschem Standard)")
     if re.search(r'(?i)(umweltschaden|umweltschadensgesetz)', text):
         coverage_details.append("Kfz-Umweltschadenversicherung (Schutz vor öffentlich-rechtlichen Ansprüchen nach dem Umweltschadensgesetz)")
+
+    # Exclude false positives like "Wohngebäude bei der Itzehoer versichert: Nein"
+    if re.search(r'(?i)(wohngebäude|gebäudeversicherung)', text) and not re.search(r'(?i)wohngebäude[^\n]*:\s*nein', text) and not re.search(r'(?i)wohngebäude[^\n]*ist nicht', text):
+        coverage_details.append("Wohngebäudeversicherung (Absicherung gegen Feuer, Sturm, Hagel, Leitungswasser & Elementarschäden)")
 
     # Haftpflicht
     if re.search(r'(?i)(privathaftpflicht)', text):
@@ -515,13 +529,9 @@ def extract_insurance_data_regex(text: str) -> dict:
     if re.search(r'(?i)(bauherrenhaftpflicht|haus-? und grundbesitzer)', text):
         coverage_details.append("Haus- & Grundbesitzerhaftpflicht (Absicherung von Verkehrssicherungspflichten & Bauherrenschäden)")
 
-    # Hausrat & Gebäude
+    # Hausrat
     if re.search(r'(?i)(hausrat)', text):
         coverage_details.append("Hausratversicherung (Schutz bei Einbruchdiebstahl, Vandalismus, Leitungswasser, Sturm & Hagel)")
-    if re.search(r'(?i)(wohngebäude|gebäudeversicherung)', text):
-        coverage_details.append("Wohngebäudeversicherung (Absicherung gegen Feuer, Sturm, Hagel, Leitungswasser & Elementarschäden)")
-    if re.search(r'(?i)(photovoltaik|solaranlage)', text):
-        coverage_details.append("Photovoltaik-Schutz (Allgefahrendeckung & Ertagsausfall für Solaranlagen)")
 
     # Rechtsschutz
     if re.search(r'(?i)(rechtsschutz)', text):
@@ -539,14 +549,10 @@ def extract_insurance_data_regex(text: str) -> dict:
         coverage_details.append("Zahnzusatzversicherung (Kostenerstattung für professionelle Zahnreinigung, Inlays & Zahnersatz)")
     if re.search(r'(?i)(krankentagegeld|krankengeld)', text):
         coverage_details.append("Krankentagegeld (Einkommenssicherung bei längerer Krankheitsdauer)")
-    if re.search(r'(?i)(pflegezusatz|pflegebahr)', text):
-        coverage_details.append("Pflegezusatzversicherung (Monatliches Pflegegeld zur Ergänzung der gesetzlichen Pflegekasse)")
 
     # Leben & Vorsorge
     if re.search(r'(?i)(berufsunfähigkeit|bu\-rente)', text):
         coverage_details.append("Berufsunfähigkeitsversicherung (Monatliche Rente & Beitragsbefreiung bei Berufs- oder Erwerbsunfähigkeit)")
-    if re.search(r'(?i)(risikoleben|hinterbliebenenschutz)', text):
-        coverage_details.append("Risikolebensversicherung (Absicherung der Familie & Hinterbliebenen im Todesfall)")
 
     # KFZ Specific Regex Extraction
     match_sf = re.search(r'(?i)\b(?:sf|schadenfreiheitsklasse)\s*[-:]?\s*([0-9/]+|(?:1/2))\b', text)
