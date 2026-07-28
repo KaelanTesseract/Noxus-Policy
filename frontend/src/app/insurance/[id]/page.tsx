@@ -1257,7 +1257,7 @@ export default function InsuranceDetailPage() {
             </div>
             <div className="flex-1 p-2 bg-zinc-950 overflow-auto min-h-[500px]">
               <iframe
-                src={`/api/documents/${viewingDoc.id}/file`}
+                src={`/api/documents/${viewingDoc.id}/view`}
                 className="w-full h-full min-h-[500px] border-0 rounded-lg"
                 title="Dokument-Vorschau"
               />

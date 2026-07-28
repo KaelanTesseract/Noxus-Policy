@@ -213,6 +213,7 @@ def update_document(
     return doc
 
 @router.get("/{document_id}/view")
+@router.get("/{document_id}/file")
 def view_document(document_id: int, token: str = None, db: Session = Depends(get_db)):
     doc = db.query(models.Document).filter(models.Document.id == document_id).first()
     if not doc:

@@ -427,13 +427,15 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
             <div className="space-y-2">
               <Label className="text-xs font-mono uppercase text-zinc-400">Zuordnung zur Versicherung</Label>
               <Select value={selectedInsuranceId} onValueChange={(val) => setSelectedInsuranceId(val || "new")}>
-                <SelectTrigger className="bg-zinc-900 border-zinc-800 text-zinc-200">
+                <SelectTrigger className="w-full bg-zinc-900 border-zinc-800 text-zinc-200">
                   <SelectValue placeholder="Wähle eine Versicherung" />
                 </SelectTrigger>
-                <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-50">
+                <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-50 min-w-[380px]">
                   <SelectItem value="new">+ Neue Versicherung anlegen</SelectItem>
                   {insuranceList.map((ins: any) => (
-                    <SelectItem key={ins.id} value={String(ins.id)}>{ins.name}</SelectItem>
+                    <SelectItem key={ins.id} value={String(ins.id)} className="text-sm">
+                      {ins.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
