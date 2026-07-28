@@ -93,8 +93,25 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
       setCustomDocName(suggestedName);
       setDocType(data.doc_type || "Versicherungsschein / Polizze");
 
+      const categoryMap: Record<string, string> = {
+        "Kfz": "Kfz-Versicherung",
+        "Haftpflicht": "Haftpflichtversicherung",
+        "Hausrat": "Hausratversicherung",
+        "Leben": "Lebensversicherung",
+        "Gesundheit": "Krankenversicherung",
+        "Rechtsschutz": "Rechtsschutzversicherung",
+        "Sonstige": "Versicherung"
+      };
+      const unifiedType = data.doc_type && data.doc_type !== "Versicherung" 
+        ? data.doc_type 
+        : (categoryMap[data.category] || data.category || "Versicherung");
+
+      const autoTitle = data.company 
+        ? `${data.company} (${unifiedType})` 
+        : selectedFile.name.replace(/\.[^/.]+$/, "");
+
       setFormData({
-        name: data.company ? `${data.company} (${data.category || 'Versicherung'})` : selectedFile.name.replace(/\.[^/.]+$/, ""),
+        name: autoTitle,
         company: data.company || "",
         insurance_number: data.insurance_number || "",
         category: data.category || "Haftpflicht",

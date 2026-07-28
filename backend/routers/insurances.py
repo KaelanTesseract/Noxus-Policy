@@ -15,6 +15,19 @@ from database import get_db
 
 router = APIRouter(prefix="/api/insurances", tags=["insurances"])
 
+import re
+
+def normalize_insurance_name(name: str) -> str:
+    if not name:
+        return name
+    name = re.sub(r'\(Kfz\)$', '(Kfz-Versicherung)', name, flags=re.IGNORECASE)
+    name = re.sub(r'\(Haftpflicht\)$', '(Haftpflichtversicherung)', name, flags=re.IGNORECASE)
+    name = re.sub(r'\(Hausrat\)$', '(Hausratversicherung)', name, flags=re.IGNORECASE)
+    name = re.sub(r'\(Leben\)$', '(Lebensversicherung)', name, flags=re.IGNORECASE)
+    name = re.sub(r'\(Gesundheit\)$', '(Krankenversicherung)', name, flags=re.IGNORECASE)
+    name = re.sub(r'\(Rechtsschutz\)$', '(Rechtsschutzversicherung)', name, flags=re.IGNORECASE)
+    return name
+
 def calc_annual_cost(cost: float, payment_cycle: str) -> float:
     if not cost:
         return 0.0
@@ -63,7 +76,7 @@ def format_insurance_dict(ins: models.Insurance) -> dict:
     res = {
         "id": ins.id,
         "owner_id": ins.owner_id,
-        "name": ins.name,
+        "name": normalize_insurance_name(ins.name),
         "company": ins.company,
         "insurance_number": ins.insurance_number,
         "category": ins.category,
