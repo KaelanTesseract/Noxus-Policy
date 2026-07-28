@@ -163,12 +163,13 @@ def update_insurance(insurance_id: int, insurance: schemas.InsuranceUpdate, db: 
     # Auto-add PremiumHistory if cost changed
     if db_insurance.cost and (old_cost is None or abs(db_insurance.cost - old_cost) > 0.01 or old_cycle != db_insurance.payment_cycle):
         annual = calc_annual_cost(db_insurance.cost, db_insurance.payment_cycle)
+        eff_date = data.get("start_date") or db_insurance.start_date or datetime.date.today()
         h_entry = models.PremiumHistory(
             insurance_id=db_insurance.id,
             cost=db_insurance.cost,
             payment_cycle=db_insurance.payment_cycle or "jährlich",
             annual_cost=annual,
-            effective_date=datetime.date.today(),
+            effective_date=eff_date,
             note="Beitragsanpassung / Aktualisierung"
         )
         db.add(h_entry)

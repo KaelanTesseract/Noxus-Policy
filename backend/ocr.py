@@ -281,7 +281,18 @@ def extract_policy_number_fallback(text: str, current_num: str = None) -> str:
     return current_num
 
 def extract_cost_fallback(text: str) -> float:
-    # Priority 1: Explicit total premium line with tax e.g. "Beitrag (inklusive Versicherungsteuer) 43,40 €"
+    # Priority 1: Total line match (e.g. "Gesamtbeitrag inkl. 19 % Versicherungsteuer (7,91 €) 49,53 €")
+    for line in text.split('\n'):
+        if re.search(r'(?i)gesamtbeitrag|zahlbeitrag|gesamt|bruttobeitrag\s*\(monatlich\)', line):
+            amounts = re.findall(r'(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s*(?:€|EUR)', line)
+            if amounts:
+                try:
+                    # Take the last amount on the total line (e.g. 49,53 € instead of tax portion 7,91 €)
+                    return float(amounts[-1].replace('.', '').replace(',', '.'))
+                except:
+                    pass
+
+    # Priority 2: Explicit total premium line with tax e.g. "Beitrag (inklusive Versicherungsteuer) 43,40 €"
     m1 = re.search(r'(?i)beitrag\s*\([^)]*inklusive[^)]*\)\s*[:\s]*(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s*(?:€|EUR)', text)
     if m1:
         try:
@@ -289,7 +300,7 @@ def extract_cost_fallback(text: str) -> float:
         except:
             pass
 
-    # Priority 2: "Gesamtbeitrag" or "Zahlbeitrag" or "Beitrag (inkl"
+    # Priority 3: "Gesamtbeitrag" or "Zahlbeitrag" or "Beitrag (inkl"
     m2 = re.search(r'(?i)(?:gesamtbeitrag|zahlbeitrag|beitrag\s*inkl\.?\s*steuer)\s*[:\s]*(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s*(?:€|EUR)', text)
     if m2:
         try:
@@ -297,9 +308,9 @@ def extract_cost_fallback(text: str) -> float:
         except:
             pass
 
-    # Priority 3: Single-line search excluding net/without tax lines
+    # Priority 4: Single-line search excluding net/without tax lines or partial subtotal lines
     for line in text.split('\n'):
-        if re.search(r'(?i)selbstbeteiligung|selbstbehalt|guthaben|erstatten|ohne versicherungsteuer', line):
+        if re.search(r'(?i)selbstbeteiligung|selbstbehalt|guthaben|erstatten|ohne versicherungsteuer|kfz\-haftpflicht|teilkasko|vollkasko', line):
             continue
         m = re.search(r'(?i)(?:beitrag|prämie)\s*[:\s]*(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s*(?:€|EUR)', line)
         if m:
@@ -308,11 +319,11 @@ def extract_cost_fallback(text: str) -> float:
             except:
                 pass
 
-    # Priority 4: Scan lines ignoring Selbstbeteiligung, Guthaben, Erstattung, ohne Steuer
+    # Priority 5: Scan lines ignoring sub-items, tax-free or partial items
     lines = text.split('\n')
     valid_costs = []
     for line in lines:
-        if re.search(r'(?i)(selbstbeteiligung|selbstbehalt|guthaben|erstatten|pauschal|deckungssumme|umweltschadensgesetz|personenschäden|ohne versicherungsteuer)', line):
+        if re.search(r'(?i)(selbstbeteiligung|selbstbehalt|guthaben|erstatten|pauschal|deckungssumme|umweltschadensgesetz|personenschäden|ohne versicherungsteuer|kfz\-haftpflicht|teilkasko|vollkasko)', line):
             continue
         m = re.search(r'(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s*(?:€|EUR|Euro)', line)
         if m:
@@ -359,8 +370,8 @@ def calculate_insurance_dates(start_date_str, end_date_str, cancellation_date_st
         if parsed_end:
             e_date = parsed_end
 
-    # 3. Search for explicit Beginn date in text (including "Beginn der Änderung")
-    match_start = re.search(r'(?i)(?:beginn der änderung|versicherungsbeginn|vertragsbeginn|beginn|gültig ab)\.?:?\s*(\d{2}\.\d{2}\.\d{4})', text)
+    # 3. Search for explicit Beginn / Fälligkeitsdatum in text
+    match_start = re.search(r'(?i)(?:beginn der änderung|versicherungsbeginn|vertragsbeginn|beginn|gültig ab|fällig am|zeitraum|am)\.?:?\s*(\d{2}\.\d{2}\.\d{4})', text)
     if match_start and not s_date:
         parsed_start = parse_date(match_start.group(1))
         if parsed_start:
