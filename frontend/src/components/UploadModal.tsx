@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], preselectedInsuranceId }: any) {
+export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], preselectedInsuranceId, targetInsuranceId }: any) {
   const [file, setFile] = useState<File | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
@@ -23,22 +23,29 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
   const [progressText, setProgressText] = useState("Dokument wird vorbereitet...");
   const [useAi, setUseAi] = useState(true);
   
-  const [selectedInsuranceId, setSelectedInsuranceId] = useState<string>(preselectedInsuranceId || "new");
+  const initialPreId = preselectedInsuranceId || targetInsuranceId;
+  const [selectedInsuranceId, setSelectedInsuranceId] = useState<string>(initialPreId ? String(initialPreId) : "new");
+  const [insuranceList, setInsuranceList] = useState<any[]>(insurances);
 
   const [docType, setDocType] = useState<string>("Versicherungsschein / Polizze");
   const [customDocName, setCustomDocName] = useState<string>("");
 
   useEffect(() => {
-    if (preselectedInsuranceId) {
-      setSelectedInsuranceId(String(preselectedInsuranceId));
+    const preId = preselectedInsuranceId || targetInsuranceId;
+    if (preId) {
+      setSelectedInsuranceId(String(preId));
     }
-  }, [preselectedInsuranceId]);
+  }, [preselectedInsuranceId, targetInsuranceId]);
 
   useEffect(() => {
     if (isOpen) {
       api.get("/documents/ai-config")
         .then((cfg: any) => setUseAi(!!cfg.use_ai))
         .catch(() => setUseAi(true));
+
+      api.get("/insurances")
+        .then((data: any[]) => setInsuranceList(data))
+        .catch((err) => console.error("Fehler beim Laden der Versicherungsliste:", err));
     }
   }, [isOpen]);
 
@@ -425,7 +432,7 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
                 </SelectTrigger>
                 <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-50">
                   <SelectItem value="new">+ Neue Versicherung anlegen</SelectItem>
-                  {insurances.map((ins: any) => (
+                  {insuranceList.map((ins: any) => (
                     <SelectItem key={ins.id} value={String(ins.id)}>{ins.name}</SelectItem>
                   ))}
                 </SelectContent>
