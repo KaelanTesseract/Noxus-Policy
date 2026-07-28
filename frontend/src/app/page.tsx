@@ -93,7 +93,16 @@ export default function Dashboard() {
     }
   };
 
-  const totalCostAnnual = insurances.reduce((acc, ins) => ins.is_suspended ? acc : acc + (ins.cost || 0), 0);
+  const getAnnualCost = (ins: any) => {
+    if (!ins || ins.is_suspended || !ins.cost) return 0;
+    const cycle = String(ins.payment_cycle || "jährlich").toLowerCase();
+    if (cycle === "monatlich") return ins.cost * 12;
+    if (cycle === "vierteljährlich") return ins.cost * 4;
+    if (cycle === "halbjährlich") return ins.cost * 2;
+    return ins.cost;
+  };
+
+  const totalCostAnnual = insurances.reduce((acc, ins) => acc + getAnnualCost(ins), 0);
 
   // Calculate category statistics & breakdown
   const categoryStats = insurances.reduce((acc: any, ins: any) => {
@@ -102,9 +111,7 @@ export default function Dashboard() {
       acc[cat] = { count: 0, cost: 0 };
     }
     acc[cat].count += 1;
-    if (!ins.is_suspended) {
-      acc[cat].cost += ins.cost || 0;
-    }
+    acc[cat].cost += getAnnualCost(ins);
     return acc;
   }, {});
 
@@ -131,7 +138,7 @@ export default function Dashboard() {
     return matchesSearch && matchesCategory;
   }).sort((a: any, b: any) => {
     if (sortBy === "cost") {
-      return (b.cost || 0) - (a.cost || 0);
+      return getAnnualCost(b) - getAnnualCost(a);
     }
     if (sortBy === "name") {
       return (a.name || "").localeCompare(b.name || "");

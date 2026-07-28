@@ -599,11 +599,13 @@ def extract_insurance_data_regex(text: str) -> dict:
     if match_sf:
         data["sf_class"] = f"SF {match_sf.group(1).upper()}"
 
-    match_regio = re.search(r'(?i)\b(?:regional\s*klasse|regio\s*klasse|r\-klasse)\s*[-:]?\s*([a-z0-9]{1,4})\b', text)
+    match_regio = re.search(r'(?i)(?:regional\s*klasse|regio\s*klasse|r\-klasse|tarifgruppe)\b[^\n]*?\b(R\s*\d{1,2}|R\d{2})\b', text)
+    if not match_regio:
+        match_regio = re.search(r'\b(R0[1-9]|R[1-9]\d)\b', text)
     if match_regio:
-        data["regional_class"] = match_regio.group(1).upper()
+        data["regional_class"] = match_regio.group(1).upper().replace(" ", "")
 
-    match_typ = re.search(r'(?i)\b(?:typ\s*klasse|tk)\s*[-:]?\s*([0-9]{1,3})\b', text)
+    match_typ = re.search(r'(?i)\b(?:typ\s*klasse|typ-?klasse|tk)\b[^\n\d]*?(\d{1,2})\b', text)
     if match_typ:
         data["type_class"] = match_typ.group(1)
 
