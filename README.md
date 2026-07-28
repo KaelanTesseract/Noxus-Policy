@@ -17,6 +17,10 @@
   <a href="#-lokale-ki-engine-qwen25-15b"><img src="https://img.shields.io/badge/Local_AI-Qwen2.5_1.5B-purple.svg?style=for-the-badge" alt="Local AI"></a>
 </p>
 
+> [!WARNING]
+> **Hinweis zur KI- & OCR-Texterkennung (Aktive Testphase):**
+> Die automatische Texterkennung und Dokumentenanalyse befindet sich derzeit in einer **kontinuierlichen Erprobungs- & Testphase**. Je nach Qualität, Formatierung, Scan-Auflösung oder Layout der hochgeladenen PDF-Dokumente kann es vereinzelt zu Abweichungen oder Fehlern bei der Datenerkennung kommen. Bitte überprüfe ausgelesene Vertragsdaten, Kündigungsfristen und Beiträge stets sorgfältig auf ihre Richtigkeit.
+
 ---
 
 ## 🔑 Standard Admin-Zugangsdaten (Erst-Login)
@@ -118,6 +122,7 @@ Das Skript erstellt **automatisch ein Vorab-Sicherheitsbackup** der Datenbank im
 * **100% Lokal & Privat:** Kein Versenden vertraulicher Versicherungsdokumente an externe Cloud-APIs.
 * **Intelligente Datensatz-Erkennung:** Extraktion von Gesellschaft, Polizzen-Nummer, Fristen, KFZ-Klassen, Beiträgen & Deckungsbausteinen.
 * **Dual-Engine OCR:** Umschaltbar zwischen lokaler KI und superschneller klassischer OCR-Erkennung.
+* **⚠️ Testphase & Nachprüfung:** Da sich die Texterkennung in einer laufenden Testphase befindet, sollten automatisch ausgelesene Daten stets manuell gegengeprüft werden.
 
 ### 💾 13. Auto-Backup & Wiederherstellungs-System
 * **Vorab-Sicherheitsbackup:** Automatische Datenbank-Sicherung bei jedem `update` im Ordner `/opt/versicherungsmanager/backups/`.
