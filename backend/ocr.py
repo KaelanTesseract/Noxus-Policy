@@ -241,12 +241,12 @@ def is_invalid_policy_num(candidate: str) -> bool:
         return True
     if s.startswith(('ist', 'der', 'des', 'von', 'und', 'null', 'seite', 'bitte', 'satz', 'tarif', 'abgang')):
         return True
-    if re.search(r'vers\.st|ust|iban|bic|hrb|amtsgericht|v90815006286', s):
+    if re.search(r'vers\.st|ust|iban|bic|hrb|amtsgericht', s):
         return True
     return False
 
 def extract_policy_number_fallback(text: str, current_num: str = None) -> str:
-    # 1. Multi-line label search: e.g., "Versicherungsschein-Nummer\nLJ-23375102-001" or "zur Kraftfahrtversicherung LJ-23375102-001"
+    # 1. Multi-line label search: e.g., "Versicherungsschein-Nummer\nLJ-12345678-001" or "zur Kraftfahrtversicherung LJ-12345678-001"
     multiline_patterns = [
         r'(?i)(?:versicherungsschein-?nummer|policennummer|vertragsnummer|schein-?nummer|vsnr)\b.*?\n+\s*(?:[a-z0-9\s]*?\s+)?([A-Za-z0-9\-/]{5,30})',
         r'(?i)(?:versicherungsschein-?nr|policen-?nr|schein-?nr|vertrags-?nr|vsnr)\.?:?\s*([A-Za-z0-9\-/]{5,30})',
@@ -258,14 +258,14 @@ def extract_policy_number_fallback(text: str, current_num: str = None) -> str:
             if not is_invalid_policy_num(val):
                 return val
 
-    # 2. Direct pattern like LJ-23375102-001 or 123/456789-A
+    # 2. Direct pattern like LJ-12345678-001 or 123/456789-A
     direct_match = re.search(r'\b([A-Z]{1,4}-\d{6,12}-\d{1,3}|\d{3}/\d{6}-[A-Za-z0-9])\b', text)
     if direct_match:
         val = direct_match.group(1).strip()
         if not is_invalid_policy_num(val):
             return val
 
-    # 3. Hashes pattern like #4#23375102## or ##23375102##
+    # 3. Hashes pattern like #4#12345678## or ##12345678##
     hash_match = re.search(r'#\d*#?([A-Za-z0-9\-/]{6,25})##', text)
     if hash_match:
         val = hash_match.group(1).strip()
