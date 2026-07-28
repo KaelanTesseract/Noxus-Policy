@@ -12,6 +12,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+const isInformationalDocType = (type: string) => {
+  if (!type) return false;
+  const t = type.toLowerCase().trim();
+  return (
+    t.includes("sonstig") ||
+    t.includes("verbraucherinformation") ||
+    t.includes("kundeninformation") ||
+    t.includes("informationsblatt") ||
+    t.includes("produktinformation") ||
+    t.includes("beratungsprotokoll")
+  );
+};
+
 export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], preselectedInsuranceId, targetInsuranceId }: any) {
   const [file, setFile] = useState<File | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -196,10 +209,13 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
         coverage_details: includeCoverageDetails ? (extractedData?.coverage_details || []) : []
       };
 
+      const isInformational = isInformationalDocType(docType);
+
       if (insId === "new") {
         const newIns = await api.post("/insurances", payload);
         insId = newIns.id;
-      } else {
+      } else if (!isInformational) {
+        // Do NOT overwrite existing insurance metadata for informational documents (Sonstiges, Verbraucherinformationen, Kundeninformationen)
         await api.put(`/insurances/${insId}`, payload);
       }
       
@@ -406,15 +422,27 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
                     <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-50">
                       <SelectItem value="Versicherungsschein / Polizze">Versicherungsschein / Polizze</SelectItem>
                       <SelectItem value="Beitragsrechnung">Beitragsrechnung</SelectItem>
+                      <SelectItem value="Beitragsanpassung">Beitragsanpassung</SelectItem>
+                      <SelectItem value="Nachtrag / Änderungsschein">Nachtrag / Änderungsschein</SelectItem>
+                      <SelectItem value="Verbraucherinformationen">Verbraucherinformationen</SelectItem>
+                      <SelectItem value="Kundeninformationen">Kundeninformationen</SelectItem>
                       <SelectItem value="Beratungsprotokoll">Beratungsprotokoll</SelectItem>
                       <SelectItem value="Schadenmeldung">Schadenmeldung</SelectItem>
                       <SelectItem value="Kündigungsbestätigung">Kündigungsbestätigung</SelectItem>
-                      <SelectItem value="Nachtrag / Änderungsschein">Nachtrag / Änderungsschein</SelectItem>
-                      <SelectItem value="Sonstiges Schreiben">Sonstiges Schreiben</SelectItem>
+                      <SelectItem value="Sonstiges">Sonstiges</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
+
+              {selectedInsuranceId !== "new" && isInformationalDocType(docType) && (
+                <div className="p-3.5 rounded-xl bg-blue-950/40 border border-blue-800/60 text-xs text-blue-200 flex items-center gap-2">
+                  <span className="text-base shrink-0">ℹ️</span>
+                  <span>
+                    <strong>Informationsschreiben ({docType}):</strong> Es werden keine Vertragsdaten oder Beiträge der bestehenden Versicherung überschrieben. Das Dokument wird lediglich als Datei abgelegt.
+                  </span>
+                </div>
+              )}
 
             {extractedData?.coverage_details && extractedData.coverage_details.length > 0 && (
               <div className="p-4 rounded-xl bg-emerald-950/30 border border-emerald-800/50 space-y-3">
