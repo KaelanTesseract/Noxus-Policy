@@ -239,14 +239,24 @@ def is_invalid_policy_num(candidate: str) -> bool:
     s = candidate.strip().lower()
     if len(s) < 4:
         return True
-    if s.startswith(('ist', 'der', 'des', 'von', 'und', 'null', 'seite', 'bitte', 'satz', 'tarif', 'abgang')):
+    # A valid policy number MUST contain at least one digit!
+    if not re.search(r'\d', s):
         return True
-    if re.search(r'vers\.st|ust|iban|bic|hrb|amtsgericht', s):
+    if s.startswith(('ist', 'der', 'des', 'von', 'und', 'null', 'seite', 'bitte', 'satz', 'tarif', 'abgang', 'kraftfahrt', 'versicherung', 'nachtrag')):
+        return True
+    if re.search(r'vers\.st|ust|iban|bic|hrb|amtsgericht|kraftfahrtversicherung|haftpflichtversicherung|rechtschutz', s):
         return True
     return False
 
 def extract_policy_number_fallback(text: str, current_num: str = None) -> str:
-    # 1. Multi-line label search: e.g., "Versicherungsschein-Nummer\nLJ-12345678-001" or "zur Kraftfahrtversicherung LJ-12345678-001"
+    # 1. Direct pattern like LJ-12345678-001 or 123/456789-A or VSN-999999 (High precision)
+    direct_match = re.search(r'\b([A-Z]{1,4}-\d{6,12}-\d{1,3}|\d{3}/\d{6}-[A-Za-z0-9])\b', text)
+    if direct_match:
+        val = direct_match.group(1).strip()
+        if not is_invalid_policy_num(val):
+            return val
+
+    # 2. Multi-line label search: e.g. "Versicherungsschein-Nummer\nLJ-12345678-001"
     multiline_patterns = [
         r'(?i)(?:versicherungsschein-?nummer|policennummer|vertragsnummer|schein-?nummer|vsnr)\b.*?\n+\s*(?:[a-z0-9\s]*?\s+)?([A-Za-z0-9\-/]{5,30})',
         r'(?i)(?:versicherungsschein-?nr|policen-?nr|schein-?nr|vertrags-?nr|vsnr)\.?:?\s*([A-Za-z0-9\-/]{5,30})',
@@ -257,13 +267,6 @@ def extract_policy_number_fallback(text: str, current_num: str = None) -> str:
             val = match.group(1).strip()
             if not is_invalid_policy_num(val):
                 return val
-
-    # 2. Direct pattern like LJ-12345678-001 or 123/456789-A
-    direct_match = re.search(r'\b([A-Z]{1,4}-\d{6,12}-\d{1,3}|\d{3}/\d{6}-[A-Za-z0-9])\b', text)
-    if direct_match:
-        val = direct_match.group(1).strip()
-        if not is_invalid_policy_num(val):
-            return val
 
     # 3. Hashes pattern like #4#12345678## or ##12345678##
     hash_match = re.search(r'#\d*#?([A-Za-z0-9\-/]{6,25})##', text)
@@ -279,26 +282,37 @@ def extract_policy_number_fallback(text: str, current_num: str = None) -> str:
 
 def extract_cost_fallback(text: str) -> float:
     # Priority 1: Explicit total premium line with tax e.g. "Beitrag (inklusive Versicherungsteuer) 43,40 €"
-    m1 = re.search(r'(?i)(?:beitrag\s*\(inklusive\s*versicherungsteuer\)|zahlbeitrag|gesamtbeitrag|monatlicher\s*beitrag|jahresbeitrag)\b[^\n\d]*(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s*(?:€|EUR)', text)
+    m1 = re.search(r'(?i)beitrag\s*\([^)]*inklusive[^)]*\)\s*[:\s]*(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s*(?:€|EUR)', text)
     if m1:
         try:
             return float(m1.group(1).replace('.', '').replace(',', '.'))
         except:
             pass
 
-    # Priority 2: "Ihr monatlicher Beitrag ... 43,40 €"
-    m2 = re.search(r'(?i)(?:ihr\s*(?:monatlicher|jährlicher)\s*beitrag)[^\n\d]*(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s*(?:€|EUR)', text)
+    # Priority 2: "Gesamtbeitrag" or "Zahlbeitrag" or "Beitrag (inkl"
+    m2 = re.search(r'(?i)(?:gesamtbeitrag|zahlbeitrag|beitrag\s*inkl\.?\s*steuer)\s*[:\s]*(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s*(?:€|EUR)', text)
     if m2:
         try:
             return float(m2.group(1).replace('.', '').replace(',', '.'))
         except:
             pass
 
-    # Priority 3: Scan lines ignoring Selbstbeteiligung, Guthaben, Erstattung
+    # Priority 3: Single-line search excluding net/without tax lines
+    for line in text.split('\n'):
+        if re.search(r'(?i)selbstbeteiligung|selbstbehalt|guthaben|erstatten|ohne versicherungsteuer', line):
+            continue
+        m = re.search(r'(?i)(?:beitrag|prämie)\s*[:\s]*(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s*(?:€|EUR)', line)
+        if m:
+            try:
+                return float(m.group(1).replace('.', '').replace(',', '.'))
+            except:
+                pass
+
+    # Priority 4: Scan lines ignoring Selbstbeteiligung, Guthaben, Erstattung, ohne Steuer
     lines = text.split('\n')
     valid_costs = []
     for line in lines:
-        if re.search(r'(?i)(selbstbeteiligung|selbstbehalt|guthaben|erstatten|pauschal|deckungssumme|umweltschadensgesetz|personenschäden)', line):
+        if re.search(r'(?i)(selbstbeteiligung|selbstbehalt|guthaben|erstatten|pauschal|deckungssumme|umweltschadensgesetz|personenschäden|ohne versicherungsteuer)', line):
             continue
         m = re.search(r'(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s*(?:€|EUR|Euro)', line)
         if m:
