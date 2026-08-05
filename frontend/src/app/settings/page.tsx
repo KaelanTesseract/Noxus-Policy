@@ -157,29 +157,42 @@ export default function SettingsPage() {
     const maxAttempts = 60; // 3 minutes max timeout
     let hasServerGoneDown = false;
 
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const authHeaders = {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+
     const pollInterval = setInterval(async () => {
       attempts++;
 
       try {
-        const statusRes = await api.get("/backup/system-update-status");
-        if (statusRes && statusRes.status === "failed") {
-          clearInterval(pollInterval);
-          setIsUpdating(false);
-          setUpdateError(statusRes.message || "Update fehlgeschlagen.");
-          return;
-        } else if (statusRes && statusRes.status === "completed" && (hasServerGoneDown || attempts > 5)) {
-          clearInterval(pollInterval);
-          setUpdateSuccess(true);
-          setUpdateStatusMsg("✓ System-Update erfolgreich abgeschlossen! Seite wird neu geladen...");
-          setTimeout(() => {
-            window.location.reload();
-          }, 2000);
-          return;
-        } else if (statusRes && statusRes.message && !hasServerGoneDown) {
-          setUpdateStatusMsg(statusRes.message);
+        const sRes = await fetch("/api/backup/system-update-status", { cache: "no-store", headers: authHeaders });
+        if (sRes.ok) {
+          const statusRes = await sRes.json();
+          if (statusRes && statusRes.status === "failed") {
+            clearInterval(pollInterval);
+            setIsUpdating(false);
+            setUpdateError(statusRes.message || "Update fehlgeschlagen.");
+            return;
+          } else if (statusRes && statusRes.status === "completed" && (hasServerGoneDown || attempts > 5)) {
+            clearInterval(pollInterval);
+            setUpdateSuccess(true);
+            setUpdateStatusMsg("✓ System-Update erfolgreich abgeschlossen! Seite wird neu geladen...");
+            setTimeout(() => {
+              window.location.reload();
+            }, 2000);
+            return;
+          } else if (statusRes && statusRes.message && !hasServerGoneDown) {
+            setUpdateStatusMsg(statusRes.message);
+          }
+        } else {
+          // HTTP 502/503 while container is restarting
+          hasServerGoneDown = true;
+          setUpdateStatusMsg(`Server baut Docker-Container neu auf... Warte auf Server-Neustart (Versuch ${attempts}/${maxAttempts})...`);
         }
       } catch (e) {
-        // Backend container is rebuilding / restarting
+        // Network error / Connection refused while backend container is restarting
         hasServerGoneDown = true;
         setUpdateStatusMsg(`Server baut Docker-Container neu auf... Warte auf Server-Neustart (Versuch ${attempts}/${maxAttempts})...`);
       }
