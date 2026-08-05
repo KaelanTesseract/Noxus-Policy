@@ -87,6 +87,21 @@ ln -sf "$INSTALL_DIR/update.sh" /usr/local/bin/policy-update 2>/dev/null || true
 # Step 4: Docker Container Rebuild without cache (80%)
 render_progress 80 100 "4/5: Baue und aktualisiere Docker-Container (Frontend + Backend)..."
 
+# Auto-install static Docker CLI on-the-fly if missing but docker.sock is present
+if ! command -v docker >/dev/null 2>&1 && [ ! -x "/usr/bin/docker" ] && [ ! -x "/usr/local/bin/docker" ]; then
+  if [ -S "/var/run/docker.sock" ]; then
+    mkdir -p /tmp/docker_cli
+    curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-24.0.7.tgz -o /tmp/docker_cli/docker.tgz 2>/dev/null || true
+    if [ -f "/tmp/docker_cli/docker.tgz" ]; then
+      tar -xzf /tmp/docker_cli/docker.tgz -C /tmp/docker_cli 2>/dev/null || true
+      cp /tmp/docker_cli/docker/docker /usr/local/bin/docker 2>/dev/null || cp /tmp/docker_cli/docker/docker /tmp/docker 2>/dev/null || true
+      chmod +x /usr/local/bin/docker 2>/dev/null || chmod +x /tmp/docker 2>/dev/null || true
+      export PATH="/tmp:/usr/local/bin:$PATH"
+      rm -rf /tmp/docker_cli 2>/dev/null || true
+    fi
+  fi
+fi
+
 # Detect docker command syntax (docker compose vs docker-compose)
 if command -v docker >/dev/null 2>&1; then
   DC_CMD="docker compose"
@@ -96,6 +111,8 @@ elif [ -x "/usr/bin/docker" ]; then
   DC_CMD="/usr/bin/docker compose"
 elif [ -x "/usr/local/bin/docker" ]; then
   DC_CMD="/usr/local/bin/docker compose"
+elif [ -x "/tmp/docker" ]; then
+  DC_CMD="/tmp/docker compose"
 elif [ -x "/usr/bin/docker-compose" ]; then
   DC_CMD="/usr/bin/docker-compose"
 else
