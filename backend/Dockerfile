@@ -1,6 +1,6 @@
 FROM python:3.11-slim
 
-# Install system dependencies for OCR, PDF processing, and C++ compiler for embedded AI
+# Install system dependencies for OCR, PDF processing, git, docker CLI, and C++ compiler for embedded AI
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr \
     tesseract-ocr-deu \
@@ -8,6 +8,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     cmake \
     curl \
+    git \
+    docker.io \
+    docker-compose-v2 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

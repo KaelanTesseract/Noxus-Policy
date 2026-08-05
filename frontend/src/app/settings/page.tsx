@@ -155,23 +155,50 @@ export default function SettingsPage() {
 
     let attempts = 0;
     const maxAttempts = 60; // 3 minutes max timeout
+    let hasServerGoneDown = false;
 
     const pollInterval = setInterval(async () => {
       attempts++;
-      setUpdateStatusMsg(`Aktualisiere Container und prüfe Server-Bereitschaft (Versuch ${attempts}/${maxAttempts})...`);
 
       try {
-        const res = await fetch("/api/health", { cache: "no-store" });
-        if (res.ok) {
+        const statusRes = await api.get("/backup/system-update-status");
+        if (statusRes && statusRes.status === "failed") {
+          clearInterval(pollInterval);
+          setIsUpdating(false);
+          setUpdateError(statusRes.message || "Update fehlgeschlagen.");
+          return;
+        } else if (statusRes && statusRes.status === "completed" && (hasServerGoneDown || attempts > 5)) {
           clearInterval(pollInterval);
           setUpdateSuccess(true);
           setUpdateStatusMsg("✓ System-Update erfolgreich abgeschlossen! Seite wird neu geladen...");
           setTimeout(() => {
             window.location.reload();
           }, 2000);
+          return;
+        } else if (statusRes && statusRes.message && !hasServerGoneDown) {
+          setUpdateStatusMsg(statusRes.message);
         }
       } catch (e) {
-        // Server rebuilding, continue polling
+        // Backend container is rebuilding / restarting
+        hasServerGoneDown = true;
+        setUpdateStatusMsg(`Server baut Docker-Container neu auf... Warte auf Server-Neustart (Versuch ${attempts}/${maxAttempts})...`);
+      }
+
+      if (hasServerGoneDown) {
+        try {
+          const hRes = await fetch("/api/health", { cache: "no-store" });
+          if (hRes.ok) {
+            clearInterval(pollInterval);
+            setUpdateSuccess(true);
+            setUpdateStatusMsg("✓ Server ist wieder online! Seite wird neu geladen...");
+            setTimeout(() => {
+              window.location.reload();
+            }, 2000);
+            return;
+          }
+        } catch (e) {
+          // Still rebuilding
+        }
       }
 
       if (attempts >= maxAttempts) {
