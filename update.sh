@@ -66,6 +66,8 @@ TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 
 if [ -f "$INSTALL_DIR/backend/insurance.db" ]; then
   cp "$INSTALL_DIR/backend/insurance.db" "$INSTALL_DIR/backups/insurance_backup_$TIMESTAMP.db" 2>/dev/null || true
+  # Auto-Cleanup: Keep only 5 newest update backups to save disk space
+  ls -dt "$INSTALL_DIR/backups"/insurance_backup_*.db 2>/dev/null | tail -n +6 | xargs rm -f 2>/dev/null || true
 fi
 sleep 1
 
