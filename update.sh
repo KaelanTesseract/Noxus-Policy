@@ -105,7 +105,7 @@ if ! $DC_CMD build >"$BUILD_LOG" 2>&1; then
 fi
 
 # Run container restart in background to prevent process termination from interrupting docker daemon
-nohup $DC_CMD up -d --remove-orphans >"$BUILD_LOG" 2>&1 &
+nohup bash -c "$DC_CMD up -d --remove-orphans" >"$BUILD_LOG" 2>&1 &
 rm -f "$BUILD_LOG" 2>/dev/null || true
 
 # Step 5: Wait for Backend startup & Clean Docker Cache (100%)
