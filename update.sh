@@ -87,16 +87,27 @@ ln -sf /opt/versicherungsmanager/update.sh /usr/local/bin/policy-update 2>/dev/n
 
 # Step 4: Docker Container Rebuild without cache (80%)
 render_progress 80 100 "4/5: Baue und aktualisiere Docker-Container (Frontend + Backend)..."
-docker compose down --remove-orphans >/dev/null 2>&1 || true
+
+# Detect docker command syntax (docker compose vs docker-compose)
+if command -v docker >/dev/null 2>&1; then
+  DC_CMD="docker compose"
+elif command -v docker-compose >/dev/null 2>&1; then
+  DC_CMD="docker-compose"
+else
+  echo -e "\n\n${RED}❌ Fehler: Docker CLI ist nicht im Pfad installiert.${NC}\n"
+  exit 1
+fi
+
+$DC_CMD down --remove-orphans >/dev/null 2>&1 || true
 
 BUILD_LOG="/tmp/noxus_build.log"
-if ! docker compose build --no-cache >"$BUILD_LOG" 2>&1 && ! docker compose build >"$BUILD_LOG" 2>&1; then
+if ! $DC_CMD build --no-cache >"$BUILD_LOG" 2>&1 && ! $DC_CMD build >"$BUILD_LOG" 2>&1; then
   echo -e "\n\n${RED}❌ Fehler beim Bauen der Docker-Container:${NC}\n"
   cat "$BUILD_LOG"
   exit 1
 fi
 
-if ! docker compose up -d >"$BUILD_LOG" 2>&1; then
+if ! $DC_CMD up -d >"$BUILD_LOG" 2>&1; then
   echo -e "\n\n${RED}❌ Fehler beim Starten der Docker-Container:${NC}\n"
   cat "$BUILD_LOG"
   exit 1
