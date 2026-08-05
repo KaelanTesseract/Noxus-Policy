@@ -98,16 +98,14 @@ else
   exit 1
 fi
 
-$DC_CMD down --remove-orphans >/dev/null 2>&1 || true
-
 BUILD_LOG="/tmp/noxus_build.log"
-if ! $DC_CMD build --no-cache >"$BUILD_LOG" 2>&1 && ! $DC_CMD build >"$BUILD_LOG" 2>&1; then
+if ! $DC_CMD build >"$BUILD_LOG" 2>&1; then
   echo -e "\n\n${RED}❌ Fehler beim Bauen der Docker-Container:${NC}\n"
   cat "$BUILD_LOG"
   exit 1
 fi
 
-if ! $DC_CMD up -d >"$BUILD_LOG" 2>&1; then
+if ! $DC_CMD up -d --remove-orphans >"$BUILD_LOG" 2>&1; then
   echo -e "\n\n${RED}❌ Fehler beim Starten der Docker-Container:${NC}\n"
   cat "$BUILD_LOG"
   exit 1
