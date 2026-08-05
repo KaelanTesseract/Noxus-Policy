@@ -130,11 +130,17 @@ def startup_db_init():
     except Exception as e:
         print(f"Error initializing admin user: {e}")
 
-    # 4. Start background backup scheduler thread AFTER DB initialization
+    # 4. Start background backup scheduler & daily pattern learning sync thread AFTER DB initialization
     try:
         start_scheduler_thread()
     except Exception as se:
         print(f"Error starting backup scheduler thread: {se}")
+
+    try:
+        from learning import start_daily_pattern_scheduler
+        start_daily_pattern_scheduler()
+    except Exception as pe:
+        print(f"Error starting daily pattern scheduler thread: {pe}")
 
 @app.get("/")
 def read_root():
