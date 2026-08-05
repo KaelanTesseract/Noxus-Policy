@@ -154,7 +154,7 @@ export default function SettingsPage() {
     }
 
     let attempts = 0;
-    const maxAttempts = 60; // 3 minutes max timeout
+    const maxAttempts = 240; // 12 minutes max timeout for Docker builds
     let hasServerGoneDown = false;
 
     const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
@@ -189,12 +189,12 @@ export default function SettingsPage() {
         } else {
           // HTTP 502/503 while container is restarting
           hasServerGoneDown = true;
-          setUpdateStatusMsg(`Server baut Docker-Container neu auf... Warte auf Server-Neustart (Versuch ${attempts}/${maxAttempts})...`);
+          setUpdateStatusMsg(`Server baut Docker-Container neu auf (kann 3-8 Min. dauern)... Warte auf Server-Neustart (${attempts}/${maxAttempts})...`);
         }
       } catch (e) {
         // Network error / Connection refused while backend container is restarting
         hasServerGoneDown = true;
-        setUpdateStatusMsg(`Server baut Docker-Container neu auf... Warte auf Server-Neustart (Versuch ${attempts}/${maxAttempts})...`);
+        setUpdateStatusMsg(`Server baut Docker-Container neu auf (kann 3-8 Min. dauern)... Warte auf Server-Neustart (${attempts}/${maxAttempts})...`);
       }
 
       if (hasServerGoneDown) {
