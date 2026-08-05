@@ -103,13 +103,28 @@ if ! command -v docker >/dev/null 2>&1 && [ ! -x "/usr/bin/docker" ] && [ ! -x "
 fi
 
 # Detect docker command syntax (test 'docker compose version' first, fallback to 'docker-compose')
+DC_CMD=""
+
 if docker compose version >/dev/null 2>&1; then
   DC_CMD="docker compose"
-elif command -v docker-compose >/dev/null 2>&1 || [ -x "/usr/bin/docker-compose" ] || [ -x "/usr/local/bin/docker-compose" ]; then
+elif command -v docker-compose >/dev/null 2>&1; then
   DC_CMD="docker-compose"
-elif command -v docker >/dev/null 2>&1; then
-  DC_CMD="docker compose"
+elif [ -x "/usr/bin/docker-compose" ]; then
+  DC_CMD="/usr/bin/docker-compose"
+elif [ -x "/usr/local/bin/docker-compose" ]; then
+  DC_CMD="/usr/local/bin/docker-compose"
+elif [ -x "/tmp/docker-compose" ]; then
+  DC_CMD="/tmp/docker-compose"
 else
+  # Auto-download standalone docker-compose binary on-the-fly if missing
+  curl -fsSL "https://github.com/docker/compose/releases/download/v2.24.5/docker-compose-linux-x86_64" -o /tmp/docker-compose 2>/dev/null || true
+  if [ -f "/tmp/docker-compose" ]; then
+    chmod +x /tmp/docker-compose 2>/dev/null || true
+    DC_CMD="/tmp/docker-compose"
+  fi
+fi
+
+if [ -z "$DC_CMD" ]; then
   echo -e "\n\n${RED}❌ Fehler: Weder 'docker compose' noch 'docker-compose' wurde im Pfad gefunden.${NC}\n"
   exit 1
 fi
