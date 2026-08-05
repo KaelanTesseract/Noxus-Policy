@@ -154,7 +154,7 @@ export default function SettingsPage() {
     }
 
     let attempts = 0;
-    const maxAttempts = 240; // 12 minutes max timeout for Docker builds
+    const maxAttempts = 100; // 5 minutes max timeout as requested
     let hasServerGoneDown = false;
 
     const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;

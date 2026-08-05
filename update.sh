@@ -45,11 +45,10 @@ echo -e "${YELLOW}🚀 Starte System-Update von Noxus Policy...${NC}\n"
 
 INSTALL_DIR="/opt/versicherungsmanager"
 if [ ! -d "$INSTALL_DIR" ]; then
-  echo -e "${RED}❌ Fehler: Installationsverzeichnis ${INSTALL_DIR} nicht gefunden.${NC}"
-  exit 1
+  INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 fi
 
-cd "$INSTALL_DIR"
+cd "$INSTALL_DIR" || exit 1
 
 # Step 1: DNS Check (15%)
 render_progress 15 100 "1/5: Prüfe Netzwerk- und DNS-Verbindung..."
@@ -82,8 +81,8 @@ git fetch origin main >/dev/null 2>&1 || true
 git reset --hard origin/main >/dev/null 2>&1 || git pull origin main >/dev/null 2>&1 || true
 
 chmod +x update.sh install.sh 2>/dev/null || true
-ln -sf /opt/versicherungsmanager/update.sh /usr/local/bin/update 2>/dev/null || true
-ln -sf /opt/versicherungsmanager/update.sh /usr/local/bin/policy-update 2>/dev/null || true
+ln -sf "$INSTALL_DIR/update.sh" /usr/local/bin/update 2>/dev/null || true
+ln -sf "$INSTALL_DIR/update.sh" /usr/local/bin/policy-update 2>/dev/null || true
 
 # Step 4: Docker Container Rebuild without cache (80%)
 render_progress 80 100 "4/5: Baue und aktualisiere Docker-Container (Frontend + Backend)..."
@@ -105,11 +104,8 @@ if ! $DC_CMD build >"$BUILD_LOG" 2>&1; then
   exit 1
 fi
 
-if ! $DC_CMD up -d --remove-orphans >"$BUILD_LOG" 2>&1; then
-  echo -e "\n\n${RED}❌ Fehler beim Starten der Docker-Container:${NC}\n"
-  cat "$BUILD_LOG"
-  exit 1
-fi
+# Run container restart in background to prevent process termination from interrupting docker daemon
+nohup $DC_CMD up -d --remove-orphans >"$BUILD_LOG" 2>&1 &
 rm -f "$BUILD_LOG" 2>/dev/null || true
 
 # Step 5: Wait for Backend startup & Clean Docker Cache (100%)
