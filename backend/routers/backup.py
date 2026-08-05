@@ -674,3 +674,79 @@ def import_user_backup(
         print(f"Error importing user backup: {e}")
         raise HTTPException(status_code=500, detail=f"Fehler beim Importieren des Benutzers: {str(e)}")
 
+import subprocess
+import threading
+
+_update_status = {
+    "status": "idle",
+    "message": "Bereit für Update",
+    "started_at": None
+}
+
+def _run_system_update_process():
+    global _update_status
+    _update_status = {
+        "status": "updating",
+        "message": "Update gestartet: Lade neueste Version von GitHub und baue Container...",
+        "started_at": datetime.datetime.now().isoformat()
+    }
+    
+    script_paths = [
+        "/opt/versicherungsmanager/update.sh",
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "..", "update.sh"),
+        "update.sh"
+    ]
+    
+    target_script = None
+    for p in script_paths:
+        if os.path.exists(p):
+            target_script = p
+            break
+            
+    if not target_script:
+        _update_status = {
+            "status": "failed",
+            "message": "Update-Skript (update.sh) nicht auf dem Server gefunden.",
+            "started_at": datetime.datetime.now().isoformat()
+        }
+        return
+
+    try:
+        res = subprocess.run(f"bash {target_script}", shell=True, capture_output=True, text=True)
+        if res.returncode == 0:
+            _update_status = {
+                "status": "completed",
+                "message": "System-Update erfolgreich abgeschlossen!",
+                "started_at": datetime.datetime.now().isoformat()
+            }
+        else:
+            _update_status = {
+                "status": "failed",
+                "message": f"Update fehlgeschlagen: {res.stderr or res.stdout}",
+                "started_at": datetime.datetime.now().isoformat()
+            }
+    except Exception as e:
+        _update_status = {
+            "status": "failed",
+            "message": f"Fehler bei der Update-Ausführung: {str(e)}",
+            "started_at": datetime.datetime.now().isoformat()
+        }
+
+@router.post("/trigger-system-update")
+def trigger_system_update(current_user: models.User = Depends(auth.get_current_active_user)):
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Nur Administratoren können ein System-Update ausführen.")
+        
+    t = threading.Thread(target=_run_system_update_process, daemon=True)
+    t.start()
+    
+    return {
+        "status": "updating",
+        "message": "System-Update wurde gestartet. Der Server wird neu gebaut und gestartet..."
+    }
+
+@router.get("/system-update-status")
+def get_system_update_status(current_user: models.User = Depends(auth.get_current_active_user)):
+    return _update_status
+
+
