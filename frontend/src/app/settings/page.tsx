@@ -1232,8 +1232,8 @@ export default function SettingsPage() {
             <Card className="border-indigo-900/40 bg-zinc-900/50 backdrop-blur-md shadow-xl">
               <CardHeader>
                 <CardTitle className="text-xl font-semibold flex items-center gap-2 text-white">
-                  <RefreshCw className="w-5 h-5 text-indigo-400" />
-                  <span>🚀 System-Update (1-Klick Aktualisierung)</span>
+                  <RefreshCw className="w-5 h-5 text-zinc-400" />
+                  <span>System-Update (1-Klick Aktualisierung)</span>
                 </CardTitle>
                 <CardDescription className="mt-1">
                   Aktualisiere Noxus Policy direkt per Klick aus dem Browser. Das System lädt den neuesten Stand von GitHub herunter, erstellt ein automatisches Sicherheits-Backup der Datenbank und baut die Container neu auf.
