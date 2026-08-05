@@ -102,21 +102,15 @@ if ! command -v docker >/dev/null 2>&1 && [ ! -x "/usr/bin/docker" ] && [ ! -x "
   fi
 fi
 
-# Detect docker command syntax (docker compose vs docker-compose)
-if command -v docker >/dev/null 2>&1; then
+# Detect docker command syntax (test 'docker compose version' first, fallback to 'docker-compose')
+if docker compose version >/dev/null 2>&1; then
   DC_CMD="docker compose"
-elif command -v docker-compose >/dev/null 2>&1; then
+elif command -v docker-compose >/dev/null 2>&1 || [ -x "/usr/bin/docker-compose" ] || [ -x "/usr/local/bin/docker-compose" ]; then
   DC_CMD="docker-compose"
-elif [ -x "/usr/bin/docker" ]; then
-  DC_CMD="/usr/bin/docker compose"
-elif [ -x "/usr/local/bin/docker" ]; then
-  DC_CMD="/usr/local/bin/docker compose"
-elif [ -x "/tmp/docker" ]; then
-  DC_CMD="/tmp/docker compose"
-elif [ -x "/usr/bin/docker-compose" ]; then
-  DC_CMD="/usr/bin/docker-compose"
+elif command -v docker >/dev/null 2>&1; then
+  DC_CMD="docker compose"
 else
-  echo -e "\n\n${RED}❌ Fehler: Docker CLI ist nicht im Pfad installiert.${NC}\n"
+  echo -e "\n\n${RED}❌ Fehler: Weder 'docker compose' noch 'docker-compose' wurde im Pfad gefunden.${NC}\n"
   exit 1
 fi
 
