@@ -31,7 +31,7 @@ render_progress() {
   local empty_bar=""
   for ((i=0; i<empty; i++)); do empty_bar+="░"; done
 
-  printf "\r${CYAN}[${GREEN}%s${CYAN}%s] %3d%%${NC} | %s" "$filled_bar" "$empty_bar" "$percentage" "$stage_name"
+  printf "\r\033[K${CYAN}[${GREEN}%s${CYAN}%s] %3d%%${NC} | %s" "$filled_bar" "$empty_bar" "$percentage" "$stage_name"
 }
 
 echo -e "${CYAN}"
@@ -153,7 +153,7 @@ for i in {1..15}; do
 done
 
 docker image prune -f >/dev/null 2>&1 || true
-render_progress 100 100 "5/5: Update erfolgreich abgeschlossen!                 "
+render_progress 100 100 "5/5: Update erfolgreich abgeschlossen!"
 echo -e "\n"
 
 IP_ADDR=$(hostname -I | awk '{print $1}')
