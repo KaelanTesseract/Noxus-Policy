@@ -14,7 +14,11 @@ import { api } from "@/lib/api";
 import { useTheme, THEMES, STYLES } from "@/components/ThemeProvider";
 import { Navbar } from "@/components/Navbar";
 import { APP_VERSION } from "@/lib/version";
-import { RefreshCw, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { 
+  RefreshCw, CheckCircle2, AlertCircle, Loader2, 
+  Settings, Wrench, Palette, Calendar, Cpu, Clock, 
+  Database, Mail, Users, ArrowLeft 
+} from "lucide-react";
 
 interface User {
   id: number;
@@ -795,9 +799,7 @@ export default function SettingsPage() {
                   : "text-zinc-400 border-transparent hover:text-zinc-200"
               }`}
             >
-              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
-              </svg>
+              <Settings className="w-4 h-4 text-zinc-400" />
               <span>Einstellungen</span>
             </button>
             <button
@@ -808,9 +810,7 @@ export default function SettingsPage() {
                   : "text-zinc-400 border-transparent hover:text-zinc-200"
               }`}
             >
-              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                <path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/>
-              </svg>
+              <Wrench className="w-4 h-4 text-zinc-400" />
               <span>Systemeinstellungen</span>
             </button>
           </div>
@@ -823,9 +823,7 @@ export default function SettingsPage() {
             <Card className="border-zinc-800 bg-zinc-900/50 backdrop-blur-md shadow-xl">
               <CardHeader>
                 <CardTitle className="text-xl font-semibold flex items-center gap-2">
-                  <svg className="w-5 h-5 fill-current text-indigo-400" viewBox="0 0 24 24">
-                    <path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 20c-.17.38.16.8.56.7l2.45-.61C8.82 20.65 10.36 21 12 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm0 16c-1.44 0-2.81-.35-4.02-1l-.43-.24-1.2.3.3-1.18-.26-.45C5.7 15.25 5 13.68 5 12c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7z"/>
-                  </svg>
+                  <Palette className="w-5 h-5 text-zinc-400" />
                   <span>Design & Erscheinungsbild</span>
                 </CardTitle>
                 <CardDescription className="mt-1">
@@ -1244,10 +1242,8 @@ export default function SettingsPage() {
             <Card className="border-zinc-800 bg-zinc-900/50 backdrop-blur-md shadow-xl">
               <CardHeader>
                 <CardTitle className="text-xl font-semibold flex items-center gap-2">
-                  <svg className="w-5 h-5 fill-current text-indigo-400" viewBox="0 0 24 24">
-                    <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2zm-7 5h5v5h-5z"/>
-                  </svg>
-                  <span>📅 Live-Kalender-Abonnement (WebCal / iCal Sync)</span>
+                  <Calendar className="w-5 h-5 text-zinc-400" />
+                  <span>Live-Kalender-Abonnement (WebCal / iCal Sync)</span>
                 </CardTitle>
                 <CardDescription className="mt-1">
                   Aktiviere oder deaktiviere die Live-Synchronisation der Kündigungsfristen per WebCal-URL für deine Benutzer.
@@ -1301,10 +1297,8 @@ export default function SettingsPage() {
             <Card className="border-zinc-800 bg-zinc-900/50 backdrop-blur-md shadow-xl">
               <CardHeader>
                 <CardTitle className="text-xl font-semibold flex items-center gap-2">
-                  <svg className="w-5 h-5 fill-current text-purple-400" viewBox="0 0 24 24">
-                    <path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM9 17H7v-2h2v2zm0-4H7v-2h2v2zm0-4H7V7h2v2zm4 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2zm4 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2z"/>
-                  </svg>
-                  <span>🤖 KI-gestützte Dokumentenanalyse & OCR Engine</span>
+                  <Cpu className="w-5 h-5 text-zinc-400" />
+                  <span>KI-gestützte Dokumentenanalyse & OCR Engine</span>
                 </CardTitle>
                 <CardDescription className="mt-1">
                   Wähle zwischen der lokalen KI (Qwen2.5 1.5B) zur präzisen Vertragsanalyse oder der klassischen regelbasierten OCR-Erkennung.
@@ -1364,9 +1358,7 @@ export default function SettingsPage() {
             <Card className="border-zinc-800 bg-zinc-900/50 backdrop-blur-md shadow-xl">
               <CardHeader>
                 <CardTitle className="text-xl font-semibold flex items-center gap-2">
-                  <svg className="w-5 h-5 fill-current text-zinc-400" viewBox="0 0 24 24">
-                    <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm4.2 14.2L11 13V7h1.5v5.2l4.5 2.7-.8 1.3z"/>
-                  </svg>
+                  <Clock className="w-5 h-5 text-zinc-400" />
                   <span>Automatisierte Zeitplan-Backups & Aufbewahrungsregeln</span>
                 </CardTitle>
                 <CardDescription className="mt-1">
@@ -1500,9 +1492,7 @@ export default function SettingsPage() {
                 <div className="pt-6 border-t border-zinc-800/80 space-y-4">
                   <div className="flex justify-between items-center">
                     <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                      <svg className="w-4 h-4 fill-current text-zinc-400" viewBox="0 0 24 24">
-                        <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
-                      </svg>
+                      <Database className="w-4 h-4 text-zinc-400" />
                       <span>Gespeicherte Server-Backups ({storedBackups.length})</span>
                     </h3>
                     <Button
@@ -1593,9 +1583,7 @@ export default function SettingsPage() {
             <Card className="border-zinc-800 bg-zinc-900/50 backdrop-blur-md shadow-xl">
               <CardHeader>
                 <CardTitle className="text-xl font-semibold flex items-center gap-2">
-                  <svg className="w-5 h-5 fill-current text-zinc-400" viewBox="0 0 24 24">
-                    <path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-5 11H9v-2h6v2zm3-4H6V9h12v4z"/>
-                  </svg>
+                  <Database className="w-5 h-5 text-zinc-400" />
                   <span>Manuelles Vollsystem-Backup Export / Import</span>
                 </CardTitle>
                 <CardDescription className="mt-1">
@@ -1607,9 +1595,7 @@ export default function SettingsPage() {
                 <div className="space-y-4 pb-6 border-b border-zinc-800/80">
                   <div className="space-y-1">
                     <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                      <svg className="w-4 h-4 fill-current text-zinc-400" viewBox="0 0 24 24">
-                        <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
-                      </svg>
+                      <Database className="w-4 h-4 text-zinc-400" />
                       <span>1. Manuelles Vollsystem-Backup auf PC herunterladen</span>
                     </h3>
                   </div>
@@ -1667,9 +1653,7 @@ export default function SettingsPage() {
                 <div className="space-y-4">
                   <div className="space-y-1">
                     <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                      <svg className="w-4 h-4 fill-current text-zinc-400" viewBox="0 0 24 24">
-                        <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
-                      </svg>
+                      <Database className="w-4 h-4 text-zinc-400" />
                       <span>2. Vollsystem-Backup-Datei vom PC hochladen & wiederherstellen</span>
                     </h3>
                   </div>
@@ -1732,9 +1716,7 @@ export default function SettingsPage() {
               <CardHeader>
                 <div>
                   <CardTitle className="text-xl font-semibold flex items-center gap-2">
-                    <svg className="w-5 h-5 fill-current text-zinc-400" viewBox="0 0 24 24">
-                      <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
-                    </svg>
+                    <Mail className="w-5 h-5 text-zinc-400" />
                     <span>E-Mail & SMTP Server Einstellungen</span>
                   </CardTitle>
                   <CardDescription className="mt-1">
@@ -1855,7 +1837,7 @@ export default function SettingsPage() {
                       onClick={handleSmtpTest}
                       className="border-indigo-800 bg-indigo-950/50 hover:bg-indigo-900 text-indigo-300 text-xs w-full sm:w-auto"
                     >
-                      {smtpTesting ? "Testet..." : "🧪 Test-E-Mail senden"}
+                      {smtpTesting ? "Testet..." : "Test-E-Mail senden"}
                     </Button>
 
                     <Button type="submit" disabled={smtpSaving} className="theme-bg-accent text-white theme-glow text-xs font-medium w-full sm:w-auto">
@@ -1872,9 +1854,7 @@ export default function SettingsPage() {
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 w-full">
                   <div>
                     <CardTitle className="text-xl font-semibold flex items-center gap-2">
-                      <svg className="w-5 h-5 fill-current text-zinc-400" viewBox="0 0 24 24">
-                        <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
-                      </svg>
+                      <Users className="w-5 h-5 text-zinc-400" />
                       <span>Benutzerverwaltung & Einzel-Import</span>
                     </CardTitle>
                     <CardDescription className="mt-1">
