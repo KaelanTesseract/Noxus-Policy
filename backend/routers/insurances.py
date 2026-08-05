@@ -12,6 +12,7 @@ import datetime
 
 import models, schemas, auth
 from database import get_db
+from learning import learn_from_feedback
 
 router = APIRouter(prefix="/api/insurances", tags=["insurances"])
 
@@ -176,6 +177,18 @@ def update_insurance(insurance_id: int, insurance: schemas.InsuranceUpdate, db: 
 
     db.commit()
     db.refresh(db_insurance)
+
+    # Trigger safe anonymized learning loop if insurance has attached document text (ZERO PII LEAK)
+    if db_insurance.company and db_insurance.documents:
+        for doc in db_insurance.documents:
+            if doc.ocr_text:
+                learn_from_feedback(db_insurance.company, "Versicherung", doc.ocr_text, {
+                    "regional_class": db_insurance.regional_class,
+                    "type_class": db_insurance.type_class,
+                    "sf_class": db_insurance.sf_class
+                })
+                break
+
     return format_insurance_dict(db_insurance)
 
 @router.delete("/{insurance_id}")

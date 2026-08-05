@@ -9,6 +9,10 @@ import os
 import json
 import httpx
 from datetime import datetime
+try:
+    from learning import get_learned_patterns_for_company, learn_from_feedback
+except ImportError:
+    from backend.learning import get_learned_patterns_for_company, learn_from_feedback
 
 _llm_instance = None
 
@@ -651,10 +655,32 @@ def extract_insurance_data(text: str, db=None) -> dict:
             print(f"Notice checking AI setting: {se}")
 
     if use_ai:
-        ai_result = extract_with_mini_ai(text)
-        if ai_result:
-            return ai_result
+        data = extract_with_mini_ai(text)
+        if not data:
+            data = extract_insurance_data_regex(text)
+            data["ai_used"] = False
+    else:
+        data = extract_insurance_data_regex(text)
+        data["ai_used"] = False
 
-    data = extract_insurance_data_regex(text)
-    data["ai_used"] = False
+    # Apply learned vendor patterns if company is detected
+    company = data.get("company")
+    if company:
+        l_patterns = get_learned_patterns_for_company(company)
+        if l_patterns:
+            for field, pat_list in l_patterns.items():
+                if not data.get(field):
+                    for pat in pat_list:
+                        m = re.search(pat, text)
+                        if m:
+                            val = m.group(1).strip()
+                            if field == "regional_class" and not val.upper().startswith("R"):
+                                val = f"R{val}"
+                            data[field] = val
+                            break
+
+    # Trigger automatic learning loop (100% anonymized, ZERO PII)
+    if company and (data.get("regional_class") or data.get("type_class") or data.get("sf_class")):
+        learn_from_feedback(company, data.get("doc_type", "Versicherung"), text, data)
+
     return data
