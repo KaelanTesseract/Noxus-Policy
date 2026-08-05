@@ -17,7 +17,9 @@ export function Footer() {
       .then(data => {
         if (data && data.tag_name) {
           const remoteTag = data.tag_name.trim();
-          if (remoteTag !== APP_VERSION && remoteTag !== APP_VERSION.replace("v", "")) {
+          const cleanRemote = remoteTag.replace(/^v/, "");
+          const cleanLocal = APP_VERSION.replace(/^v/, "");
+          if (cleanRemote !== cleanLocal) {
             setLatestVersion(remoteTag);
           }
         }
