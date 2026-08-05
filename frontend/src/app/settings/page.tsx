@@ -129,99 +129,6 @@ export default function SettingsPage() {
   const [webcalSaving, setWebcalSaving] = useState(false);
   const [webcalMsg, setWebcalMsg] = useState("");
 
-  // System Update State
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [showUpdateModal, setShowUpdateModal] = useState(false);
-  const [updateStatusMsg, setUpdateStatusMsg] = useState("Update wird gestartet...");
-  const [updateError, setUpdateError] = useState("");
-  const [updateSuccess, setUpdateSuccess] = useState(false);
-
-  const handleTriggerSystemUpdate = async () => {
-    if (!window.confirm("Möchtest du das System-Update wirklich jetzt ausführen? Ein Sicherheits-Backup der Datenbank wird vorab automatisch erstellt.")) {
-      return;
-    }
-
-    setIsUpdating(true);
-    setShowUpdateModal(true);
-    setUpdateError("");
-    setUpdateSuccess(false);
-    setUpdateStatusMsg("Starte System-Update... Der Server lädt den neuesten Stand von GitHub herunter.");
-
-    try {
-      await api.post("/backup/trigger-system-update", {});
-    } catch (err: any) {
-      console.warn("Update trigger notice:", err);
-    }
-
-    let attempts = 0;
-    const maxAttempts = 100; // 5 minutes max timeout as requested
-    let hasServerGoneDown = false;
-
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-    const authHeaders = {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    };
-
-    const pollInterval = setInterval(async () => {
-      attempts++;
-
-      try {
-        const sRes = await fetch("/api/backup/system-update-status", { cache: "no-store", headers: authHeaders });
-        if (sRes.ok) {
-          const statusRes = await sRes.json();
-          if (statusRes && statusRes.status === "failed") {
-            clearInterval(pollInterval);
-            setIsUpdating(false);
-            setUpdateError(statusRes.message || "Update fehlgeschlagen.");
-            return;
-          } else if (statusRes && statusRes.status === "completed" && (hasServerGoneDown || attempts > 5)) {
-            clearInterval(pollInterval);
-            setUpdateSuccess(true);
-            setUpdateStatusMsg("✓ System-Update erfolgreich abgeschlossen! Seite wird neu geladen...");
-            setTimeout(() => {
-              window.location.reload();
-            }, 2000);
-            return;
-          } else if (statusRes && statusRes.message && !hasServerGoneDown) {
-            setUpdateStatusMsg(statusRes.message);
-          }
-        } else {
-          // HTTP 502/503 while container is restarting
-          hasServerGoneDown = true;
-          setUpdateStatusMsg(`Server baut Docker-Container neu auf (kann 3-8 Min. dauern)... Warte auf Server-Neustart (${attempts}/${maxAttempts})...`);
-        }
-      } catch (e) {
-        // Network error / Connection refused while backend container is restarting
-        hasServerGoneDown = true;
-        setUpdateStatusMsg(`Server baut Docker-Container neu auf (kann 3-8 Min. dauern)... Warte auf Server-Neustart (${attempts}/${maxAttempts})...`);
-      }
-
-      if (hasServerGoneDown) {
-        try {
-          const hRes = await fetch("/api/health", { cache: "no-store" });
-          if (hRes.ok) {
-            clearInterval(pollInterval);
-            setUpdateSuccess(true);
-            setUpdateStatusMsg("✓ Server ist wieder online! Seite wird neu geladen...");
-            setTimeout(() => {
-              window.location.reload();
-            }, 2000);
-            return;
-          }
-        } catch (e) {
-          // Still rebuilding
-        }
-      }
-
-      if (attempts >= maxAttempts) {
-        clearInterval(pollInterval);
-        setIsUpdating(false);
-        setUpdateError("Zeitüberschreitung beim Warten auf den Server-Rebuild. Bitte prüfe dein Terminal oder lade die Seite manuell neu.");
-      }
-    }, 3000);
-  };
-
   useEffect(() => {
     loadUserData();
   }, []);
@@ -1241,43 +1148,6 @@ export default function SettingsPage() {
         {/* System Settings Tab (Admin Only) */}
         {currentUser.is_admin && activeTab === "system" && (
           <div className="space-y-8">
-            {/* 1-Click System Update Admin Settings Card */}
-            <Card className="border-indigo-900/40 bg-zinc-900/50 backdrop-blur-md shadow-xl">
-              <CardHeader>
-                <CardTitle className="text-xl font-semibold flex items-center gap-2 text-white">
-                  <RefreshCw className="w-5 h-5 text-zinc-400" />
-                  <span>System-Update (1-Klick Aktualisierung)</span>
-                </CardTitle>
-                <CardDescription className="mt-1">
-                  Aktualisiere Noxus Policy direkt per Klick aus dem Browser. Das System lädt den neuesten Stand von GitHub herunter, erstellt ein automatisches Sicherheits-Backup der Datenbank und baut die Container neu auf.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded-xl bg-zinc-950/60 border border-zinc-800 gap-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-white">Installierte Version:</span>
-                      <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-indigo-300 font-mono text-xs font-semibold">
-                        {APP_VERSION}
-                      </span>
-                    </div>
-                    <p className="text-xs text-zinc-400">
-                      Sichert automatisch die Datenbank unter <code className="text-zinc-300">/opt/versicherungsmanager/backups/</code> vor dem Update.
-                    </p>
-                  </div>
-
-                  <Button
-                    onClick={handleTriggerSystemUpdate}
-                    disabled={isUpdating}
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold flex items-center gap-2 px-5 py-2.5 rounded-lg shadow-lg transition-all cursor-pointer"
-                  >
-                    <RefreshCw className={`w-4 h-4 ${isUpdating ? 'animate-spin' : ''}`} />
-                    <span>System-Update jetzt ausführen</span>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
             {/* WebCal Live-Sync Admin Settings Card */}
             <Card className="border-zinc-800 bg-zinc-900/50 backdrop-blur-md shadow-xl">
               <CardHeader>
@@ -2051,57 +1921,6 @@ export default function SettingsPage() {
           </div>
         )}
       </div>
-
-      {/* System Update Progress Modal */}
-      {showUpdateModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-indigo-900/60 rounded-2xl p-6 sm:p-8 max-w-md w-full text-center space-y-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            {updateSuccess ? (
-              <div className="flex justify-center">
-                <div className="w-16 h-16 rounded-full bg-emerald-950/80 border border-emerald-500/50 flex items-center justify-center text-emerald-400 animate-bounce">
-                  <CheckCircle2 className="w-10 h-10" />
-                </div>
-              </div>
-            ) : updateError ? (
-              <div className="flex justify-center">
-                <div className="w-16 h-16 rounded-full bg-red-950/80 border border-red-500/50 flex items-center justify-center text-red-400">
-                  <AlertCircle className="w-10 h-10" />
-                </div>
-              </div>
-            ) : (
-              <div className="flex justify-center">
-                <div className="w-16 h-16 rounded-full bg-indigo-950/80 border border-indigo-500/50 flex items-center justify-center text-indigo-400">
-                  <Loader2 className="w-10 h-10 animate-spin" />
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <h3 className="text-xl font-bold text-white">
-                {updateSuccess ? "System-Update erfolgreich!" : updateError ? "Fehler beim Update" : "System-Update wird durchgeführt..."}
-              </h3>
-              <p className="text-sm text-zinc-300 leading-relaxed">
-                {updateStatusMsg}
-              </p>
-            </div>
-
-            {updateError && (
-              <div className="p-3 rounded-lg bg-red-950/50 border border-red-800/60 text-red-300 text-xs font-mono text-left max-h-32 overflow-y-auto">
-                {updateError}
-              </div>
-            )}
-
-            {updateError && (
-              <Button
-                onClick={() => setShowUpdateModal(false)}
-                className="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-medium py-2 rounded-lg"
-              >
-                Schließen
-              </Button>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

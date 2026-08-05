@@ -136,8 +136,11 @@ if ! $DC_CMD build >"$BUILD_LOG" 2>&1; then
   exit 1
 fi
 
-# Run container restart in background to prevent process termination from interrupting docker daemon
-nohup bash -c "$DC_CMD up -d --remove-orphans" >"$BUILD_LOG" 2>&1 &
+if ! $DC_CMD up -d --remove-orphans >"$BUILD_LOG" 2>&1; then
+  echo -e "\n\n${RED}❌ Fehler beim Starten der Docker-Container:${NC}\n"
+  cat "$BUILD_LOG"
+  exit 1
+fi
 rm -f "$BUILD_LOG" 2>/dev/null || true
 
 # Step 5: Wait for Backend startup & Clean Docker Cache (100%)
