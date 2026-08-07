@@ -12,8 +12,6 @@ services:
     environment:
       - DATABASE_URL=sqlite:////app/data/versicherungsmanager.db
       - SECRET_KEY=changeme123
-    networks:
-      - app-net
     restart: always
 
   frontend:
@@ -21,14 +19,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "80:3000"
       - "3000:3000"
-    networks:
-      - app-net
     restart: always
     depends_on:
       - backend
-
-networks:
-  app-net:
-    driver: bridge
