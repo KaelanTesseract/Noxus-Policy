@@ -164,5 +164,5 @@ echo -e "${GREEN}===============================================================
 echo -e "💾 **Sicherheits-Backup erstellt unter:**"
 echo -e "   👉 ${YELLOW}${INSTALL_DIR}/backups/insurance_backup_${TIMESTAMP}.db${NC}\n"
 echo -e "🌐 **Web-Interface bereit unter:**"
-echo -e "   👉 ${YELLOW}http://${IP_ADDR}:3000${NC}"
+echo -e "   👉 ${YELLOW}http://${IP_ADDR}:3030${NC}  (oder ${YELLOW}http://${IP_ADDR}:3000${NC})"
 echo -e "${GREEN}========================================================================${NC}\n"
