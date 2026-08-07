@@ -1,7 +1,11 @@
-FROM python:3.11-slim
+FROM python:3.11-slim-bookworm
+
+# Configure apt for reliable downloads with retries and timeouts
+RUN echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80retries && \
+    echo 'Acquire::http::Timeout "30";' >> /etc/apt/apt.conf.d/80retries
 
 # Install system dependencies for OCR, PDF processing, and C++ compiler for embedded AI
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
     tesseract-ocr \
     tesseract-ocr-deu \
     poppler-utils \
