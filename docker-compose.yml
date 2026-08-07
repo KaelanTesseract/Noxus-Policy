@@ -3,7 +3,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    network_mode: "host"
+    ports:
+      - "8000:8000"
     volumes:
       - ./backend/data:/app/data
       - ./backend/documents:/app/documents
@@ -11,13 +12,22 @@ services:
     environment:
       - DATABASE_URL=sqlite:////app/data/versicherungsmanager.db
       - SECRET_KEY=changeme123
+    networks:
+      - app-net
     restart: always
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    network_mode: "host"
+    ports:
+      - "3000:3000"
+    networks:
+      - app-net
     restart: always
     depends_on:
       - backend
+
+networks:
+  app-net:
+    driver: bridge
