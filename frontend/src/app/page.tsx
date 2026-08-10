@@ -53,37 +53,51 @@ export default function Dashboard() {
   }, []);
 
   const checkAuthAndLoad = async (token: string) => {
-    try {
-      const userRes = await fetch("/api/users/me", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+    // Instant cache rendering
+    if (typeof window !== "undefined") {
+      const cachedUser = sessionStorage.getItem("cache_user");
+      const cachedInsurances = sessionStorage.getItem("cache_insurances");
+      if (cachedUser && cachedInsurances) {
+        try {
+          setCurrentUser(JSON.parse(cachedUser));
+          setInsurances(JSON.parse(cachedInsurances));
+          setIsAuthenticated(true);
+          setIsCheckingAuth(false);
+        } catch (_) {}
+      }
+    }
 
-      if (!userRes.ok) {
+    // Parallel network fetch (zero waterfall)
+    try {
+      const authHeaders = { Authorization: `Bearer ${token}` };
+      const [userRes, insRes] = await Promise.all([
+        fetch("/api/users/me", { headers: authHeaders }),
+        fetch("/api/insurances", { headers: authHeaders })
+      ]);
+
+      if (!userRes.ok || !insRes.ok) {
         localStorage.removeItem("token");
+        sessionStorage.removeItem("cache_user");
+        sessionStorage.removeItem("cache_insurances");
         window.location.href = "/login";
         return;
       }
 
-      const userData = await userRes.json();
+      const [userData, insData] = await Promise.all([userRes.json(), insRes.json()]);
+
       if (userData.must_change_password) {
         window.location.href = "/admin-setup";
         return;
       }
-      setCurrentUser(userData);
 
-      const res = await fetch("/api/insurances", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      
-      if (!res.ok) {
-        localStorage.removeItem("token");
-        window.location.href = "/login";
-        return;
-      }
-      
-      const data = await res.json();
-      setInsurances(data);
+      setCurrentUser(userData);
+      setInsurances(insData);
       setIsAuthenticated(true);
+
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("cache_user", JSON.stringify(userData));
+        sessionStorage.setItem("cache_insurances", JSON.stringify(insData));
+      }
     } catch (e) {
       console.error(e);
       localStorage.removeItem("token");

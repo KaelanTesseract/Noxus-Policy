@@ -133,9 +133,16 @@ def create_insurance(insurance: schemas.InsuranceCreate, db: Session = Depends(g
 
     return format_insurance_dict(db_insurance)
 
+from sqlalchemy.orm import Session, selectinload
+
 @router.get("", response_model=List[schemas.InsuranceResponse])
 def get_insurances(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_active_user)):
-    items = db.query(models.Insurance).filter(models.Insurance.owner_id == current_user.id).all()
+    items = (
+        db.query(models.Insurance)
+        .options(selectinload(models.Insurance.claims), selectinload(models.Insurance.premium_history))
+        .filter(models.Insurance.owner_id == current_user.id)
+        .all()
+    )
     return [format_insurance_dict(ins) for ins in items]
 
 @router.get("/{insurance_id}", response_model=schemas.InsuranceResponse)
