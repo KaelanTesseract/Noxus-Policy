@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 export const maxDuration = 300; // 5 minutes max execution time for AI processing
 
 const BACKEND_URLS = [
+  ...(process.env.BACKEND_URL ? [process.env.BACKEND_URL] : []),
   "http://backend:8000",
   "http://192.168.1.251:8000",
   "http://172.17.0.1:8000",
