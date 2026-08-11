@@ -7,6 +7,8 @@ import time
 import base64
 import threading
 import datetime
+import shutil
+from urllib.parse import unquote, urlparse
 from xml.etree import ElementTree as ET
 from wsgiref.simple_server import make_server, WSGIRequestHandler
 
@@ -116,6 +118,67 @@ def authenticate_request(environ):
 
     return None
 
+def resolve_target_file(user_inbox_dir, path_info):
+    """Resolve requested WebDAV path to local filesystem path within user's inbox folder."""
+    raw_path = unquote(path_info).strip()
+    clean_path = raw_path.lstrip("/")
+
+    if clean_path.lower().startswith("davwwwroot/"):
+        clean_path = clean_path[11:].lstrip("/")
+    elif clean_path.lower() == "davwwwroot":
+        clean_path = ""
+
+    if clean_path.lower().startswith("inbox/"):
+        clean_path = clean_path[6:].lstrip("/")
+    elif clean_path.lower() == "inbox":
+        clean_path = ""
+
+    if not clean_path:
+        return user_inbox_dir, ""
+
+    safe_basename = os.path.basename(clean_path)
+    target_path = os.path.join(user_inbox_dir, safe_basename)
+    return target_path, safe_basename
+
+def build_propfind_xml(user_inbox_dir, target_file, req_path, depth="1"):
+    """Construct WebDAV 207 Multi-Status XML response for Windows Explorer."""
+    multistatus = ET.Element("d:multistatus", {"xmlns:d": "DAV:"})
+
+    items = []
+
+    if os.path.isdir(target_file):
+        items.append((req_path, target_file, True))
+        if depth != "0" and os.path.exists(target_file):
+            for fname in os.listdir(target_file):
+                fpath = os.path.join(target_file, fname)
+                if os.path.isfile(fpath):
+                    child_href = req_path.rstrip("/") + "/" + fname
+                    items.append((child_href, fpath, False))
+    elif os.path.isfile(target_file):
+        items.append((req_path, target_file, False))
+
+    for href_str, fpath, is_dir in items:
+        response = ET.SubElement(multistatus, "d:response")
+        ET.SubElement(response, "d:href").text = href_str
+
+        propstat = ET.SubElement(response, "d:propstat")
+        prop = ET.SubElement(propstat, "d:prop")
+
+        if is_dir:
+            resourcetype = ET.SubElement(prop, "d:resourcetype")
+            ET.SubElement(resourcetype, "d:collection")
+        else:
+            ET.SubElement(prop, "d:resourcetype")
+            if os.path.exists(fpath):
+                size = os.path.getsize(fpath)
+                ET.SubElement(prop, "d:getcontentlength").text = str(size)
+                mtime = datetime.datetime.utcfromtimestamp(os.path.getmtime(fpath)).strftime("%a, %d %b %Y %H:%M:%S GMT")
+                ET.SubElement(prop, "d:getlastmodified").text = mtime
+
+        ET.SubElement(propstat, "d:status").text = "HTTP/1.1 200 OK"
+
+    return ET.tostring(multistatus, encoding="utf-8", xml_declaration=True)
+
 def webdav_app(environ, start_response):
     method = environ.get("REQUEST_METHOD", "GET")
     path_info = environ.get("PATH_INFO", "/")
@@ -140,14 +203,7 @@ def webdav_app(environ, start_response):
     user_inbox_dir = os.path.join(INBOX_BASE_DIR, str(user.id))
     os.makedirs(user_inbox_dir, exist_ok=True)
 
-    # Clean requested filename from path
-    rel_path = path_info.lstrip("/").strip()
-    if rel_path.startswith("inbox/"):
-        rel_path = rel_path[6:]
-    elif rel_path == "inbox":
-        rel_path = ""
-
-    target_file = os.path.join(user_inbox_dir, os.path.basename(rel_path)) if rel_path else user_inbox_dir
+    target_file, rel_name = resolve_target_file(user_inbox_dir, path_info)
 
     # OPTIONS
     if method == "OPTIONS":
@@ -160,9 +216,14 @@ def webdav_app(environ, start_response):
         start_response("200 OK", headers)
         return []
 
-    # PROPFIND (Windows Directory Listing & Properties)
+    # PROPFIND (Directory listing / File inspection)
     if method == "PROPFIND":
-        xml_resp = build_propfind_xml(user_inbox_dir, path_info)
+        if not os.path.exists(target_file):
+            start_response("404 Not Found", [("Content-Type", "text/plain")])
+            return [b"404 Not Found"]
+
+        depth = environ.get("HTTP_DEPTH", "1")
+        xml_resp = build_propfind_xml(user_inbox_dir, target_file, path_info, depth)
         headers = [
             ("Content-Type", "application/xml; charset=utf-8"),
             ("Content-Length", str(len(xml_resp)))
@@ -170,9 +231,63 @@ def webdav_app(environ, start_response):
         start_response("207 Multi-Status", headers)
         return [xml_resp]
 
-    # PUT (File Upload via Netzlaufwerk)
+    # LOCK (Windows Explorer Lock Request before Upload)
+    if method == "LOCK":
+        lock_token = "opaquelocktoken:noxus-" + secrets.token_hex(16)
+        xml_resp = f"""<?xml version="1.0" encoding="utf-8"?>
+<d:prop xmlns:d="DAV:">
+  <d:lockdiscovery>
+    <d:activelock>
+      <d:locktype><d:write/></d:locktype>
+      <d:lockscope><d:exclusive/></d:lockscope>
+      <d:depth>0</d:depth>
+      <d:owner><d:href>{path_info}</d:href></d:owner>
+      <d:timeout>Second-3600</d:timeout>
+      <d:locktoken><d:href>{lock_token}</d:href></d:locktoken>
+      <d:lockroot><d:href>{path_info}</d:href></d:lockroot>
+    </d:activelock>
+  </d:lockdiscovery>
+</d:prop>""".encode("utf-8")
+        headers = [
+            ("Content-Type", "application/xml; charset=utf-8"),
+            ("Lock-Token", f"<{lock_token}>"),
+            ("Content-Length", str(len(xml_resp)))
+        ]
+        start_response("200 OK", headers)
+        return [xml_resp]
+
+    # UNLOCK
+    if method == "UNLOCK":
+        start_response("204 No Content", [("Content-Length", "0")])
+        return []
+
+    # PROPPATCH (Windows metadata modification)
+    if method == "PROPPATCH":
+        xml_resp = f"""<?xml version="1.0" encoding="utf-8"?>
+<d:multistatus xmlns:d="DAV:">
+  <d:response>
+    <d:href>{path_info}</d:href>
+    <d:propstat>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+  </d:response>
+</d:multistatus>""".encode("utf-8")
+        headers = [
+            ("Content-Type", "application/xml; charset=utf-8"),
+            ("Content-Length", str(len(xml_resp)))
+        ]
+        start_response("207 Multi-Status", headers)
+        return [xml_resp]
+
+    # MKCOL (Folder Creation)
+    if method == "MKCOL":
+        os.makedirs(target_file, exist_ok=True)
+        start_response("201 Created", [("Content-Length", "0")])
+        return []
+
+    # PUT (File Upload via Drag & Drop in Windows Explorer)
     if method == "PUT":
-        if not rel_path or os.path.isdir(target_file):
+        if not rel_name or os.path.isdir(target_file):
             start_response("400 Bad Request", [("Content-Type", "text/plain")])
             return [b"Ungueltiger Dateiname"]
 
@@ -198,13 +313,15 @@ def webdav_app(environ, start_response):
                             break
                         f.write(chunk)
 
+            print(f"[WebDAV Upload Success] Saved file '{rel_name}' to user {user.id} inbox.")
             start_response("201 Created", [("Content-Length", "0")])
             return []
         except Exception as e:
+            print(f"[WebDAV Upload Error] {e}")
             start_response("500 Internal Server Error", [("Content-Type", "text/plain")])
             return [str(e).encode("utf-8")]
 
-    # GET (Download File)
+    # GET / HEAD (File Download / File Check)
     if method in ["GET", "HEAD"]:
         if os.path.isfile(target_file):
             size = os.path.getsize(target_file)
@@ -229,52 +346,48 @@ def webdav_app(environ, start_response):
 
     # DELETE
     if method == "DELETE":
-        if os.path.isfile(target_file):
+        if os.path.exists(target_file):
             try:
-                os.remove(target_file)
+                if os.path.isdir(target_file):
+                    shutil.rmtree(target_file)
+                else:
+                    os.remove(target_file)
                 start_response("204 No Content", [])
                 return []
             except Exception as e:
                 start_response("500 Internal Server Error", [("Content-Type", "text/plain")])
                 return [str(e).encode("utf-8")]
+        else:
+            start_response("404 Not Found", [("Content-Type", "text/plain")])
+            return [b"Datei nicht gefunden"]
+
+    # MOVE / COPY
+    if method in ["MOVE", "COPY"]:
+        dest_hdr = environ.get("HTTP_DESTINATION", "")
+        if dest_hdr:
+            parsed = urlparse(dest_hdr)
+            dest_target, dest_rel = resolve_target_file(user_inbox_dir, parsed.path)
+            if os.path.exists(target_file) and dest_target:
+                try:
+                    if method == "MOVE":
+                        shutil.move(target_file, dest_target)
+                    else:
+                        if os.path.isdir(target_file):
+                            shutil.copytree(target_file, dest_target, dirs_exist_ok=True)
+                        else:
+                            shutil.copy2(target_file, dest_target)
+                    start_response("201 Created", [("Content-Length", "0")])
+                    return []
+                except Exception as e:
+                    start_response("500 Internal Server Error", [("Content-Type", "text/plain")])
+                    return [str(e).encode("utf-8")]
+        start_response("404 Not Found", [("Content-Type", "text/plain")])
+        return [b"Ziel nicht gefunden"]
 
     # Default fallback
-    headers = [("Allow", "OPTIONS, GET, HEAD, PUT, DELETE, PROPFIND")]
+    headers = [("Allow", "OPTIONS, GET, HEAD, PUT, DELETE, PROPFIND, PROPPATCH, MKCOL, COPY, MOVE, LOCK, UNLOCK")]
     start_response("200 OK", headers)
     return []
-
-def build_propfind_xml(user_inbox_dir, req_path):
-    """Construct WebDAV 207 Multi-Status XML response for Windows Explorer."""
-    multistatus = ET.Element("d:multistatus", {"xmlns:d": "DAV:"})
-
-    items = [("", user_inbox_dir)]
-    if os.path.exists(user_inbox_dir):
-        for fname in os.listdir(user_inbox_dir):
-            fpath = os.path.join(user_inbox_dir, fname)
-            if os.path.isfile(fpath):
-                items.append((fname, fpath))
-
-    for fname, fpath in items:
-        response = ET.SubElement(multistatus, "d:response")
-        href_str = req_path.rstrip("/") + "/" + fname if fname else req_path
-        ET.SubElement(response, "d:href").text = href_str
-
-        propstat = ET.SubElement(response, "d:propstat")
-        prop = ET.SubElement(propstat, "d:prop")
-
-        if os.path.isdir(fpath):
-            resourcetype = ET.SubElement(prop, "d:resourcetype")
-            ET.SubElement(resourcetype, "d:collection")
-        else:
-            ET.SubElement(prop, "d:resourcetype")
-            size = os.path.getsize(fpath)
-            ET.SubElement(prop, "d:getcontentlength").text = str(size)
-            mtime = datetime.datetime.utcfromtimestamp(os.path.getmtime(fpath)).strftime("%a, %d %b %Y %H:%M:%S GMT")
-            ET.SubElement(prop, "d:getlastmodified").text = mtime
-
-        ET.SubElement(propstat, "d:status").text = "HTTP/1.1 200 OK"
-
-    return ET.tostring(multistatus, encoding="utf-8", xml_declaration=True)
 
 def start_webdav_server_thread():
     """Start the WebDAV server thread on port 8080."""
