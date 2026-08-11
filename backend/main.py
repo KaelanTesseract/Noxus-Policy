@@ -107,6 +107,8 @@ def auto_migrate_sqlite():
                         cursor.execute("ALTER TABLE users ADD COLUMN netdrive_username VARCHAR")
                     if "netdrive_password_hash" not in usr_cols:
                         cursor.execute("ALTER TABLE users ADD COLUMN netdrive_password_hash VARCHAR")
+                    if "netdrive_digest_ha1" not in usr_cols:
+                        cursor.execute("ALTER TABLE users ADD COLUMN netdrive_digest_ha1 VARCHAR")
                 except Exception as e:
                     print(f"[Auto-Migrate users] {e}")
 

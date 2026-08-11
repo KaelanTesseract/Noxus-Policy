@@ -19,6 +19,7 @@ class User(Base):
     # Netzlaufwerk (WebDAV / SMB) credentials
     netdrive_username = Column(String, unique=True, index=True, nullable=True)
     netdrive_password_hash = Column(String, nullable=True)
+    netdrive_digest_ha1 = Column(String, nullable=True)
 
     insurances = relationship("Insurance", back_populates="owner")
     inbox_documents = relationship("Document", back_populates="owner")

@@ -15,47 +15,102 @@ import models
 import auth
 
 from sqlalchemy import func
+import re
+import hashlib
+import secrets
 
 WEBDAV_PORT = 8080
 INBOX_BASE_DIR = os.path.abspath("documents/inbox")
 os.makedirs(INBOX_BASE_DIR, exist_ok=True)
+REALM = "Noxus Policy Posteingang Netzlaufwerk"
 
 class QuietWSGIRequestHandler(WSGIRequestHandler):
     def log_message(self, format, *args):
         # Suppress verbose WebDAV HTTP polling logs
         pass
 
-def authenticate_request(environ):
-    """Authenticate Basic Auth header against database netdrive credentials."""
-    auth_header = environ.get("HTTP_AUTHORIZATION", "")
-    if not auth_header.startswith("Basic "):
-        return None
+def parse_digest_header(auth_header):
+    content = auth_header[7:].strip()
+    params = {}
+    pattern = re.compile(r'(\w+)=(?:"([^"]*)"|([^,\s]*))')
+    for match in pattern.finditer(content):
+        key = match.group(1)
+        val = match.group(2) if match.group(2) is not None else match.group(3)
+        params[key] = val
+    return params
 
-    try:
-        encoded = auth_header.split(" ", 1)[1]
-        decoded = base64.b64decode(encoded).decode("utf-8")
-        raw_username, password = decoded.split(":", 1)
-        
-        # Windows Explorer often sends "192.168.1.251\username" or "HOST\username"
-        clean_username = raw_username.split("\\")[-1].strip()
-    except Exception as e:
-        print(f"[WebDAV Auth Error] Failed to decode Basic Auth header: {e}")
+def authenticate_request(environ):
+    """Authenticate Digest Auth (Windows HTTP native) or Basic Auth against database netdrive credentials."""
+    auth_header = environ.get("HTTP_AUTHORIZATION", "")
+    method = environ.get("REQUEST_METHOD", "GET")
+    path_info = environ.get("PATH_INFO", "/")
+
+    if not auth_header:
         return None
 
     db = SessionLocal()
     try:
-        user = db.query(models.User).filter(
-            func.lower(models.User.netdrive_username) == clean_username.lower()
-        ).first()
-        
-        if user and user.netdrive_password_hash:
-            if auth.verify_password(password, user.netdrive_password_hash):
-                print(f"[WebDAV Auth] Successful login for user '{user.email}' (netdrive: '{clean_username}')")
-                return user
-            else:
-                print(f"[WebDAV Auth Failed] Password mismatch for netdrive username '{clean_username}'")
-        else:
-            print(f"[WebDAV Auth Failed] No user found with netdrive username '{clean_username}' (raw: '{raw_username}')")
+        # 1. Digest Auth (Native Windows Explorer over HTTP without registry changes)
+        if auth_header.startswith("Digest "):
+            params = parse_digest_header(auth_header)
+            raw_username = params.get("username", "")
+            clean_username = raw_username.split("\\")[-1].strip()
+
+            user = db.query(models.User).filter(
+                func.lower(models.User.netdrive_username) == clean_username.lower()
+            ).first()
+
+            if user and (user.netdrive_digest_ha1 or user.netdrive_password_hash):
+                ha1 = user.netdrive_digest_ha1
+                if ha1:
+                    req_uri = params.get("uri", path_info)
+                    nonce = params.get("nonce", "")
+                    nc = params.get("nc", "")
+                    cnonce = params.get("cnonce", "")
+                    qop = params.get("qop", "")
+                    response = params.get("response", "")
+
+                    ha2_1 = hashlib.md5(f"{method}:{req_uri}".encode()).hexdigest()
+                    ha2_2 = hashlib.md5(f"{method}:{path_info}".encode()).hexdigest()
+
+                    if qop == "auth":
+                        expected_1 = hashlib.md5(f"{ha1}:{nonce}:{nc}:{cnonce}:{qop}:{ha2_1}".encode()).hexdigest()
+                        expected_2 = hashlib.md5(f"{ha1}:{nonce}:{nc}:{cnonce}:{qop}:{ha2_2}".encode()).hexdigest()
+                    else:
+                        expected_1 = hashlib.md5(f"{ha1}:{nonce}:{ha2_1}".encode()).hexdigest()
+                        expected_2 = hashlib.md5(f"{ha1}:{nonce}:{ha2_2}".encode()).hexdigest()
+
+                    if secrets.compare_digest(response, expected_1) or secrets.compare_digest(response, expected_2):
+                        print(f"[WebDAV Digest Auth] Successful login for '{user.email}' (netdrive: '{clean_username}')")
+                        return user
+                    else:
+                        print(f"[WebDAV Digest Auth Failed] Response mismatch for netdrive user '{clean_username}'")
+
+        # 2. Basic Auth Fallback (macOS / Linux / iOS / Mobile)
+        elif auth_header.startswith("Basic "):
+            try:
+                encoded = auth_header.split(" ", 1)[1]
+                decoded = base64.b64decode(encoded).decode("utf-8")
+                raw_username, password = decoded.split(":", 1)
+                clean_username = raw_username.split("\\")[-1].strip()
+
+                user = db.query(models.User).filter(
+                    func.lower(models.User.netdrive_username) == clean_username.lower()
+                ).first()
+
+                if user and user.netdrive_password_hash:
+                    if auth.verify_password(password, user.netdrive_password_hash):
+                        # Auto-generate HA1 for Digest Auth if missing
+                        if not user.netdrive_digest_ha1:
+                            ha1_str = f"{user.netdrive_username}:{REALM}:{password}"
+                            user.netdrive_digest_ha1 = hashlib.md5(ha1_str.encode("utf-8")).hexdigest()
+                            db.commit()
+                        print(f"[WebDAV Basic Auth] Successful login for '{user.email}' (netdrive: '{clean_username}')")
+                        return user
+                    else:
+                        print(f"[WebDAV Basic Auth Failed] Password mismatch for netdrive user '{clean_username}'")
+            except Exception as e:
+                print(f"[WebDAV Basic Auth Error] Failed to decode header: {e}")
     finally:
         db.close()
 
@@ -65,11 +120,17 @@ def webdav_app(environ, start_response):
     method = environ.get("REQUEST_METHOD", "GET")
     path_info = environ.get("PATH_INFO", "/")
 
-    # Authenticate Basic Auth
+    # Authenticate Digest or Basic Auth
     user = authenticate_request(environ)
     if not user:
+        nonce_val = hashlib.md5(f"{time.time()}:{secrets.token_hex(8)}".encode()).hexdigest()
+        opaque_val = hashlib.md5(f"NoxusOpaque:{nonce_val}".encode()).hexdigest()
+        digest_header = f'Digest realm="{REALM}", qop="auth", nonce="{nonce_val}", opaque="{opaque_val}"'
+        basic_header = f'Basic realm="{REALM}"'
+
         headers = [
-            ("WWW-Authenticate", 'Basic realm="Noxus Policy Posteingang Netzlaufwerk"'),
+            ("WWW-Authenticate", digest_header),
+            ("WWW-Authenticate", basic_header),
             ("Content-Type", "text/plain"),
         ]
         start_response("401 Unauthorized", headers)

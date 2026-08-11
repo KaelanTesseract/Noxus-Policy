@@ -512,8 +512,14 @@ def set_netdrive_credentials(
     if existing:
         raise HTTPException(status_code=400, detail="Dieser Netzlaufwerk-Benutzername ist bereits vergeben. Bitte wähle einen anderen.")
 
+    import hashlib
+    realm = "Noxus Policy Posteingang Netzlaufwerk"
+    ha1_str = f"{username}:{realm}:{password}"
+    digest_ha1 = hashlib.md5(ha1_str.encode("utf-8")).hexdigest()
+
     current_user.netdrive_username = username
     current_user.netdrive_password_hash = auth.get_password_hash(password)
+    current_user.netdrive_digest_ha1 = digest_ha1
     db.commit()
 
     return {
