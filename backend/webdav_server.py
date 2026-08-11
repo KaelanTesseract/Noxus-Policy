@@ -27,6 +27,10 @@ INBOX_BASE_DIR = os.path.abspath("documents/inbox")
 os.makedirs(INBOX_BASE_DIR, exist_ok=True)
 REALM = "Noxus Policy Posteingang Netzlaufwerk"
 
+# Track active lock sessions to prevent Windows Explorer pre-exist prompts
+ACTIVE_LOCKS = set()
+LOCKS_LOCK = threading.Lock()
+
 class QuietWSGIRequestHandler(WSGIRequestHandler):
     def log_message(self, format, *args):
         # Suppress verbose WebDAV HTTP polling logs
@@ -158,6 +162,10 @@ def build_propfind_xml(user_inbox_dir, target_file, req_path, depth="1"):
 
         if depth != "0" and os.path.exists(target_file):
             for fname in os.listdir(target_file):
+                # Hide temporary Windows WebDAV files
+                if fname.startswith("~$") or fname.startswith(".") or fname.endswith(".tmp") or fname.lower() in ["desktop.ini", "thumbs.db"]:
+                    continue
+
                 fpath = os.path.join(target_file, fname)
                 if os.path.isfile(fpath):
                     child_href = base_href + fname
@@ -246,7 +254,11 @@ def webdav_app(environ, start_response):
 
     # PROPFIND (Directory listing / File inspection)
     if method == "PROPFIND":
-        if not os.path.exists(target_file):
+        # If target file is currently locked in memory (being uploaded), pretend it's 404 so Windows Explorer knows it's a new upload
+        with LOCKS_LOCK:
+            is_locked = target_file in ACTIVE_LOCKS
+
+        if is_locked or not os.path.exists(target_file):
             start_response("404 Not Found", [("Content-Type", "text/plain")])
             return [b"404 Not Found"]
 
@@ -261,7 +273,10 @@ def webdav_app(environ, start_response):
 
     # LOCK (Windows Explorer Lock Request before Upload)
     if method == "LOCK":
-        file_existed = os.path.exists(target_file)
+        with LOCKS_LOCK:
+            file_existed = os.path.exists(target_file) and (target_file not in ACTIVE_LOCKS)
+            ACTIVE_LOCKS.add(target_file)
+
         lock_token = "opaquelocktoken:noxus-" + secrets.token_hex(16)
         xml_resp = f"""<?xml version="1.0" encoding="utf-8"?>
 <d:prop xmlns:d="DAV:">
@@ -282,12 +297,15 @@ def webdav_app(environ, start_response):
             ("Lock-Token", f"<{lock_token}>"),
             ("Content-Length", str(len(xml_resp)))
         ]
+        # Status code 201 Created tells Windows Explorer this is a fresh file lock (no pre-existing file prompt)
         status = "200 OK" if file_existed else "201 Created"
         start_response(status, headers)
         return [xml_resp]
 
     # UNLOCK
     if method == "UNLOCK":
+        with LOCKS_LOCK:
+            ACTIVE_LOCKS.discard(target_file)
         start_response("204 No Content", [("Content-Length", "0")])
         return []
 
@@ -321,7 +339,11 @@ def webdav_app(environ, start_response):
             start_response("400 Bad Request", [("Content-Type", "text/plain")])
             return [b"Ungueltiger Dateiname"]
 
-        file_existed = os.path.exists(target_file)
+        # Ignore temporary Windows WebDAV lock files
+        if rel_name.startswith("~$") or rel_name.startswith(".") or rel_name.endswith(".tmp") or rel_name.lower() in ["desktop.ini", "thumbs.db"]:
+            start_response("201 Created", [("Content-Length", "0")])
+            return []
+
         try:
             content_length = int(environ.get("CONTENT_LENGTH", 0))
         except (ValueError, TypeError):
@@ -345,11 +367,15 @@ def webdav_app(environ, start_response):
                         f.write(chunk)
 
             print(f"[WebDAV Upload Success] Saved file '{rel_name}' to user {user.id} inbox.")
-            status = "204 No Content" if file_existed else "201 Created"
-            start_response(status, [("Content-Length", "0"), ("ETag", f'"{secrets.token_hex(8)}"')])
+            with LOCKS_LOCK:
+                ACTIVE_LOCKS.discard(target_file)
+
+            start_response("201 Created", [("Content-Length", "0"), ("ETag", f'"{secrets.token_hex(8)}"')])
             return []
         except Exception as e:
             print(f"[WebDAV Upload Error] {e}")
+            with LOCKS_LOCK:
+                ACTIVE_LOCKS.discard(target_file)
             start_response("500 Internal Server Error", [("Content-Type", "text/plain")])
             return [str(e).encode("utf-8")]
 

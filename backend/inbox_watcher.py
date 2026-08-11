@@ -30,8 +30,19 @@ def scan_inbox_directories():
             files = [f for f in os.listdir(user_dir_path) if os.path.isfile(os.path.join(user_dir_path, f))]
 
             for fname in files:
+                # Ignore temporary Windows / WebDAV files or hidden files
+                if fname.startswith("~$") or fname.startswith(".") or fname.endswith(".tmp") or fname.lower() in ["desktop.ini", "thumbs.db"]:
+                    continue
+
                 fpath = os.path.join(user_dir_path, fname)
-                file_size = os.path.getsize(fpath)
+                try:
+                    file_size = os.path.getsize(fpath)
+                except OSError:
+                    continue
+
+                # Skip 0-byte incomplete uploads
+                if file_size == 0:
+                    continue
 
                 # Check if document already exists in DB for this user
                 existing = db.query(models.Document).filter(
