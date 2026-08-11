@@ -1309,6 +1309,37 @@ export default function SettingsPage() {
                     <li>Gib deinen oben gewählten Netzlaufwerk-Benutzernamen und dein Passwort ein.</li>
                     <li>Abgelegte Dateien erscheinen automatisch in deinem <strong>Posteingang</strong> in der Weboberfläche!</li>
                   </ul>
+
+                  {/* Windows HTTP Basic Auth Fix Note */}
+                  <div className="p-3 rounded-lg bg-amber-950/40 border border-amber-800/60 text-[11px] text-amber-200/90 space-y-1.5 pt-2">
+                    <p className="font-bold flex items-center gap-1.5 text-amber-300">
+                      <span>⚠️ Hilfreich: Falls Windows dich immer wieder nach dem Passwort fragt</span>
+                    </p>
+                    <p className="leading-relaxed">
+                      Windows blockiert standardmäßig unverschlüsselte WebDAV-Passwortanmeldungen (Basic Auth über HTTP). 
+                      Falls das Anmeldefenster nach Klick auf OK erneut erscheint, öffne die <strong>PowerShell als Administrator</strong> und führe diesen Befehl aus:
+                    </p>
+                    <div className="flex items-center gap-2 bg-zinc-950 p-2 rounded border border-amber-900/50">
+                      <code className="font-mono text-[10px] text-amber-300 flex-1 truncate select-all">
+                        reg add HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\WebClient\Parameters /v BasicAuthLevel /t REG_DWORD /d 2 /f
+                      </code>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          navigator.clipboard.writeText("reg add HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\WebClient\\Parameters /v BasicAuthLevel /t REG_DWORD /d 2 /f");
+                          alert("Windows Registrierungs-Befehl kopiert!");
+                        }}
+                        className="text-[10px] text-amber-300 hover:text-white h-6 px-2"
+                      >
+                        📋 Kopieren
+                      </Button>
+                    </div>
+                    <p className="text-[10px] text-amber-400/80">
+                      Starte danach in CMD/PowerShell den Dienst neu: <code>net stop WebClient & net start WebClient</code> (oder Rechner neu starten).
+                    </p>
+                  </div>
                 </div>
               </CardContent>
             </Card>

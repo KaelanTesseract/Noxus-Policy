@@ -14,6 +14,8 @@ from database import SessionLocal
 import models
 import auth
 
+from sqlalchemy import func
+
 WEBDAV_PORT = 8080
 INBOX_BASE_DIR = os.path.abspath("documents/inbox")
 os.makedirs(INBOX_BASE_DIR, exist_ok=True)
@@ -32,16 +34,28 @@ def authenticate_request(environ):
     try:
         encoded = auth_header.split(" ", 1)[1]
         decoded = base64.b64decode(encoded).decode("utf-8")
-        username, password = decoded.split(":", 1)
-    except Exception:
+        raw_username, password = decoded.split(":", 1)
+        
+        # Windows Explorer often sends "192.168.1.251\username" or "HOST\username"
+        clean_username = raw_username.split("\\")[-1].strip()
+    except Exception as e:
+        print(f"[WebDAV Auth Error] Failed to decode Basic Auth header: {e}")
         return None
 
     db = SessionLocal()
     try:
-        user = db.query(models.User).filter(models.User.netdrive_username == username).first()
+        user = db.query(models.User).filter(
+            func.lower(models.User.netdrive_username) == clean_username.lower()
+        ).first()
+        
         if user and user.netdrive_password_hash:
             if auth.verify_password(password, user.netdrive_password_hash):
+                print(f"[WebDAV Auth] Successful login for user '{user.email}' (netdrive: '{clean_username}')")
                 return user
+            else:
+                print(f"[WebDAV Auth Failed] Password mismatch for netdrive username '{clean_username}'")
+        else:
+            print(f"[WebDAV Auth Failed] No user found with netdrive username '{clean_username}' (raw: '{raw_username}')")
     finally:
         db.close()
 
