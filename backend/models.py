@@ -16,7 +16,12 @@ class User(Base):
     email_notifications_enabled = Column(Boolean, default=True)
     calendar_token = Column(String, unique=True, index=True, nullable=True)
     
+    # Netzlaufwerk (WebDAV / SMB) credentials
+    netdrive_username = Column(String, unique=True, index=True, nullable=True)
+    netdrive_password_hash = Column(String, nullable=True)
+
     insurances = relationship("Insurance", back_populates="owner")
+    inbox_documents = relationship("Document", back_populates="owner")
 
 class Category(Base):
     __tablename__ = "categories"
@@ -89,7 +94,16 @@ class Document(Base):
     doc_type = Column(String, nullable=True)
     document_date = Column(Date, nullable=True)
     upload_date = Column(DateTime, default=datetime.datetime.utcnow)
+    file_size = Column(Integer, nullable=True)
     
+    # Posteingang (Inbox) attributes
+    is_inbox = Column(Boolean, default=False, index=True)
+    status = Column(String, default="pending")  # pending, analyzed, assigned
+    ai_data = Column(String, nullable=True)     # JSON string of extracted data
+    
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    owner = relationship("User", back_populates="inbox_documents")
+
     insurance_id = Column(Integer, ForeignKey("insurances.id"), nullable=True)
     insurance = relationship("Insurance", back_populates="documents")
     

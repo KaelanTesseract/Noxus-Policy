@@ -20,11 +20,20 @@ export function Navbar({ userEmail, onUploadClick, onTaxExportClick }: NavbarPro
   const router = useRouter();
   const { theme } = useTheme();
   const [useAi, setUseAi] = useState(true);
+  const [inboxCount, setInboxCount] = useState(0);
 
   useEffect(() => {
     api.get("/documents/ai-config")
       .then((cfg: any) => setUseAi(!!cfg.use_ai))
       .catch(() => setUseAi(true));
+
+    api.get("/inbox")
+      .then((docs: any) => {
+        if (Array.isArray(docs)) {
+          setInboxCount(docs.length);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const handleLogout = () => {
@@ -69,6 +78,20 @@ export function Navbar({ userEmail, onUploadClick, onTaxExportClick }: NavbarPro
               <span className="font-medium text-zinc-200">{userEmail}</span>
             </div>
           )}
+
+          <Button
+            onClick={() => router.push("/inbox")}
+            title="Posteingang (Dateien aus Netzlaufwerk & Upload)"
+            variant="outline"
+            className="relative border-indigo-800/80 bg-indigo-950/40 hover:bg-indigo-900/60 text-indigo-200 transition-all font-semibold text-xs sm:text-sm px-2.5 sm:px-3.5 py-1.5 flex items-center gap-1.5"
+          >
+            <span>📬 Posteingang</span>
+            {inboxCount > 0 && (
+              <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-indigo-500 text-white animate-pulse">
+                {inboxCount}
+              </span>
+            )}
+          </Button>
 
           {onTaxExportClick && (
             <Button

@@ -5,13 +5,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base, DATABASE_URL, SessionLocal
 import models
-from routers import users, insurances, documents, backup
+from routers import users, insurances, documents, backup, inbox
 from sqlalchemy.orm import Session
 import auth
 import os
 import sqlite3
 
 from backup_scheduler import start_scheduler_thread
+from webdav_server import start_webdav_server_thread
+from inbox_watcher import start_inbox_watcher_thread
 
 app = FastAPI(title="Versicherungsmanager API")
 
@@ -27,6 +29,7 @@ app.include_router(users.router)
 app.include_router(insurances.router)
 app.include_router(documents.router)
 app.include_router(backup.router)
+app.include_router(inbox.router)
 
 def auto_migrate_sqlite():
     try:
@@ -79,6 +82,16 @@ def auto_migrate_sqlite():
                         cursor.execute("ALTER TABLE documents ADD COLUMN custom_name VARCHAR")
                     if "doc_type" not in doc_cols:
                         cursor.execute("ALTER TABLE documents ADD COLUMN doc_type VARCHAR")
+                    if "file_size" not in doc_cols:
+                        cursor.execute("ALTER TABLE documents ADD COLUMN file_size INTEGER")
+                    if "is_inbox" not in doc_cols:
+                        cursor.execute("ALTER TABLE documents ADD COLUMN is_inbox BOOLEAN DEFAULT 0")
+                    if "status" not in doc_cols:
+                        cursor.execute("ALTER TABLE documents ADD COLUMN status VARCHAR DEFAULT 'pending'")
+                    if "ai_data" not in doc_cols:
+                        cursor.execute("ALTER TABLE documents ADD COLUMN ai_data VARCHAR")
+                    if "owner_id" not in doc_cols:
+                        cursor.execute("ALTER TABLE documents ADD COLUMN owner_id INTEGER")
                 except Exception as e:
                     print(f"[Auto-Migrate documents] {e}")
 
@@ -90,6 +103,10 @@ def auto_migrate_sqlite():
                         cursor.execute("ALTER TABLE users ADD COLUMN email_notifications_enabled BOOLEAN DEFAULT 1")
                     if "calendar_token" not in usr_cols:
                         cursor.execute("ALTER TABLE users ADD COLUMN calendar_token VARCHAR")
+                    if "netdrive_username" not in usr_cols:
+                        cursor.execute("ALTER TABLE users ADD COLUMN netdrive_username VARCHAR")
+                    if "netdrive_password_hash" not in usr_cols:
+                        cursor.execute("ALTER TABLE users ADD COLUMN netdrive_password_hash VARCHAR")
                 except Exception as e:
                     print(f"[Auto-Migrate users] {e}")
 
@@ -130,11 +147,21 @@ def startup_db_init():
     except Exception as e:
         print(f"Error initializing admin user: {e}")
 
-    # 4. Start background backup scheduler & daily pattern learning sync thread AFTER DB initialization
+    # 4. Start background schedulers, WebDAV server & inbox watcher threads AFTER DB initialization
     try:
         start_scheduler_thread()
     except Exception as se:
         print(f"Error starting backup scheduler thread: {se}")
+
+    try:
+        start_webdav_server_thread()
+    except Exception as we:
+        print(f"Error starting WebDAV server thread: {we}")
+
+    try:
+        start_inbox_watcher_thread()
+    except Exception as ie:
+        print(f"Error starting inbox watcher thread: {ie}")
 
     try:
         from learning import start_daily_pattern_scheduler

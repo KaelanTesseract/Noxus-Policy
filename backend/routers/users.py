@@ -472,3 +472,46 @@ def get_calendar_feed(
         }
     )
 
+@router.get("/netdrive-credentials")
+def get_netdrive_credentials(
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    is_configured = bool(current_user.netdrive_username and current_user.netdrive_password_hash)
+    return {
+        "configured": is_configured,
+        "username": current_user.netdrive_username or ""
+    }
+
+@router.post("/netdrive-credentials")
+def set_netdrive_credentials(
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    username = str(payload.get("username", "")).strip()
+    password = str(payload.get("password", "")).strip()
+
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="Benutzername und Passwort für das Netzlaufwerk erforderlich.")
+
+    if len(password) < 4:
+        raise HTTPException(status_code=400, detail="Passwort muss mindestens 4 Zeichen lang sein.")
+
+    # Check if username is already taken by another user
+    existing = db.query(models.User).filter(
+        models.User.netdrive_username == username,
+        models.User.id != current_user.id
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Dieser Netzlaufwerk-Benutzername ist bereits vergeben. Bitte wähle einen anderen.")
+
+    current_user.netdrive_username = username
+    current_user.netdrive_password_hash = auth.get_password_hash(password)
+    db.commit()
+
+    return {
+        "msg": "Netzlaufwerk-Zugangsdaten erfolgreich gespeichert!",
+        "username": username,
+        "configured": True
+    }
+
