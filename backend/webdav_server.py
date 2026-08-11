@@ -8,6 +8,7 @@ import base64
 import threading
 import datetime
 import shutil
+import mimetypes
 from urllib.parse import unquote, urlparse
 from xml.etree import ElementTree as ET
 from wsgiref.simple_server import make_server, WSGIRequestHandler
@@ -141,39 +142,66 @@ def resolve_target_file(user_inbox_dir, path_info):
     return target_path, safe_basename
 
 def build_propfind_xml(user_inbox_dir, target_file, req_path, depth="1"):
-    """Construct WebDAV 207 Multi-Status XML response for Windows Explorer."""
+    """Construct WebDAV 207 Multi-Status XML response fully compliant with Windows Explorer WebClient."""
     multistatus = ET.Element("d:multistatus", {"xmlns:d": "DAV:"})
 
     items = []
 
+    clean_req_path = req_path.rstrip("/")
+    if not clean_req_path:
+        clean_req_path = "/"
+
     if os.path.isdir(target_file):
-        items.append((req_path, target_file, True))
+        base_href = clean_req_path if clean_req_path.endswith("/") else clean_req_path + "/"
+        dir_name = os.path.basename(target_file) or "inbox"
+        items.append((base_href, target_file, dir_name, True))
+
         if depth != "0" and os.path.exists(target_file):
             for fname in os.listdir(target_file):
                 fpath = os.path.join(target_file, fname)
                 if os.path.isfile(fpath):
-                    child_href = req_path.rstrip("/") + "/" + fname
-                    items.append((child_href, fpath, False))
+                    child_href = base_href + fname
+                    items.append((child_href, fpath, fname, False))
     elif os.path.isfile(target_file):
-        items.append((req_path, target_file, False))
+        fname = os.path.basename(target_file)
+        items.append((clean_req_path, target_file, fname, False))
 
-    for href_str, fpath, is_dir in items:
+    for href_str, fpath, display_name, is_dir in items:
         response = ET.SubElement(multistatus, "d:response")
         ET.SubElement(response, "d:href").text = href_str
 
         propstat = ET.SubElement(response, "d:propstat")
         prop = ET.SubElement(propstat, "d:prop")
 
+        ET.SubElement(prop, "d:displayname").text = display_name
+        ET.SubElement(prop, "d:ishidden").text = "0"
+
         if is_dir:
             resourcetype = ET.SubElement(prop, "d:resourcetype")
             ET.SubElement(resourcetype, "d:collection")
+            ET.SubElement(prop, "d:iscollection").text = "1"
         else:
             ET.SubElement(prop, "d:resourcetype")
+            ET.SubElement(prop, "d:iscollection").text = "0"
             if os.path.exists(fpath):
                 size = os.path.getsize(fpath)
                 ET.SubElement(prop, "d:getcontentlength").text = str(size)
+                
+                mime_type, _ = mimetypes.guess_type(fpath)
+                ET.SubElement(prop, "d:getcontenttype").text = mime_type or "application/octet-stream"
+
                 mtime = datetime.datetime.utcfromtimestamp(os.path.getmtime(fpath)).strftime("%a, %d %b %Y %H:%M:%S GMT")
                 ET.SubElement(prop, "d:getlastmodified").text = mtime
+                
+                ctime = datetime.datetime.utcfromtimestamp(os.path.getctime(fpath)).strftime("%Y-%m-%dT%H:%M:%SZ")
+                ET.SubElement(prop, "d:creationdate").text = ctime
+
+        supportedlock = ET.SubElement(prop, "d:supportedlock")
+        lockentry = ET.SubElement(supportedlock, "d:lockentry")
+        lockscope = ET.SubElement(lockentry, "d:lockscope")
+        ET.SubElement(lockscope, "d:exclusive")
+        locktype = ET.SubElement(lockentry, "d:locktype")
+        ET.SubElement(locktype, "d:write")
 
         ET.SubElement(propstat, "d:status").text = "HTTP/1.1 200 OK"
 
@@ -233,6 +261,7 @@ def webdav_app(environ, start_response):
 
     # LOCK (Windows Explorer Lock Request before Upload)
     if method == "LOCK":
+        file_existed = os.path.exists(target_file)
         lock_token = "opaquelocktoken:noxus-" + secrets.token_hex(16)
         xml_resp = f"""<?xml version="1.0" encoding="utf-8"?>
 <d:prop xmlns:d="DAV:">
@@ -253,7 +282,8 @@ def webdav_app(environ, start_response):
             ("Lock-Token", f"<{lock_token}>"),
             ("Content-Length", str(len(xml_resp)))
         ]
-        start_response("200 OK", headers)
+        status = "200 OK" if file_existed else "201 Created"
+        start_response(status, headers)
         return [xml_resp]
 
     # UNLOCK
@@ -291,6 +321,7 @@ def webdav_app(environ, start_response):
             start_response("400 Bad Request", [("Content-Type", "text/plain")])
             return [b"Ungueltiger Dateiname"]
 
+        file_existed = os.path.exists(target_file)
         try:
             content_length = int(environ.get("CONTENT_LENGTH", 0))
         except (ValueError, TypeError):
@@ -314,7 +345,8 @@ def webdav_app(environ, start_response):
                         f.write(chunk)
 
             print(f"[WebDAV Upload Success] Saved file '{rel_name}' to user {user.id} inbox.")
-            start_response("201 Created", [("Content-Length", "0")])
+            status = "204 No Content" if file_existed else "201 Created"
+            start_response(status, [("Content-Length", "0"), ("ETag", f'"{secrets.token_hex(8)}"')])
             return []
         except Exception as e:
             print(f"[WebDAV Upload Error] {e}")
@@ -325,8 +357,9 @@ def webdav_app(environ, start_response):
     if method in ["GET", "HEAD"]:
         if os.path.isfile(target_file):
             size = os.path.getsize(target_file)
+            mime_type, _ = mimetypes.guess_type(target_file)
             headers = [
-                ("Content-Type", "application/octet-stream"),
+                ("Content-Type", mime_type or "application/octet-stream"),
                 ("Content-Length", str(size))
             ]
             start_response("200 OK", headers)

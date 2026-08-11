@@ -46,6 +46,15 @@ export default function InboxPage() {
 
   useEffect(() => {
     loadData();
+
+    // Auto-refresh inbox every 4s to catch newly dropped Netzlaufwerk files immediately
+    const interval = setInterval(() => {
+      api.get("/inbox").then((docs) => {
+        if (docs) setInboxDocs(docs);
+      }).catch(() => {});
+    }, 4000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const loadData = async () => {
