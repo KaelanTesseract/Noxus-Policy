@@ -497,6 +497,13 @@ def set_netdrive_credentials(
     if len(password) < 4:
         raise HTTPException(status_code=400, detail="Passwort muss mindestens 4 Zeichen lang sein.")
 
+    # Enforce distinct password from website password
+    if auth.verify_password(password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=400,
+            detail="Aus Sicherheitsgründen müssen sich die Netzlaufwerk-Zugangsdaten von deinen Website-Logindaten unterscheiden. Bitte wähle ein anderes Passwort."
+        )
+
     # Check if username is already taken by another user
     existing = db.query(models.User).filter(
         models.User.netdrive_username == username,

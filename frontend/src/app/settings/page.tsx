@@ -1209,8 +1209,8 @@ export default function SettingsPage() {
                     </span>
                   </div>
 
-                  <p className="text-xs text-zinc-400">
-                    Aus Sicherheitsgründen unterscheiden sich diese Zugangsdaten von deinen Website-Logindaten.
+                  <p className="text-xs text-zinc-400 font-medium">
+                    Aus Sicherheitsgründen müssen sich diese Zugangsdaten von deinen Website-Logindaten unterscheiden.
                   </p>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1272,7 +1272,15 @@ export default function SettingsPage() {
                     2. Anleitung: In Windows als Netzlaufwerk verbinden
                   </h4>
 
-                  <ol className="list-decimal list-inside space-y-2 text-xs text-zinc-300">
+                  <div className="p-3 rounded-lg bg-indigo-950/60 border border-indigo-800/60 text-xs text-indigo-200 flex items-start gap-2">
+                    <span className="text-base shrink-0">🔒</span>
+                    <div>
+                      <strong>Strikte Benutzer-Isolierung:</strong> Jeder registrierte Benutzer hat seinen eigenen, geschützten Speicherbereich. 
+                      Sobald du dich beim Netzlaufwerk anmeldest, leitet der Server dich automatisch ausschließlich in deinen eigenen persönlichen Posteingangsordner weiter.
+                    </div>
+                  </div>
+
+                  <ol className="list-decimal list-inside space-y-2 text-xs text-zinc-300 pt-1">
                     <li>Öffne den <strong>Windows Datei-Explorer</strong> (Taste <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-200 border border-zinc-700">Win + E</kbd>).</li>
                     <li>Klicke auf <strong>Dieser PC</strong> ➔ Oben auf <strong>Netzlaufwerk verbinden</strong>.</li>
                     <li>Gib im Feld <strong>Ordner</strong> folgende Adresse ein:</li>
