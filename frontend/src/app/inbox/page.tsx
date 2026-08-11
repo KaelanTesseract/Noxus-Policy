@@ -80,7 +80,7 @@ export default function InboxPage() {
       for (let i = 0; i < files.length; i++) {
         const formData = new FormData();
         formData.append("file", files[i]);
-        await api.postFormData("/inbox/upload", formData);
+        await api.postForm("/inbox/upload", formData);
       }
       setMessage({ type: "success", text: `${files.length} Datei(en) erfolgreich im Posteingang abgelegt!` });
       await loadData();
