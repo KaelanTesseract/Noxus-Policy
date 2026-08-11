@@ -18,7 +18,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir --default-timeout=300 --retries 10 -r requirements.txt
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir --default-timeout=1000 --retries 20 -r requirements.txt
 
 COPY . .
 
