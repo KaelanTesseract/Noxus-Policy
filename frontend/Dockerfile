@@ -3,10 +3,12 @@ FROM node:20-alpine
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
-RUN npm config set fetch-retries 10 && \
-    npm config set fetch-retry-mintimeout 20000 && \
-    npm config set fetch-retry-maxtimeout 120000 && \
-    npm install --fetch-timeout=600000
+RUN npm config set registry https://registry.npmjs.org/ && \
+    npm config set fetch-retries 10 && \
+    npm config set fetch-retry-mintimeout 5000 && \
+    npm config set fetch-retry-maxtimeout 60000 && \
+    npm config set maxsockets 5 && \
+    (npm ci --no-audit --no-fund || npm install --no-audit --no-fund --fetch-timeout=600000)
 
 COPY . .
 
