@@ -30,9 +30,10 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         if bcrypt.checkpw(plain_bytes, hash_bytes):
             return True
             
-        plain_lower_bytes = plain_password.lower().encode('utf-8') if isinstance(plain_password, str) else plain_password
-        if bcrypt.checkpw(plain_lower_bytes, hash_bytes):
-            return True
+        if isinstance(plain_password, str) and plain_password != plain_password.lower():
+            plain_lower_bytes = plain_password.lower().encode('utf-8')
+            if bcrypt.checkpw(plain_lower_bytes, hash_bytes):
+                return True
             
         return False
     except Exception as e:

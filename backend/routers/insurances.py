@@ -35,8 +35,44 @@ def calc_annual_cost(cost: float, payment_cycle: str) -> float:
     c = str(payment_cycle or "jährlich").lower()
     if c == "monatlich": return cost * 12.0
     if c == "vierteljährlich": return cost * 4.0
-    if c == "halbjährlich": return cost * 2.0
+    if c == "halbjährlich":    return cost * 2.0
     return cost
+
+def record_premium_history_entry(
+    db: Session,
+    insurance_id: int,
+    cost: float,
+    payment_cycle: str = "jährlich",
+    effective_date: Optional[datetime.date] = None,
+    note: str = "Beitragsanpassung"
+):
+    if not cost or cost <= 0:
+        return None
+
+    eff_date = effective_date or datetime.date.today()
+    cycle = payment_cycle or "jährlich"
+    annual = calc_annual_cost(cost, cycle)
+
+    existing = db.query(models.PremiumHistory).filter(
+        models.PremiumHistory.insurance_id == insurance_id,
+        models.PremiumHistory.cost == cost,
+        models.PremiumHistory.effective_date == eff_date
+    ).first()
+
+    if not existing:
+        h_entry = models.PremiumHistory(
+            insurance_id=insurance_id,
+            cost=cost,
+            payment_cycle=cycle,
+            annual_cost=annual,
+            effective_date=eff_date,
+            note=note
+        )
+        db.add(h_entry)
+        db.commit()
+        db.refresh(h_entry)
+        return h_entry
+    return existing
 
 def format_insurance_dict(ins: models.Insurance) -> dict:
     claims_list = []

@@ -102,7 +102,33 @@ def create_document(
     filepath = os.path.join(UPLOAD_DIR, saved_filename)
     with open(filepath, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
-        
+
+    # Perform background OCR analysis & record PremiumHistory if cost is detected
+    try:
+        text = ocr.extract_text_from_file(filepath)
+        extracted = ocr.extract_insurance_data(text, db=db)
+        extracted["extracted_text"] = text
+        db_doc.ai_data = json.dumps(extracted)
+
+        new_c = extracted.get("new_cost") or extracted.get("cost") or db_insurance.cost
+        if new_c and float(new_c) > 0:
+            import datetime
+            from routers.insurances import record_premium_history_entry
+            eff_d = extracted.get("start_date") or extracted.get("document_date") or db_insurance.start_date or datetime.date.today()
+            record_premium_history_entry(
+                db,
+                db_insurance.id,
+                float(new_c),
+                extracted.get("payment_cycle") or db_insurance.payment_cycle or "monatlich",
+                eff_d,
+                f"Beitrag aus Dokument ({db_doc.custom_name or db_doc.original_filename})"
+            )
+            if extracted.get("cost"):
+                db_insurance.cost = float(extracted["cost"])
+    except Exception as oe:
+        print(f"[Create Document OCR Notice] {oe}")
+
+    db.commit()
     return db_doc
 
 @router.post("/{document_id}/reanalyze")
@@ -155,22 +181,21 @@ def reanalyze_document(
         if extracted.get("type_class"):
             ins.type_class = extracted["type_class"]
 
-        # Auto-create PremiumHistory if doc is a Beitragsanpassung or cost changed
+        # Auto-create PremiumHistory for extracted cost & corresponding period
         new_c = extracted.get("new_cost") or extracted.get("cost")
-        if new_c and new_c > 0 and extracted.get("is_price_change"):
+        if new_c and new_c > 0:
             import datetime
-            from routers.insurances import calc_annual_cost
-            annual = calc_annual_cost(new_c, extracted.get("payment_cycle") or ins.payment_cycle or "jährlich")
-            h_entry = models.PremiumHistory(
-                insurance_id=ins.id,
-                cost=new_c,
-                payment_cycle=extracted.get("payment_cycle") or ins.payment_cycle or "jährlich",
-                annual_cost=annual,
-                effective_date=extracted.get("start_date") or datetime.date.today(),
-                note=f"Neu-Analyse: {doc.custom_name or doc.original_filename}"
+            from routers.insurances import record_premium_history_entry
+            eff_d = extracted.get("start_date") or extracted.get("document_date") or datetime.date.today()
+            record_premium_history_entry(
+                db,
+                ins.id,
+                float(new_c),
+                extracted.get("payment_cycle") or ins.payment_cycle or "monatlich",
+                eff_d,
+                f"Beitrag aus Analyse ({doc.custom_name or doc.original_filename})"
             )
-            db.add(h_entry)
-            ins.cost = new_c
+            ins.cost = float(new_c)
 
         # Update coverage details with clean formatted AI items
         new_items = extracted.get("coverage_details") or []

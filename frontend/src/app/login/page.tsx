@@ -62,19 +62,15 @@ export default function Login() {
       const data = await res.json();
       localStorage.setItem("token", data.access_token);
       
-      // Check user details
-      const userRes = await fetch("/api/users/me", {
-        headers: { Authorization: `Bearer ${data.access_token}` }
-      });
-      if (!userRes.ok) {
-        throw new Error(`Fehler beim Abrufen des Benutzerprofils (${userRes.status})`);
+      const userData = data.user || { email };
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("cache_user", JSON.stringify(userData));
       }
-      const userData = await userRes.json();
       
       if (userData.must_change_password) {
-        window.location.href = "/admin-setup";
+        router.push("/admin-setup");
       } else {
-        window.location.href = "/";
+        router.push("/");
       }
     } catch (e: any) {
       setError(e.message);

@@ -163,6 +163,30 @@ def assign_inbox_document(
     if payload.doc_type:
         doc.doc_type = payload.doc_type
 
+    # Auto-add Premium History entry if document extracted a cost and date
+    if doc.ai_data:
+        try:
+            ai_info = json.loads(doc.ai_data) if isinstance(doc.ai_data, str) else doc.ai_data
+            cost_val = ai_info.get("new_cost") or ai_info.get("cost")
+            if cost_val and float(cost_val) > 0:
+                eff_date_str = ai_info.get("start_date") or ai_info.get("document_date")
+                eff_date = datetime.datetime.strptime(eff_date_str, "%Y-%m-%d").date() if eff_date_str else None
+                from routers.insurances import record_premium_history_entry
+                record_premium_history_entry(
+                    db,
+                    insurance.id,
+                    float(cost_val),
+                    ai_info.get("payment_cycle") or insurance.payment_cycle or "monatlich",
+                    eff_date or insurance.start_date or datetime.date.today(),
+                    f"Beitrag aus Dokument: {doc.custom_name or doc.original_filename}"
+                )
+                # Also update current insurance cost to match newest document if cost changed
+                insurance.cost = float(cost_val)
+                if ai_info.get("payment_cycle"):
+                    insurance.payment_cycle = ai_info.get("payment_cycle")
+        except Exception as pe:
+            print(f"[Assign PremiumHistory Notice] {pe}")
+
     db.commit()
     return {"msg": "Dokument erfolgreich zugewiesen!", "document_id": doc.id, "insurance_id": insurance.id}
 
@@ -204,6 +228,20 @@ def create_insurance_and_assign(
     db.add(new_insurance)
     db.commit()
     db.refresh(new_insurance)
+
+    if new_insurance.cost and new_insurance.cost > 0:
+        try:
+            from routers.insurances import record_premium_history_entry
+            record_premium_history_entry(
+                db,
+                new_insurance.id,
+                new_insurance.cost,
+                new_insurance.payment_cycle or "monatlich",
+                new_insurance.start_date or datetime.date.today(),
+                "Vertragsabschluss / Erstbeitrag aus Dokument"
+            )
+        except Exception as pe:
+            print(f"[Create Insurance PremiumHistory Notice] {pe}")
 
     old_file_path = get_file_path_for_inbox_doc(doc)
     new_file_path = os.path.join(PERMANENT_DOCS_DIR, doc.filename)

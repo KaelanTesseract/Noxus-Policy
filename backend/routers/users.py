@@ -95,7 +95,16 @@ def login(login_data: schemas.UserLogin, db: Session = Depends(get_db)):
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token = auth.create_access_token(data={"sub": user.email})
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "is_admin": user.is_admin,
+            "must_change_password": user.must_change_password
+        }
+    }
 
 @router.post("/register", response_model=schemas.UserResponse)
 def register_user(payload: schemas.UserCreate, db: Session = Depends(get_db)):
