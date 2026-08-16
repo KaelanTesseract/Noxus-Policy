@@ -334,59 +334,76 @@ def extract_regionalklasse_fallback(text: str, current_regio: str = None) -> str
 
     return current_regio if current_regio else None
 
+def parse_german_amount(raw_str: str) -> float:
+    if not raw_str:
+        return None
+    s = raw_str.strip()
+    is_negative = False
+    if s.endswith('-') or s.startswith('-'):
+        is_negative = True
+        s = s.replace('-', '').strip()
+
+    s = s.replace('.', '').replace(',', '.')
+    try:
+        val = float(s)
+        return -val if is_negative else val
+    except Exception:
+        return None
+
 def extract_cost_fallback(text: str) -> float:
-    # Priority 1: Total line match (e.g. "Gesamtbeitrag inkl. 19 % Versicherungsteuer (7,91 €) 49,53 €")
+    if not text:
+        return None
+
+    # Priority 1: Direct Guthaben / Erstattung / Gutschrift / Abrechnung total match
+    # e.g. "Das Guthaben wird Ihrem Beitragskonto gutgeschrieben: 40,33- €" or "Erstattungsbeitrag ... 40,33- €"
+    m_guthaben = re.search(r'(?i)(?:guthaben|erstattungsbeitrag|erstattung|gutschrift|abrechnung|rückerstattung)[^\n]*?(\d{1,3}(?:\.\d{3})*(?:,\d{2})?\s*-?)\s*(?:€|EUR)', text)
+    if m_guthaben:
+        val = parse_german_amount(m_guthaben.group(1))
+        if val is not None:
+            return val
+
+    # Priority 2: Total line match (e.g. "Gesamtbeitrag inkl. 19 % ... 49,53 €" or "Zwischensumme 40,33- €")
     for line in text.split('\n'):
-        if re.search(r'(?i)gesamtbeitrag|zahlbeitrag|gesamt|bruttobeitrag\s*\(monatlich\)', line):
-            amounts = re.findall(r'(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s*(?:€|EUR)', line)
+        if re.search(r'(?i)gesamtbeitrag|zahlbeitrag|gesamt|bruttobeitrag|zwischensumme|erstattungsbeitrag', line):
+            amounts = re.findall(r'(\d{1,3}(?:\.\d{3})*(?:,\d{2})?\s*-?)\s*(?:€|EUR)', line)
             if amounts:
-                try:
-                    # Take the last amount on the total line (e.g. 49,53 € instead of tax portion 7,91 €)
-                    return float(amounts[-1].replace('.', '').replace(',', '.'))
-                except:
-                    pass
+                val = parse_german_amount(amounts[-1])
+                if val is not None:
+                    return val
 
-    # Priority 2: Explicit total premium line with tax e.g. "Beitrag (inklusive Versicherungsteuer) 43,40 €"
-    m1 = re.search(r'(?i)beitrag\s*\([^)]*inklusive[^)]*\)\s*[:\s]*(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s*(?:€|EUR)', text)
+    # Priority 3: Explicit total premium line with tax
+    m1 = re.search(r'(?i)beitrag\s*\([^)]*inklusive[^)]*\)\s*[:\s]*(\d{1,3}(?:\.\d{3})*(?:,\d{2})?\s*-?)\s*(?:€|EUR)', text)
     if m1:
-        try:
-            return float(m1.group(1).replace('.', '').replace(',', '.'))
-        except:
-            pass
+        val = parse_german_amount(m1.group(1))
+        if val is not None:
+            return val
 
-    # Priority 3: "Gesamtbeitrag" or "Zahlbeitrag" or "Beitrag (inkl"
-    m2 = re.search(r'(?i)(?:gesamtbeitrag|zahlbeitrag|beitrag\s*inkl\.?\s*steuer)\s*[:\s]*(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s*(?:€|EUR)', text)
+    m2 = re.search(r'(?i)(?:gesamtbeitrag|zahlbeitrag|beitrag\s*inkl\.?\s*steuer)\s*[:\s]*(\d{1,3}(?:\.\d{3})*(?:,\d{2})?\s*-?)\s*(?:€|EUR)', text)
     if m2:
-        try:
-            return float(m2.group(1).replace('.', '').replace(',', '.'))
-        except:
-            pass
+        val = parse_german_amount(m2.group(1))
+        if val is not None:
+            return val
 
-    # Priority 4: Single-line search excluding net/without tax lines or partial subtotal lines
+    # Priority 4: Single line scan for premium or credit
     for line in text.split('\n'):
-        if re.search(r'(?i)selbstbeteiligung|selbstbehalt|guthaben|erstatten|ohne versicherungsteuer|kfz\-haftpflicht|teilkasko|vollkasko', line):
+        if re.search(r'(?i)selbstbeteiligung|selbstbehalt|ohne versicherungsteuer|kfz\-haftpflicht|teilkasko|vollkasko', line):
             continue
-        m = re.search(r'(?i)(?:beitrag|prämie)\s*[:\s]*(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s*(?:€|EUR)', line)
+        m = re.search(r'(?i)(?:beitrag|prämie|erstattung|guthaben|gutschrift)\s*[:\s]*(\d{1,3}(?:\.\d{3})*(?:,\d{2})?\s*-?)\s*(?:€|EUR)', line)
         if m:
-            try:
-                return float(m.group(1).replace('.', '').replace(',', '.'))
-            except:
-                pass
+            val = parse_german_amount(m.group(1))
+            if val is not None:
+                return val
 
-    # Priority 5: Scan lines ignoring sub-items, tax-free or partial items
-    lines = text.split('\n')
+    # Priority 5: Fallback scan lines for any valid amount
     valid_costs = []
-    for line in lines:
-        if re.search(r'(?i)(selbstbeteiligung|selbstbehalt|guthaben|erstatten|pauschal|deckungssumme|umweltschadensgesetz|personenschäden|ohne versicherungsteuer|kfz\-haftpflicht|teilkasko|vollkasko)', line):
+    for line in text.split('\n'):
+        if re.search(r'(?i)(selbstbeteiligung|selbstbehalt|pauschal|deckungssumme|umweltschadensgesetz|personenschäden|ohne versicherungsteuer)', line):
             continue
-        m = re.search(r'(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s*(?:€|EUR|Euro)', line)
+        m = re.search(r'(\d{1,3}(?:\.\d{3})*(?:,\d{2})?\s*-?)\s*(?:€|EUR|Euro)', line)
         if m:
-            try:
-                val = float(m.group(1).replace('.', '').replace(',', '.'))
-                if 5.0 <= val <= 5000.0:
-                    valid_costs.append(val)
-            except:
-                pass
+            val = parse_german_amount(m.group(1))
+            if val is not None and abs(val) >= 0.01:
+                valid_costs.append(val)
 
     if valid_costs:
         return valid_costs[0]

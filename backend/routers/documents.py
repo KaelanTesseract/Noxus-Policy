@@ -111,7 +111,7 @@ def create_document(
         db_doc.ai_data = json.dumps(extracted)
 
         new_c = extracted.get("new_cost") or extracted.get("cost") or db_insurance.cost
-        if new_c and float(new_c) > 0:
+        if new_c is not None:
             import datetime
             from routers.insurances import record_premium_history_entry
             eff_d = extracted.get("start_date") or extracted.get("document_date") or db_insurance.start_date or datetime.date.today()
@@ -183,7 +183,7 @@ def reanalyze_document(
 
         # Auto-create PremiumHistory for extracted cost & corresponding period
         new_c = extracted.get("new_cost") or extracted.get("cost")
-        if new_c and new_c > 0:
+        if new_c is not None:
             import datetime
             from routers.insurances import record_premium_history_entry
             eff_d = extracted.get("start_date") or extracted.get("document_date") or datetime.date.today()

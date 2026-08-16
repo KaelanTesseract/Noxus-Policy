@@ -168,7 +168,7 @@ def assign_inbox_document(
         try:
             ai_info = json.loads(doc.ai_data) if isinstance(doc.ai_data, str) else doc.ai_data
             cost_val = ai_info.get("new_cost") or ai_info.get("cost")
-            if cost_val and float(cost_val) > 0:
+            if cost_val is not None:
                 eff_date_str = ai_info.get("start_date") or ai_info.get("document_date")
                 eff_date = datetime.datetime.strptime(eff_date_str, "%Y-%m-%d").date() if eff_date_str else None
                 from routers.insurances import record_premium_history_entry

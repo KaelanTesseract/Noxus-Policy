@@ -46,7 +46,7 @@ def record_premium_history_entry(
     effective_date: Optional[datetime.date] = None,
     note: str = "Beitragsanpassung"
 ):
-    if not cost or cost <= 0:
+    if cost is None:
         return None
 
     eff_date = effective_date or datetime.date.today()
