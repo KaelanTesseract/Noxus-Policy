@@ -144,6 +144,8 @@ class ExtractionResult(BaseModel):
     category: Optional[str] = None
     doc_type: Optional[str] = None
     suggested_title: Optional[str] = None
+    subject: Optional[str] = None
+    document_title: Optional[str] = None
     cost: Optional[float] = None
     payment_cycle: Optional[str] = "monatlich"
     start_date: Optional[date] = None

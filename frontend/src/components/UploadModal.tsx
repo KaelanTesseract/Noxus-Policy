@@ -110,7 +110,8 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
       setProgressText("Analyse abgeschlossen!");
       setExtractedData(data);
       
-      const suggestedName = data.suggested_title || selectedFile.name.replace(/\.[^/.]+$/, "");
+      const cleanFileName = selectedFile.name.replace(/\.[^/.]+$/, "");
+      const suggestedName = data.subject || data.document_title || data.suggested_title || cleanFileName;
       setCustomDocName(suggestedName);
       setDocType(data.doc_type || "Versicherungsschein / Polizze");
 

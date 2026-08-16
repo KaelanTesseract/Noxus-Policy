@@ -211,13 +211,19 @@ def extract_with_mini_ai(text: str) -> dict:
             if parsed.get("new_cost") is not None: new_cost = float(parsed.get("new_cost"))
         except: pass
 
-        print(f"[Mini-AI] Successfully extracted data with Qwen2.5-1.5B: Company='{company}', Policy='{ins_num}', Start='{s_date}', End='{e_date}', Canc='{c_date}', SF='{sf_class}'")
+        subject = str(parsed.get("subject", "") or parsed.get("document_title", "")).strip() or None
+        if not subject:
+            subject = extract_subject_fallback(text)
+
+        print(f"[Mini-AI] Successfully extracted data with Qwen2.5-1.5B: Company='{company}', Policy='{ins_num}', Subject='{subject}', Start='{s_date}', End='{e_date}'")
         return {
             "company": company,
             "insurance_number": ins_num,
             "category": category,
             "doc_type": ins_type,
-            "suggested_title": f"{company or ins_type} - {ins_num or 'Polizze'}",
+            "subject": subject,
+            "document_title": subject,
+            "suggested_title": subject or (f"{company or ins_type} - {ins_num or 'Polizze'}"),
             "cost": final_cost,
             "payment_cycle": payment_cycle,
             "start_date": s_date,
@@ -252,6 +258,26 @@ def is_invalid_policy_num(candidate: str) -> bool:
     if re.search(r'vers\.st|ust|iban|bic|hrb|amtsgericht|kraftfahrtversicherung|haftpflichtversicherung|rechtschutz', s):
         return True
     return False
+
+def extract_subject_fallback(text: str) -> str:
+    if not text:
+        return None
+
+    # 1. Direct regex match for "Betreff: ..." or "Betr.: ..."
+    match = re.search(r'(?i)(?:betreff|betr\.)\s*[:\s]*([^\n]{4,90})', text)
+    if match:
+        subj = match.group(1).strip()
+        if len(subj) >= 4 and not subj.lower().startswith(('sehr geehrte', 'hallo', 'dame', 'herr', 'ihre', 'unsere')):
+            return subj
+
+    # 2. Prominent document header lines in top 20 lines
+    for line in text.split('\n')[:20]:
+        clean_line = line.strip()
+        if re.search(r'(?i)^(beitragsanpassung|beitragserhöhung|versicherungsschein|polizze|nachtrag\s+zur|nachtrag|kündigungsbestätigung|jahresabrechnung|schadensmeldung|versicherungsinformation|rechnung)\b', clean_line):
+            if 4 <= len(clean_line) <= 90:
+                return clean_line
+
+    return None
 
 def extract_policy_number_fallback(text: str, current_num: str = None) -> str:
     # 1. Direct pattern like LJ-12345678-001 or 123/456789-A or VSN-999999 (High precision)
@@ -542,10 +568,13 @@ def extract_insurance_data_regex(text: str) -> dict:
         data["category"] = "Sonstige"
         data["doc_type"] = "Versicherung"
 
-    # Suggested Title
+    # Suggested Title & Subject (Betreff)
+    subj = extract_subject_fallback(text)
+    data["subject"] = subj
+    data["document_title"] = subj
     comp_str = data["company"] or "Unbekannt"
     num_str = f"({data['insurance_number']})" if data["insurance_number"] else ""
-    data["suggested_title"] = f"{comp_str} {data['doc_type']} {num_str}".strip()
+    data["suggested_title"] = subj or f"{comp_str} {data['doc_type']} {num_str}".strip()
 
     # 4. Cost / Premium
     data["cost"] = extract_cost_fallback(text)

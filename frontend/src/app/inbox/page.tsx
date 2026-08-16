@@ -128,8 +128,16 @@ export default function InboxPage() {
   const openAssignModal = (doc: any) => {
     setAssignDoc(doc);
     setSelectedInsuranceId(insurances[0]?.id ? String(insurances[0].id) : "");
-    setCustomName(doc.custom_name || doc.original_filename || "");
-    setDocType("Police");
+    let aiData: any = {};
+    if (doc.ai_data) {
+      try {
+        aiData = typeof doc.ai_data === "string" ? JSON.parse(doc.ai_data) : doc.ai_data;
+      } catch (_) {}
+    }
+    const cleanFilename = (doc.original_filename || doc.filename || "").replace(/\.[^/.]+$/, "");
+    const suggestedName = aiData.subject || aiData.document_title || doc.custom_name || cleanFilename;
+    setCustomName(suggestedName);
+    setDocType(aiData.doc_type || "Police");
   };
 
   const handleAssignSubmit = async () => {
