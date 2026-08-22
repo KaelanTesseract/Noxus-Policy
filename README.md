@@ -13,14 +13,33 @@
 <p align="center">
   <a href="#-proxmox-ve--linux-1-klick-installation"><img src="https://img.shields.io/badge/Proxmox_VE-Helper_Script-orange.svg?style=for-the-badge&logo=proxmox" alt="Proxmox Script"></a>
   <a href="#-tech-stack"><img src="https://img.shields.io/badge/Docker-Ready-2496ED.svg?style=for-the-badge&logo=docker" alt="Docker"></a>
-  <a href="#-tech-stack"><img src="https://img.shields.io/badge/Next.js_16-v0.2.0--beta-black.svg?style=for-the-badge&logo=next.js" alt="Next.js"></a>
+  <a href="#-tech-stack"><img src="https://img.shields.io/badge/Next.js_16-v0.2.4--beta-black.svg?style=for-the-badge&logo=next.js" alt="Next.js"></a>
   <a href="#-tech-stack"><img src="https://img.shields.io/badge/FastAPI-Python-009688.svg?style=for-the-badge&logo=fastapi" alt="FastAPI"></a>
-  <a href="#-lokale-ki-engine-qwen25-15b"><img src="https://img.shields.io/badge/Local_AI-Qwen2.5_1.5B-purple.svg?style=for-the-badge" alt="Local AI"></a>
+  <a href="#-ki-gestützte-dokumentenanalyse--lernsystem"><img src="https://img.shields.io/badge/Local_AI-Qwen2.5_1.5B-purple.svg?style=for-the-badge" alt="Local AI"></a>
 </p>
 
 > [!WARNING]
 > **Hinweis zur KI- & OCR-Texterkennung (Aktive Testphase):**
 > Die automatische Texterkennung und Dokumentenanalyse befindet sich derzeit in einer **kontinuierlichen Erprobungs- & Testphase**. Je nach Qualität, Formatierung, Scan-Auflösung oder Layout der hochgeladenen PDF-Dokumente kann es vereinzelt zu Abweichungen oder Fehlern bei der Datenerkennung kommen. Bitte überprüfe ausgelesene Vertragsdaten, Kündigungsfristen und Beiträge stets sorgfältig auf ihre Richtigkeit.
+
+---
+
+## 📑 Inhaltsverzeichnis
+
+- [🔑 Standard Admin-Zugangsdaten](#-standard-admin-zugangsdaten-erst-login)
+- [🚀 Installation (Proxmox VE & Linux)](#-proxmox-ve--linux-1-klick-installation)
+- [🔄 Auto-Update](#-1-klick-auto-update-mit-live-ladebalken--auto-backup)
+- [✨ Hauptfunktionen](#-hauptfunktionen)
+  - [🔐 Sicherheit, Benutzer- & Zugriffsverwaltung](#-sicherheit-benutzer---zugriffsverwaltung)
+  - [🤖 KI-gestützte Dokumentenanalyse & Lernsystem](#-ki-gestützte-dokumentenanalyse--lernsystem)
+  - [🛡️ Datenschutz-Garantien beim Dokumenten-Upload](#️-datenschutz-garantien-beim-dokumenten-upload)
+  - [📈 Verträge, Kosten & Fristen im Blick](#-verträge-kosten--fristen-im-blick)
+  - [📊 Dashboard, Posteingang & Auswertung](#-dashboard-posteingang--auswertung)
+  - [🎨 Design & Nutzererlebnis](#-design--nutzererlebnis)
+  - [💾 Betrieb, Backup & Performance](#-betrieb-backup--performance)
+- [💻 Empfohlene Hardware-Ressourcen](#-empfohlene-hardware-ressourcen)
+- [🛠️ Tech Stack](#️-tech-stack)
+- [📝 Lizenz & Copyright](#-lizenz--copyright)
 
 ---
 
@@ -75,70 +94,52 @@ Das Skript erstellt **automatisch ein Vorab-Sicherheitsbackup** der Datenbank, f
 
 ## ✨ Hauptfunktionen
 
-### 👥 1. Benutzer- & Rollenverwaltung
-* **Erster Admin-Setup (`/admin-setup`):** Sichere Ersteinrichtung mit erzwungener Passwort-Änderung für den ersten Administrator.
-* **Benutzerregistrierung & Admin-Panel:** Admins können neue Benutzer anlegen, Passwörter zurücksetzen und Systemeinstellungen verwalten.
+### 🔐 Sicherheit, Benutzer- & Zugriffsverwaltung
+* **Sicherer Erst-Login (`/admin-setup`):** Erzwungene Passwort-Änderung für den ersten Administrator, danach reguläre JWT-Authentifizierung (7 Tage Gültigkeit, bcrypt-Passwort-Hashing).
+* **Rollen- & Benutzerverwaltung:** Admins legen Benutzer an, setzen Passwörter zurück und verwalten Systemeinstellungen zentral im Admin-Panel.
+* **Konsequente Zugriffskontrolle:** Jeder Dokumenten- und Versicherungs-Endpunkt prüft die Eigentümerschaft (`owner_id`) — kein Zugriff auf fremde Unterlagen, auch nicht über direkt aufgerufene Links.
 * **Automatische Session-Abmeldung (`/session-expired`):** Läuft eine Sitzung ab (401 Unauthorized), wird der Nutzer automatisch zum Login zurückgeführt.
+* **Passwort-Reset per E-Mail:** Selbstständiger Passwort-Reset über einen admin-konfigurierbaren SMTP-Server; alternativ kann ein Administrator die Reset-Mail direkt aus der Benutzerverwaltung auslösen.
 
-### 🤖 2. Anonymisiertes Hybrides KI-Lern-System & Vendor-Pattern-Mining
-* **100% Datenschutz (ZERO PII Leak):** Ein unumstößlicher Anonymisierer (`sanitizer.py`) entfernt vor dem Lernprozess ausnahmslos alle Namen, Anschriften, Versicherungsnummern, IBANs, Kennzeichen und Telefonnummern.
-* **AES-256 Verschlüsselung (`vendor_patterns.enc`):** Gelernte Layout-Muster von Versicherungsgesellschaften (*Itzehoer*, *HUK24*, *Allianz*, *DEVK*, *AXA*, *ERGO* etc.) werden lokal und auf GitHub vollständig verschlüsselt gespeichert.
-* **Bi-Direktionale 2-Wege-Synchronisierung:** Das Backend führt täglich und bei jedem Start im Hintergrund einen 2-Wege-Sync durch – lädt neueste Community-Muster herunter und lädt lokal neu gelernte Muster verschlüsselt hoch.
+### 🤖 KI-gestützte Dokumentenanalyse & Lernsystem
+* **Lokale KI-Engine (Qwen2.5-1.5B via llama.cpp):** 100 % lokale Extraktion von Gesellschaft, Policennummer, Fristen, KFZ-Klassen, Beiträgen & Deckungsbausteinen — vertrauliche Dokumente verlassen den Server nicht.
+* **Dual-Engine OCR:** Umschaltbar zwischen lokaler KI und einer schnellen, klassischen Regex-/Keyword-Erkennung als Fallback, inklusive `pytesseract`-Bildtexterkennung für gescannte PDFs.
+* **Eine Analyse statt zwei:** Dokumentenvorschau und -speicherung teilen sich dasselbe Analyseergebnis — der frühere doppelte KI-/OCR-Durchlauf pro Upload entfällt.
+* **Anonymisiertes Vendor-Pattern-Lernsystem:** Ein Sanitizer (`sanitizer.py`) entfernt vor jedem Lernschritt ausnahmslos Namen, Adressen, IBANs, Policennummern, Kennzeichen und Telefonnummern (Zero-PII-Leak).
+* **Community-Musterabgleich per Pull Request:** Standardmäßig **deaktiviert** und pro Instanz vom Administrator aktivierbar (inkl. eigenem GitHub-Token in den Einstellungen). Statt Änderungen automatisch zu veröffentlichen, öffnet bzw. aktualisiert das Backend einen Pull Request — Muster-Updates werden erst nach Review übernommen. Die gelernten, anonymisierten Layout-Muster werden dabei zusätzlich obfuskiert (Base64/XOR) abgelegt.
 
-### 🛡️ 3. Namensschutz & Ruhendstellungs-Garantie
-* **Titel-Schutz:** Dokumenten-Uploads überschreiben ab sofort niemals mehr den Namen bestehender Versicherungs-Policen.
-* **Status-Erhalt (`is_suspended`):** Der Ruhendstellungs-Status (*Vertrag ruht / beitragsfrei*) sowie der Ruhendstellungsgrund bleiben bei neuen Dokumenten-Uploads fest erhalten und können nur manuell geändert werden.
+### 🛡️ Datenschutz-Garantien beim Dokumenten-Upload
+* **Namensschutz:** Neue Dokumenten-Uploads überschreiben niemals den Namen einer bestehenden Police.
+* **Ruhendstellungs-Garantie:** Der Ruhend-Status (`is_suspended`) und der hinterlegte Grund bleiben bei neuen Uploads unangetastet und lassen sich ausschließlich manuell ändern.
+* **Intelligente Informations-Kategorien:** Dokumente vom Typ *Sonstiges*, *Verbraucherinformationen* oder *Kundeninformationen* werden ausschließlich archiviert, ohne Vertragsdaten oder Beiträge zu überschreiben.
 
-### 📄 4. Intelligente Informations-Kategorien
-* **Kein Daten-Überschreiben:** Dokumententypen wie *Sonstiges*, *Verbraucherinformationen* oder *Kundeninformationen* aktualisieren keine Vertragsdaten oder Beiträge der Versicherung, sondern werden rein als Dokument archiviert.
+### 📈 Verträge, Kosten & Fristen im Blick
+* **Beitragsanpassungs-Tracker:** Liest Preisanpassungen automatisch aus Beitragsrechnungen aus und visualisiert die Entwicklung über die Jahre in einem Balkendiagramm mit prozentualen Trend-Badges (z. B. `📈 +12,5 %`).
+* **KFZ-Sondertarifklassen:** Automatische Erkennung und Anzeige von Schadenfreiheitsklasse (SF-Klasse), Regionalklasse und Typklasse.
+* **Ruhendstellung & Beitragsfreistellung:** Verträge lassen sich pausieren; ruhende Verträge fließen automatisch mit 0 € in die Jahresausgaben ein und werden als `⏸️ Ruhend (0 €)` markiert.
+* **Sonderkündigungsrechts-Assistent:** Erstellt rechtlich fundierte, druckfertige Kündigungsschreiben (ordentliche Kündigung § 11 VVG, Sonderkündigung wegen Beitragserhöhung § 40 VVG, nach Schadensfall § 92 VVG oder Risikowegfall § 80 VVG) inklusive SEPA-Widerruf und DSGVO-Löschklausel.
+* **Live-Kalender (WebCal) & iCal-Export:** Einmalige Einbindung in Apple-, Google- oder Outlook-Kalender mit automatischen 14- und 7-Tage-Erinnerungen; zusätzlich 1-Klick-`.ics`-Downloads für die Offline-Nutzung.
+* **E-Mail-Erinnerungen vor Fristablauf:** Ist ein SMTP-Server hinterlegt, verschickt das System täglich automatisch Erinnerungsmails an Nutzer, die dies in ihrem Profil aktiviert haben — unabhängig vom WebCal-Kanal, der auch ohne SMTP-Konfiguration funktioniert.
+* **Steuererklärungs- & Haushalts-PDF-Export:** Klassifizierung nach § 10 / § 9 EStG, automatische Jahressummen-Berechnung sowie CSV-Export (WISO / Elster / Excel).
 
-### 📈 5. Beitragsanpassungs-Tracker & Preis-Historie
-* **Automatische KI-/OCR-Erkennung:** Liest Preisanpassungen aus Beitragsrechnungen automatisch aus.
-* **Interaktives SVG-Balkendiagramm:** Visualisiert die Preisentwicklung über die Jahre mit prozentualen Trend-Badges (z. B. `📈 +12.5%` Erhöhung oder `📉 -5.0%` Senkung).
+### 📊 Dashboard, Posteingang & Auswertung
+* **Live-Kennzahlen-Kacheln:** Aktive Policen, Gesamtkosten pro Jahr, eine anklickbare Kündigungsfristen-Kachel (zeigt Anzahl & nächste fällige Frist der kommenden 90 Tage) sowie eine anklickbare Posteingang-Kachel mit der aktuellen Zahl noch nicht zugeordneter Dokumente.
+* **Posteingang (Inbox):** Zentrale Ablage für hochgeladene Dokumente vor der Zuordnung zu einer Police, inklusive KI-Analyse-Vorschlägen direkt im Posteingang.
+* **Visuelles Kosten-Diagramm:** Interaktive Aufschlüsselung der Jahresausgaben nach Versicherungssparte (Kfz, Privathaftpflicht, Hausrat, Rechtsschutz, …).
+* **Suche & Sortierung in Echtzeit:** Nach Name, Gesellschaft, Policennummer, Kosten, Kündigungsfrist oder Alphabet.
+* **Dynamische Tab-Navigation:** Übersichtliche Detailansicht je Police in 5 Tabs (`📋 Stammdaten & Leistungen`, `📈 Beitragsentwicklung`, `📄 Dokumente`, `💥 Schadensfälle`, `📝 Notizen & Memos`).
+* **Schadensfälle & Notizen:** Schadensfall-Tracker (Datum, Schadensnummer, Höhe in €, Status: *In Bearbeitung*, *Reguliert*, *Abgelehnt*) sowie freie Notizen/Memos je Vertrag.
 
-### 🚗 6. KFZ-Sondertarifklassen
-* **Tarifklassen-Erkennung:** Automatische Extraktion & Anzeige von **Schadenfreiheitsklasse (SF-Klasse)**, **Regionalklasse** und **Typklasse** in der Dashboard-Übersicht und Detailansicht mit monochromen SVG-Vektor-Icons.
+### 🎨 Design & Nutzererlebnis
+* **6 durchgestaltete Themes:** Dunkel Neon, Klassisch Business Hell, Skandinavisch Warm, Executive Slate, Mint Frisch, Cyberpunk — jedes mit einem eigens abgestimmten, dezenten Gradient-Hintergrund.
+* **Monochrome Vektor-Icons:** Schlanke, hochkontrastreiche Aktions-Icons (`Eye`, `RefreshCw`, `Pencil`, `Trash2`) und KFZ-Badges (`Car`, `MapPin`, `Shield`).
+* **Große, browserbreite Dokumentenvorschau:** PDF- und Bildvorschauen öffnen sich in einem großzügigen, authentifiziert geladenen Vorschaufenster.
+* **Spürbar kürzere Ladezeiten:** Dashboard und Detailseiten rendern sofort aus einem lokalen Zwischenspeicher und aktualisieren die Daten anschließend im Hintergrund (Stale-while-Revalidate) — merklich schneller nach dem Login und beim Öffnen einer Police.
 
-### ⏸️ 7. Ruhendstellung & Beitragsfreistellung
-* **Vertragspausierung:** Verträge können ruhend bzw. beitragsfrei gestellt werden (KFZ, Kranken, BU, Leben, Unfall, Rechtsschutz).
-* **0 € Berechnung:** Ruhende Verträge fließen automatisch mit 0 € in die aktiven Jahresausgaben ein und werden optisch als `⏸️ Ruhend (0 €)` markiert.
-
-### ✍️ 8. Sonderkündigungsrechts-Assistent & Generator
-* **Rechtlich fundierte Kündigungsschreiben:** Auswahl zwischen Ordentlicher Kündigung zum Vertragsende (§ 11 VVG), Sonderkündigung wegen Beitragserhöhung (§ 40 VVG), Sonderkündigung nach Schadensfall (§ 92 VVG) und Risikowegfall (§ 80 VVG).
-* **Automatischer DIN A4 PDF-Druck:** Erzeugt juristisch einwandfreie Kündigungsschreiben inkl. SEPA-Widerruf, Bestätigungsanforderung und DSGVO-Löschklauseln zum Drucken oder PDF-Speichern.
-
-### 📅 9. Live-Kalender-Abonnement (WebCal) & iCal-Export
-* **Live WebCal-Sync:** Einmalig per URL in Smartphone (Apple Kalender, Google Kalender, Outlook) einbinden – Kündigungsfristen aktualisieren sich von selbst mit 14d & 7d Push-Erinnerungen.
-* **Admin-Toggle & Server-Hinweise:** WebCal-Abonnement im Admin-Panel aktivierbar/deaktivierbar (inkl. Erreichbarkeitshinweisen für Nginx/Domain).
-* **1-Klick .ics-Downloads:** Einzel- und Gesamt-Download aller Kündigungsfristen als `.ics`-Datei für Offline-Nutzung.
-
-### 📑 10. Steuererklärungs- & Haushalts-PDF-Export
-* **Klassifizierung nach § 10 / § 9 EStG:** Automatisches Sortieren in absetzbare Vorsorgeaufwendungen, Werbungskosten und Sachversicherungen.
-* **Jahressummen-Berechnung & PDF-Druck:** 1-Klick-Generierung einer gebündelten Jahresübersicht für das Finanzamt oder den Steuerberater sowie CSV-Export (WISO / Elster / Excel).
-
-### 📑 11. Dynamische Tab-Navigation auf der Detailseite
-* **Strukturierte Vertragsansicht:** Aufteilung in 5 übersichtliche Tabs (`📋 Stammdaten & Leistungen`, `📈 Beitragsentwicklung`, `📄 Dokumente`, `💥 Schadensfälle`, `📝 Notizen & Memos`).
-
-### 💥 12. Schadensfälle- & Melde-Historie / Notizen & Memos
-* **Schadensfall-Tracker:** Erfasse Schadensfälle (Datum, Schadensnummer, Höhe in €, Status: *In Bearbeitung*, *Reguliert*, *Abgelehnt*).
-* **Notizen- & Memo-Funktion:** Hinterlege Freitext-Notizen zu jedem Vertrag (z. B. Selbstbeteiligung, Hotline, Ansprechpartner).
-
-### 🎨 13. 6 Design-Themen & monochrome Vektor-Icons
-* **6 Wunderschöne Themes:** Dunkel Neon, Klassisch Business Hell, Skandinavisch Warm, Executive Slate, Mint Frisch, Cyberpunk.
-* **Monochrome Vektor-Icons:** Schlanke, hochkontrastreiche Aktions-Buttons (`Eye`, `RefreshCw`, `Pencil`, `Trash2`) und KFZ-Badges (`Car`, `MapPin`, `Shield`).
-
-### 📊 14. Visuelles Kosten- & Sparten-Diagramm / Suche & Sortierung
-* **Interaktives Balkendiagramm:** Ausgaben nach Kategorie (Kfz, Privathaftpflicht, Hausrat, Rechtsschutz).
-* **Echtzeit-Suchleiste & Sortierung:** Suche nach Name, Gesellschaft oder Scheinnummer sowie Sortierung nach Kündigungsfrist, Kosten oder Alphabet.
-
-### 🤖 15. Lokale KI-Engine (Qwen2.5-1.5B via Llama-cpp)
-* **100% Lokal & Privat:** Kein Versenden vertraulicher Versicherungsdokumente an externe Cloud-APIs.
-* **Intelligente Datensatz-Erkennung:** Extraktion von Gesellschaft, Polizzen-Nummer, Fristen, KFZ-Klassen, Beiträgen & Deckungsbausteinen.
-* **Dual-Engine OCR:** Umschaltbar zwischen lokaler KI und superschneller klassischer OCR-Erkennung.
-
-### 💾 16. Auto-Backup & Wiederherstellungs-System mit Auto-Cleanup
-* **Vorab-Sicherheitsbackup:** Automatische Datenbank-Sicherung bei jedem `update` im Ordner `/opt/versicherungsmanager/backups/`.
-* **Automatische Rotation:** Behält automatisch die 5 neuesten Update-Backups und löscht ältere Sicherungen zur Schonung des Festplattenspeichers.
+### 💾 Betrieb, Backup & Performance
+* **Verschlüsselte Backups mit Rotation:** Passwortbasiert verschlüsselte (Fernet/AES) Archive aus Datenbank und Dokumenten, automatisch bei jedem `update` sowie nach konfigurierbarem Zeitplan; ältere Backups werden nach Anzahl/Alter automatisch rotiert.
+* **Optimierte Datenbankzugriffe:** Indizes auf allen Fremdschlüsseln sowie Eager-Loading (`selectinload`) vermeiden N+1-Abfragen auf stark frequentierten Endpunkten.
+* **Schlankes Docker-Image:** Mehrstufiger Docker-Build — die Build-Werkzeuge zur Kompilierung der KI-Engine landen nicht im laufenden Produktions-Image.
 
 ---
 
@@ -156,7 +157,7 @@ Das Skript erstellt **automatisch ein Vorab-Sicherheitsbackup** der Datenbank, f
 
 * **Frontend:** Next.js 16 (App Router, Turbopack), React 19, TailwindCSS, Lucide Icons.
 * **Backend:** Python 3.11, FastAPI, SQLAlchemy (SQLite3), PyPDF, Llama-cpp-python.
-* **Deployment:** Docker, Docker Compose, Proxmox VE Helper Scripts (LXC).
+* **Deployment:** Docker (mehrstufiger Build), Docker Compose, Proxmox VE Helper Scripts (LXC).
 
 ---
 
