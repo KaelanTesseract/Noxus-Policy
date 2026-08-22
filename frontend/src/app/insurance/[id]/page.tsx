@@ -918,8 +918,13 @@ export default function InsuranceDetailPage() {
                             <span className="text-[11px] font-mono text-emerald-400 font-bold mb-1.5 opacity-90 group-hover:opacity-100">
                               {h.annual_cost.toFixed(0)}€
                             </span>
-                            <div className="w-full bg-zinc-800/80 rounded-t-lg relative overflow-hidden flex items-end" style={{ height: `${heightPct}%` }}>
-                              <div className="w-full h-full theme-bg-accent opacity-85 group-hover:opacity-100 transition-all rounded-t-lg shadow-md"></div>
+                            {/* Fixed-height frame so the percentage-height bar below has something
+                                definite to size against — a % height against an auto-height parent
+                                resolves to 0, which is why the bars used to be invisible. */}
+                            <div className="w-full h-32 flex items-end">
+                              <div className="w-full bg-zinc-800/80 rounded-t-lg relative overflow-hidden flex items-end" style={{ height: `${heightPct}%` }}>
+                                <div className="w-full h-full theme-bg-accent opacity-85 group-hover:opacity-100 transition-all rounded-t-lg shadow-md"></div>
+                              </div>
                             </div>
                             <span className="text-xs font-mono text-zinc-300 mt-2.5 truncate w-full text-center">
                               {dateLabel}
