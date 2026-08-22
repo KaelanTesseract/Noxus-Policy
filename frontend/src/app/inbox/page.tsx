@@ -450,7 +450,7 @@ export default function InboxPage() {
         {/* Modal: Preview Document */}
         {previewDoc && (
           <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-[95vw] max-w-[1600px] h-[92vh] flex flex-col overflow-hidden">
               <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
                 <h3 className="font-bold text-sm sm:text-base text-zinc-100">
                   {previewDoc.original_filename}
@@ -463,7 +463,7 @@ export default function InboxPage() {
                 ) : previewDocUrl ? (
                   <iframe
                     src={previewDocUrl}
-                    className="w-full h-[70vh] rounded-xl border border-zinc-800"
+                    className="w-full h-full rounded-xl border border-zinc-800"
                   />
                 ) : (
                   <p className="text-sm text-zinc-500">Dokument wird geladen...</p>

@@ -1321,7 +1321,7 @@ export default function InsuranceDetailPage() {
       {/* Document View Modal */}
       {viewingDoc && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-[95vw] max-w-[1600px] h-[92vh] flex flex-col shadow-2xl overflow-hidden">
             <div className="p-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/50">
               <div>
                 <h3 className="text-sm font-bold text-white">{viewingDoc.custom_name || viewingDoc.original_filename}</h3>
@@ -1329,13 +1329,13 @@ export default function InsuranceDetailPage() {
               </div>
               <Button variant="ghost" onClick={() => setViewingDoc(null)} className="text-zinc-400 hover:text-white h-8 w-8 p-0">✕</Button>
             </div>
-            <div className="flex-1 p-2 bg-zinc-950 overflow-auto min-h-[500px] flex items-center justify-center">
+            <div className="flex-1 p-2 bg-zinc-950 overflow-auto flex items-center justify-center">
               {viewingDocError ? (
                 <p className="text-sm text-red-400">{viewingDocError}</p>
               ) : viewingDocUrl ? (
                 <iframe
                   src={viewingDocUrl}
-                  className="w-full h-full min-h-[500px] border-0 rounded-lg"
+                  className="w-full h-full border-0 rounded-lg"
                   title="Dokument-Vorschau"
                 />
               ) : (
