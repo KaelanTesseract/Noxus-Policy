@@ -10,16 +10,32 @@ try:
     import httpx
 except ImportError:
     import urllib.request
+    import json as _json
     class SimpleHttpX:
-        def get(self, url, timeout=10.0):
-            req = urllib.request.urlopen(url, timeout=timeout)
-            txt = req.read().decode('utf-8')
+        def _request(self, method, url, params=None, headers=None, json=None, timeout=10.0):
+            if params:
+                from urllib.parse import urlencode
+                url = f"{url}?{urlencode(params)}"
+            data = _json.dumps(json).encode('utf-8') if json is not None else None
+            req = urllib.request.Request(url, data=data, headers=headers or {}, method=method)
+            resp = urllib.request.urlopen(req, timeout=timeout)
+            txt = resp.read().decode('utf-8')
             class Resp:
-                status_code = 200
+                status_code = resp.status
                 text = txt
+                def json(self):
+                    return _json.loads(txt)
             return Resp()
+
+        def get(self, url, params=None, headers=None, timeout=10.0):
+            return self._request("GET", url, params=params, headers=headers, timeout=timeout)
+
+        def post(self, url, headers=None, json=None, timeout=10.0):
+            return self._request("POST", url, headers=headers, json=json, timeout=timeout)
     httpx = SimpleHttpX()
 import subprocess
+import tempfile
+import shutil
 import threading
 import time
 
@@ -33,9 +49,18 @@ ENC_FILE = os.path.join(DATA_DIR, "vendor_patterns.enc")
 JSON_LEGACY_FILE = os.path.join(DATA_DIR, "vendor_patterns.json")
 
 APP_CIPHER_KEY = "NOXUS_POLICY_AES256_COMMUNITY_KEY_V1_2026"
-GITHUB_RAW_URL = "https://raw.githubusercontent.com/KaelanTesseract/Noxus-Policy/main/backend/data/vendor_patterns.enc"
+GITHUB_REPO = "KaelanTesseract/Noxus-Policy"
+GITHUB_RAW_URL = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/backend/data/vendor_patterns.enc"
+PATTERN_SYNC_BRANCH = "auto/pattern-sync"
 
 _last_sync_timestamp = 0
+
+def get_learning_setting(db, key: str, default_val: str = "") -> str:
+    import models
+    setting = db.query(models.SystemSetting).filter(models.SystemSetting.key == key).first()
+    if setting and setting.value is not None:
+        return setting.value
+    return default_val
 
 def _xor_cipher(data: bytes, key: str) -> bytes:
     key_bytes = hashlib.sha256(key.encode('utf-8')).digest()
@@ -187,15 +212,113 @@ def get_learned_patterns_for_company(company_name: str) -> dict:
     vendors = db.get("vendors", {})
     return vendors.get(v_key, {}).get("patterns", {})
 
+def _open_or_update_pattern_pr(repo_root: str, github_token: str):
+    """
+    Publishes locally learned patterns on a dedicated branch (never on main) and opens
+    a Pull Request for human review instead of pushing directly. Safe to call repeatedly:
+    it force-updates the same branch and only opens a new PR if none is open yet.
+    """
+    worktree_dir = tempfile.mkdtemp(prefix="noxus-pattern-sync-")
+    try:
+        subprocess.run(
+            ["git", "fetch", "origin", "main"],
+            cwd=repo_root, capture_output=True, text=True
+        )
+        add_res = subprocess.run(
+            ["git", "worktree", "add", "-B", PATTERN_SYNC_BRANCH, worktree_dir, "origin/main"],
+            cwd=repo_root, capture_output=True, text=True
+        )
+        if add_res.returncode != 0:
+            print(f"[LearningEngine] Outbound Sync: could not prepare sync branch: {add_res.stderr}")
+            return
+
+        shutil.copy2(
+            os.path.join(repo_root, "backend", "data", "vendor_patterns.enc"),
+            os.path.join(worktree_dir, "backend", "data", "vendor_patterns.enc")
+        )
+
+        subprocess.run(["git", "add", "backend/data/vendor_patterns.enc"], cwd=worktree_dir, capture_output=True, text=True)
+        commit_res = subprocess.run(
+            ["git", "commit", "-m", "auto: Daily bi-directional pattern sync [v0.2.0-beta]"],
+            cwd=worktree_dir, capture_output=True, text=True
+        )
+        if commit_res.returncode != 0:
+            print("[LearningEngine] Outbound Sync: no new pattern changes to publish.")
+            return
+
+        # Token is passed only as a one-off header for this command, never written to git config.
+        push_res = subprocess.run(
+            ["git", "-c", f"http.extraheader=AUTHORIZATION: bearer {github_token}",
+             "push", "origin", PATTERN_SYNC_BRANCH, "--force"],
+            cwd=worktree_dir, capture_output=True, text=True
+        )
+        if push_res.returncode != 0:
+            print(f"[LearningEngine] Outbound Sync: push to sync branch failed: {push_res.stderr}")
+            return
+
+        print(f"[LearningEngine] Outbound Sync: published updated patterns to branch '{PATTERN_SYNC_BRANCH}'.")
+        _ensure_pull_request_open(github_token)
+    finally:
+        subprocess.run(["git", "worktree", "remove", "--force", worktree_dir], cwd=repo_root, capture_output=True, text=True)
+
+def _ensure_pull_request_open(github_token: str):
+    """Opens a PR for PATTERN_SYNC_BRANCH -> main if one isn't already open, via the GitHub API."""
+    headers = {
+        "Authorization": f"Bearer {github_token}",
+        "Accept": "application/vnd.github+json",
+    }
+    owner = GITHUB_REPO.split("/")[0]
+    try:
+        list_resp = httpx.get(
+            f"https://api.github.com/repos/{GITHUB_REPO}/pulls",
+            params={"head": f"{owner}:{PATTERN_SYNC_BRANCH}", "state": "open"},
+            headers=headers, timeout=10.0
+        )
+        if list_resp.status_code == 200 and list_resp.json():
+            print("[LearningEngine] Outbound Sync: existing pattern-sync Pull Request already open, branch updated.")
+            return
+
+        create_resp = httpx.post(
+            f"https://api.github.com/repos/{GITHUB_REPO}/pulls",
+            headers=headers,
+            json={
+                "title": "auto: Daily bi-directional pattern sync [v0.2.0-beta]",
+                "head": PATTERN_SYNC_BRANCH,
+                "base": "main",
+                "body": "Automatisch generierter Vorschlag mit aktualisierten, anonymisierten Vendor-Erkennungsmustern (ZERO PII). Bitte vor dem Mergen kurz prüfen.",
+            },
+            timeout=10.0
+        )
+        if create_resp.status_code in (200, 201):
+            print(f"[LearningEngine] Outbound Sync: opened Pull Request: {create_resp.json().get('html_url')}")
+        else:
+            print(f"[LearningEngine] Outbound Sync: failed to open Pull Request ({create_resp.status_code}): {create_resp.text}")
+    except Exception as e:
+        print(f"[LearningEngine] Outbound Sync: Pull Request API error: {e}")
+
 def sync_patterns_with_github(force_push: bool = False):
     """
-    Bi-directional 2-Way Sync Engine:
-    1. Pulls latest encrypted community patterns from GitHub.
+    Bi-directional pattern sync, disabled by default (opt-in via admin setting
+    'pattern_sync_enabled'):
+    1. Pulls latest encrypted community patterns from GitHub (read-only).
     2. Merges with local patterns.
-    3. Commits & pushes encrypted updates back to GitHub.
+    3. Publishes local updates on a dedicated branch and opens a Pull Request
+       for human review — never pushes directly to main.
     """
     global _last_sync_timestamp
-    print("[LearningEngine] Running bi-directional 2-way pattern sync with GitHub...")
+
+    from database import SessionLocal
+    db = SessionLocal()
+    try:
+        enabled = get_learning_setting(db, "pattern_sync_enabled", "false").lower() in ["true", "1", "yes"]
+        github_token = get_learning_setting(db, "pattern_sync_github_token", "").strip()
+    finally:
+        db.close()
+
+    if not enabled:
+        return
+
+    print("[LearningEngine] Running bi-directional pattern sync with GitHub (Pull-Request based)...")
 
     # Step 1: Inbound Pull (Fetch GitHub Remote Patterns)
     try:
@@ -210,18 +333,18 @@ def sync_patterns_with_github(force_push: bool = False):
     except Exception as e:
         print(f"[LearningEngine] Inbound Sync Notice (Offline/Skipped): {e}")
 
-    # Step 2: Outbound Push (Auto-Commit & Auto-Push local encrypted updates)
+    # Step 2: Outbound - publish via Pull Request instead of pushing to main directly
+    if not github_token:
+        print("[LearningEngine] Outbound Sync skipped: no GitHub token configured.")
+        return
+
     try:
         repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         if os.path.exists(os.path.join(repo_root, ".git")):
             cmd_check = "git status --porcelain backend/data/vendor_patterns.enc"
             res = subprocess.run(cmd_check, cwd=repo_root, shell=True, capture_output=True, text=True)
             if force_push or (res.returncode == 0 and "vendor_patterns.enc" in res.stdout):
-                print("[LearningEngine] Outbound Sync: Auto-committing and pushing updated encrypted patterns to GitHub...")
-                subprocess.run("git add backend/data/vendor_patterns.enc", cwd=repo_root, shell=True, check=True)
-                subprocess.run('git commit -m "auto: Daily bi-directional pattern sync [v0.2.0-beta]"', cwd=repo_root, shell=True)
-                subprocess.run("git push origin main", cwd=repo_root, shell=True)
-                print("[LearningEngine] Outbound Sync: Successfully pushed updated encrypted patterns to GitHub!")
+                _open_or_update_pattern_pr(repo_root, github_token)
     except Exception as e:
         print(f"[LearningEngine] Outbound Sync Notice: {e}")
 

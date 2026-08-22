@@ -45,6 +45,49 @@ def set_ai_config(
 
     return {"msg": f"KI-Dokumentenanalyse wurde {'aktiviert' if use_ai else 'deaktiviert (nur klassische OCR)'}!", "use_ai": use_ai}
 
+def _get_system_setting(db: Session, key: str, default_val: str = "") -> str:
+    setting = db.query(models.SystemSetting).filter(models.SystemSetting.key == key).first()
+    if setting and setting.value is not None:
+        return setting.value
+    return default_val
+
+def _set_system_setting(db: Session, key: str, value: str):
+    setting = db.query(models.SystemSetting).filter(models.SystemSetting.key == key).first()
+    if not setting:
+        setting = models.SystemSetting(key=key, value=value)
+        db.add(setting)
+    else:
+        setting.value = value
+
+@router.get("/pattern-sync-config")
+def get_pattern_sync_config(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Nur Administratoren dürfen diese Einstellung einsehen.")
+
+    enabled = _get_system_setting(db, "pattern_sync_enabled", "false").lower() in ["true", "1", "yes"]
+    token_configured = bool(_get_system_setting(db, "pattern_sync_github_token", "").strip())
+    return {"enabled": enabled, "token_configured": token_configured}
+
+@router.post("/pattern-sync-config")
+def set_pattern_sync_config(
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Nur Administratoren dürfen diese Einstellung ändern.")
+
+    if "enabled" in payload:
+        _set_system_setting(db, "pattern_sync_enabled", "true" if payload.get("enabled") else "false")
+    if payload.get("github_token") and str(payload["github_token"]).strip():
+        _set_system_setting(db, "pattern_sync_github_token", str(payload["github_token"]).strip())
+
+    db.commit()
+    return {"msg": "Einstellungen für den Muster-Sync per Pull Request gespeichert."}
+
 @router.post("/extract", response_model=schemas.ExtractionResult)
 def extract_document_data(
     file: UploadFile = File(...),

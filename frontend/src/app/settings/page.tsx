@@ -14,10 +14,10 @@ import { api } from "@/lib/api";
 import { useTheme, THEMES, STYLES } from "@/components/ThemeProvider";
 import { Navbar } from "@/components/Navbar";
 import { APP_VERSION } from "@/lib/version";
-import { 
-  RefreshCw, CheckCircle2, AlertCircle, Loader2, 
-  Settings, Wrench, Palette, Calendar, Cpu, Clock, 
-  Database, Mail, Users, ArrowLeft 
+import {
+  RefreshCw, CheckCircle2, AlertCircle, Loader2,
+  Settings, Wrench, Palette, Calendar, Cpu, Clock,
+  Database, Mail, Users, ArrowLeft, GitPullRequest
 } from "lucide-react";
 
 interface User {
@@ -114,6 +114,14 @@ export default function SettingsPage() {
   const [aiConfigMsg, setAiConfigMsg] = useState("");
   const [aiConfigErr, setAiConfigErr] = useState("");
   const [aiConfigSaving, setAiConfigSaving] = useState(false);
+
+  // Community pattern-sync (Pull Request based) admin state
+  const [patternSyncEnabled, setPatternSyncEnabled] = useState(false);
+  const [patternSyncTokenConfigured, setPatternSyncTokenConfigured] = useState(false);
+  const [patternSyncToken, setPatternSyncToken] = useState("");
+  const [patternSyncMsg, setPatternSyncMsg] = useState("");
+  const [patternSyncErr, setPatternSyncErr] = useState("");
+  const [patternSyncSaving, setPatternSyncSaving] = useState(false);
 
   // Admin actions notification
   const [adminMsg, setAdminMsg] = useState("");
@@ -233,6 +241,15 @@ export default function SettingsPage() {
           console.error("Error loading AI config:", aiErr);
         }
 
+        // Load community pattern-sync config
+        try {
+          const syncConfig = await api.get("/documents/pattern-sync-config");
+          setPatternSyncEnabled(!!syncConfig.enabled);
+          setPatternSyncTokenConfigured(!!syncConfig.token_configured);
+        } catch (syncErr) {
+          console.error("Error loading pattern-sync config:", syncErr);
+        }
+
         // Load SMTP Config
         try {
           const smtpConfig = await api.get("/users/smtp-config");
@@ -325,6 +342,29 @@ export default function SettingsPage() {
       setAiConfigErr(err.message || "Fehler beim Speichern der KI-Einstellungen.");
     } finally {
       setAiConfigSaving(false);
+    }
+  };
+
+  const handleSavePatternSyncConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPatternSyncMsg("");
+    setPatternSyncErr("");
+    setPatternSyncSaving(true);
+
+    try {
+      const res = await api.post("/documents/pattern-sync-config", {
+        enabled: patternSyncEnabled,
+        github_token: patternSyncToken || undefined
+      });
+      setPatternSyncMsg(res.msg || "Einstellungen gespeichert!");
+      if (patternSyncToken) {
+        setPatternSyncTokenConfigured(true);
+        setPatternSyncToken("");
+      }
+    } catch (err: any) {
+      setPatternSyncErr(err.message || "Fehler beim Speichern der Einstellungen.");
+    } finally {
+      setPatternSyncSaving(false);
     }
   };
 
@@ -1259,6 +1299,85 @@ export default function SettingsPage() {
                   <div className="flex justify-end pt-2 border-t border-zinc-800/80">
                     <Button type="submit" disabled={aiConfigSaving} className="theme-bg-accent text-white theme-glow text-xs font-medium">
                       {aiConfigSaving ? "Speichert..." : "KI-Einstellungen speichern"}
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+
+            {/* Community Pattern-Sync (Pull Request based) Settings Card */}
+            <Card className="border-zinc-800 bg-zinc-900/50 backdrop-blur-md shadow-xl">
+              <CardHeader>
+                <CardTitle className="text-xl font-semibold flex items-center gap-2">
+                  <GitPullRequest className="w-5 h-5 text-zinc-400" />
+                  <span>Community-Muster-Sync (Pull Request)</span>
+                </CardTitle>
+                <CardDescription className="mt-1">
+                  Teile lokal gelernte, anonymisierte Vendor-Erkennungsmuster mit der Community — als Pull Request zur Prüfung, niemals als direkter Push auf den Hauptzweig.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <form onSubmit={handleSavePatternSyncConfig} className="space-y-5">
+                  <div className="flex items-center space-x-3 p-4 rounded-xl bg-zinc-950/60 border border-zinc-800">
+                    <input
+                      type="checkbox"
+                      id="patternSyncEnabled"
+                      checked={patternSyncEnabled}
+                      onChange={e => setPatternSyncEnabled(e.target.checked)}
+                      className="w-5 h-5 rounded border-zinc-700 bg-zinc-900 text-purple-600 focus:ring-purple-500 accent-purple-600 cursor-pointer"
+                    />
+                    <Label htmlFor="patternSyncEnabled" className="text-sm font-semibold text-white cursor-pointer select-none">
+                      Muster-Sync per Pull Request aktivieren (standardmäßig deaktiviert)
+                    </Label>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="patternSyncToken" className="text-xs font-mono text-zinc-400">GitHub Personal Access Token</Label>
+                      <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold uppercase ${
+                        patternSyncTokenConfigured
+                          ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                          : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                      }`}>
+                        {patternSyncTokenConfigured ? "✓ Hinterlegt" : "Nicht konfiguriert"}
+                      </span>
+                    </div>
+                    <Input
+                      id="patternSyncToken"
+                      type="password"
+                      value={patternSyncToken}
+                      onChange={e => setPatternSyncToken(e.target.value)}
+                      placeholder={patternSyncTokenConfigured ? "Unverändert lassen, oder neuen Token eingeben" : "ghp_..."}
+                      className="bg-zinc-950/60 border-zinc-800 font-mono text-xs"
+                    />
+                    <p className="text-[11px] text-zinc-500">
+                      Feingranularer Token mit nur „Contents: Read & write" und „Pull requests: Read & write" auf dieses eine Repository. Der Token wird niemals wieder angezeigt.
+                    </p>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-amber-950/30 border border-amber-800/50 text-amber-200 space-y-1.5 text-xs leading-relaxed">
+                    <p className="text-zinc-300">
+                      Diese Funktion schreibt niemals direkt auf den Hauptzweig — sie veröffentlicht gelernte Muster auf einem eigenen Branch und öffnet dafür einen Pull Request, den ein Mensch prüfen und mergen muss.
+                    </p>
+                    <p className="text-amber-300/90 font-mono text-[11px]">
+                      💡 Für maximale Sicherheit zusätzlich im GitHub-Repo unter Branch-Schutzregeln „Require a pull request before merging" für den Hauptzweig aktivieren.
+                    </p>
+                  </div>
+
+                  {patternSyncMsg && (
+                    <div className="p-3 bg-emerald-950/50 border border-emerald-800 text-emerald-300 rounded-xl text-xs">
+                      {patternSyncMsg}
+                    </div>
+                  )}
+                  {patternSyncErr && (
+                    <div className="p-3 bg-red-950/50 border border-red-800 text-red-300 rounded-xl text-xs">
+                      {patternSyncErr}
+                    </div>
+                  )}
+
+                  <div className="flex justify-end pt-2 border-t border-zinc-800/80">
+                    <Button type="submit" disabled={patternSyncSaving} className="theme-bg-accent text-white theme-glow text-xs font-medium">
+                      {patternSyncSaving ? "Speichert..." : "Einstellungen speichern"}
                     </Button>
                   </div>
                 </form>
