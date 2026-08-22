@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { UploadModal } from "@/components/UploadModal";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { CancellationModal } from "@/components/CancellationModal";
-import { api } from "@/lib/api";
+import { api, getAuthHeaders } from "@/lib/api";
 import { Eye, RefreshCw, Pencil, Trash2, Car, MapPin, Shield } from "lucide-react";
 
 interface PremiumHistoryItem {
@@ -110,6 +110,37 @@ export default function InsuranceDetailPage() {
 
   // Document viewer modal state
   const [viewingDoc, setViewingDoc] = useState<DocumentItem | null>(null);
+  const [viewingDocUrl, setViewingDocUrl] = useState<string | null>(null);
+  const [viewingDocError, setViewingDocError] = useState("");
+
+  useEffect(() => {
+    if (!viewingDoc) {
+      setViewingDocUrl(null);
+      setViewingDocError("");
+      return;
+    }
+
+    let objectUrl: string | null = null;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch(`/api/documents/${viewingDoc.id}/view`, { headers: getAuthHeaders() });
+        if (!res.ok) throw new Error(`Fehler beim Laden des Dokuments (${res.status})`);
+        const blob = await res.blob();
+        if (cancelled) return;
+        objectUrl = window.URL.createObjectURL(blob);
+        setViewingDocUrl(objectUrl);
+      } catch (e: any) {
+        if (!cancelled) setViewingDocError(e.message || "Dokument konnte nicht geladen werden.");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) window.URL.revokeObjectURL(objectUrl);
+    };
+  }, [viewingDoc]);
 
   // Document edit state
   const [editingDoc, setEditingDoc] = useState<DocumentItem | null>(null);
@@ -1261,12 +1292,18 @@ export default function InsuranceDetailPage() {
               </div>
               <Button variant="ghost" onClick={() => setViewingDoc(null)} className="text-zinc-400 hover:text-white h-8 w-8 p-0">✕</Button>
             </div>
-            <div className="flex-1 p-2 bg-zinc-950 overflow-auto min-h-[500px]">
-              <iframe
-                src={`/api/documents/${viewingDoc.id}/view`}
-                className="w-full h-full min-h-[500px] border-0 rounded-lg"
-                title="Dokument-Vorschau"
-              />
+            <div className="flex-1 p-2 bg-zinc-950 overflow-auto min-h-[500px] flex items-center justify-center">
+              {viewingDocError ? (
+                <p className="text-sm text-red-400">{viewingDocError}</p>
+              ) : viewingDocUrl ? (
+                <iframe
+                  src={viewingDocUrl}
+                  className="w-full h-full min-h-[500px] border-0 rounded-lg"
+                  title="Dokument-Vorschau"
+                />
+              ) : (
+                <p className="text-sm text-zinc-500">Dokument wird geladen...</p>
+              )}
             </div>
           </div>
         </div>

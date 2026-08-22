@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { api } from "@/lib/api";
+import { api, getAuthHeaders } from "@/lib/api";
 
 export default function InboxPage() {
   const router = useRouter();
@@ -25,6 +25,8 @@ export default function InboxPage() {
 
   // Modals & Active selection
   const [previewDoc, setPreviewDoc] = useState<any>(null);
+  const [previewDocUrl, setPreviewDocUrl] = useState<string | null>(null);
+  const [previewDocError, setPreviewDocError] = useState("");
   const [assignDoc, setAssignDoc] = useState<any>(null);
   const [selectedInsuranceId, setSelectedInsuranceId] = useState<string>("");
   const [customName, setCustomName] = useState("");
@@ -81,6 +83,35 @@ export default function InboxPage() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
+
+  useEffect(() => {
+    if (!previewDoc) {
+      setPreviewDocUrl(null);
+      setPreviewDocError("");
+      return;
+    }
+
+    let objectUrl: string | null = null;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch(`/api/inbox/${previewDoc.id}/file`, { headers: getAuthHeaders() });
+        if (!res.ok) throw new Error(`Fehler beim Laden des Dokuments (${res.status})`);
+        const blob = await res.blob();
+        if (cancelled) return;
+        objectUrl = window.URL.createObjectURL(blob);
+        setPreviewDocUrl(objectUrl);
+      } catch (e: any) {
+        if (!cancelled) setPreviewDocError(e.message || "Dokument konnte nicht geladen werden.");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) window.URL.revokeObjectURL(objectUrl);
+    };
+  }, [previewDoc]);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -427,10 +458,16 @@ export default function InboxPage() {
                 <Button variant="ghost" size="sm" onClick={() => setPreviewDoc(null)}>✕</Button>
               </div>
               <div className="p-4 flex-1 overflow-auto bg-zinc-950 flex items-center justify-center">
-                <iframe
-                  src={`/api/inbox/${previewDoc.id}/file`}
-                  className="w-full h-[70vh] rounded-xl border border-zinc-800"
-                />
+                {previewDocError ? (
+                  <p className="text-sm text-red-400">{previewDocError}</p>
+                ) : previewDocUrl ? (
+                  <iframe
+                    src={previewDocUrl}
+                    className="w-full h-[70vh] rounded-xl border border-zinc-800"
+                  />
+                ) : (
+                  <p className="text-sm text-zinc-500">Dokument wird geladen...</p>
+                )}
               </div>
             </div>
           </div>
