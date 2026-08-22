@@ -225,7 +225,8 @@ html[data-style="classic-light"] .bg-zinc-900\/60,
 html[data-style="classic-light"] .bg-zinc-900\/50,
 html[data-style="classic-light"] .bg-zinc-900\/40,
 html[data-style="classic-light"] .bg-zinc-900,
-html[data-style="classic-light"] [class*="bg-zinc-9"] {
+html[data-style="classic-light"] [class*="bg-zinc-9"],
+html[data-style="classic-light"] [class*="bg-zinc-8"] {
   background-color: #ffffff !important;
   color: #0f172a !important;
   border-color: #cbd5e1 !important;
@@ -264,6 +265,97 @@ html[data-style="classic-light"] .app-ambient-bg {
   animation: none;
 }
 
+/* ==========================================================================
+   LIGHT THEME LEGIBILITY FIXES (classic-light / nordic-warm / mint-light)
+   The rest of the app was designed for a dark background: gradient headings
+   use a near-white gradient clipped to the text, and status badges/buttons
+   use "dark-950 background + light-200/300 text" combinations. Both are
+   unreadable once the page background flips to white/cream — fix both
+   generically so it applies wherever these patterns are used, without
+   having to touch each page individually.
+   ========================================================================== */
+html[data-style="classic-light"] .text-transparent,
+html[data-style="nordic-warm"] .text-transparent,
+html[data-style="mint-light"] .text-transparent {
+  background-image: none !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+html[data-style="classic-light"] .text-transparent { color: #0f172a !important; }
+html[data-style="nordic-warm"] .text-transparent { color: #1c1917 !important; }
+html[data-style="mint-light"] .text-transparent { color: #064e3b !important; }
+
+html[data-style="classic-light"] [class*="bg-indigo-950"], html[data-style="nordic-warm"] [class*="bg-indigo-950"], html[data-style="mint-light"] [class*="bg-indigo-950"] { background-color: #eef2ff !important; }
+html[data-style="classic-light"] [class*="text-indigo-200"], html[data-style="classic-light"] [class*="text-indigo-300"],
+html[data-style="nordic-warm"] [class*="text-indigo-200"], html[data-style="nordic-warm"] [class*="text-indigo-300"],
+html[data-style="mint-light"] [class*="text-indigo-200"], html[data-style="mint-light"] [class*="text-indigo-300"] { color: #3730a3 !important; }
+html[data-style="classic-light"] [class*="border-indigo-800"], html[data-style="classic-light"] [class*="border-indigo-900"],
+html[data-style="nordic-warm"] [class*="border-indigo-800"], html[data-style="nordic-warm"] [class*="border-indigo-900"],
+html[data-style="mint-light"] [class*="border-indigo-800"], html[data-style="mint-light"] [class*="border-indigo-900"] { border-color: #c7d2fe !important; }
+
+html[data-style="classic-light"] [class*="bg-sky-950"], html[data-style="nordic-warm"] [class*="bg-sky-950"], html[data-style="mint-light"] [class*="bg-sky-950"] { background-color: #f0f9ff !important; }
+html[data-style="classic-light"] [class*="text-sky-200"], html[data-style="classic-light"] [class*="text-sky-300"],
+html[data-style="nordic-warm"] [class*="text-sky-200"], html[data-style="nordic-warm"] [class*="text-sky-300"],
+html[data-style="mint-light"] [class*="text-sky-200"], html[data-style="mint-light"] [class*="text-sky-300"] { color: #0369a1 !important; }
+html[data-style="classic-light"] [class*="border-sky-800"], html[data-style="classic-light"] [class*="border-sky-900"],
+html[data-style="nordic-warm"] [class*="border-sky-800"], html[data-style="nordic-warm"] [class*="border-sky-900"],
+html[data-style="mint-light"] [class*="border-sky-800"], html[data-style="mint-light"] [class*="border-sky-900"] { border-color: #bae6fd !important; }
+
+html[data-style="classic-light"] [class*="bg-amber-950"], html[data-style="nordic-warm"] [class*="bg-amber-950"], html[data-style="mint-light"] [class*="bg-amber-950"] { background-color: #fffbeb !important; }
+html[data-style="classic-light"] [class*="text-amber-200"], html[data-style="classic-light"] [class*="text-amber-300"],
+html[data-style="nordic-warm"] [class*="text-amber-200"], html[data-style="nordic-warm"] [class*="text-amber-300"],
+html[data-style="mint-light"] [class*="text-amber-200"], html[data-style="mint-light"] [class*="text-amber-300"] { color: #b45309 !important; }
+html[data-style="classic-light"] [class*="border-amber-800"], html[data-style="classic-light"] [class*="border-amber-900"],
+html[data-style="nordic-warm"] [class*="border-amber-800"], html[data-style="nordic-warm"] [class*="border-amber-900"],
+html[data-style="mint-light"] [class*="border-amber-800"], html[data-style="mint-light"] [class*="border-amber-900"] { border-color: #fde68a !important; }
+
+html[data-style="classic-light"] [class*="bg-emerald-950"], html[data-style="nordic-warm"] [class*="bg-emerald-950"], html[data-style="mint-light"] [class*="bg-emerald-950"] { background-color: #ecfdf5 !important; }
+html[data-style="classic-light"] [class*="text-emerald-200"], html[data-style="classic-light"] [class*="text-emerald-300"],
+html[data-style="nordic-warm"] [class*="text-emerald-200"], html[data-style="nordic-warm"] [class*="text-emerald-300"],
+html[data-style="mint-light"] [class*="text-emerald-200"], html[data-style="mint-light"] [class*="text-emerald-300"] { color: #047857 !important; }
+html[data-style="classic-light"] [class*="border-emerald-800"], html[data-style="classic-light"] [class*="border-emerald-900"],
+html[data-style="nordic-warm"] [class*="border-emerald-800"], html[data-style="nordic-warm"] [class*="border-emerald-900"],
+html[data-style="mint-light"] [class*="border-emerald-800"], html[data-style="mint-light"] [class*="border-emerald-900"] { border-color: #a7f3d0 !important; }
+
+html[data-style="classic-light"] [class*="bg-red-950"], html[data-style="nordic-warm"] [class*="bg-red-950"], html[data-style="mint-light"] [class*="bg-red-950"] { background-color: #fef2f2 !important; }
+html[data-style="classic-light"] [class*="text-red-200"], html[data-style="classic-light"] [class*="text-red-300"],
+html[data-style="nordic-warm"] [class*="text-red-200"], html[data-style="nordic-warm"] [class*="text-red-300"],
+html[data-style="mint-light"] [class*="text-red-200"], html[data-style="mint-light"] [class*="text-red-300"] { color: #b91c1c !important; }
+html[data-style="classic-light"] [class*="border-red-800"], html[data-style="classic-light"] [class*="border-red-900"],
+html[data-style="nordic-warm"] [class*="border-red-800"], html[data-style="nordic-warm"] [class*="border-red-900"],
+html[data-style="mint-light"] [class*="border-red-800"], html[data-style="mint-light"] [class*="border-red-900"] { border-color: #fecaca !important; }
+
+html[data-style="classic-light"] [class*="bg-rose-950"], html[data-style="nordic-warm"] [class*="bg-rose-950"], html[data-style="mint-light"] [class*="bg-rose-950"] { background-color: #fff1f2 !important; }
+html[data-style="classic-light"] [class*="text-rose-200"], html[data-style="classic-light"] [class*="text-rose-300"],
+html[data-style="nordic-warm"] [class*="text-rose-200"], html[data-style="nordic-warm"] [class*="text-rose-300"],
+html[data-style="mint-light"] [class*="text-rose-200"], html[data-style="mint-light"] [class*="text-rose-300"] { color: #be123c !important; }
+html[data-style="classic-light"] [class*="border-rose-800"], html[data-style="classic-light"] [class*="border-rose-900"],
+html[data-style="nordic-warm"] [class*="border-rose-800"], html[data-style="nordic-warm"] [class*="border-rose-900"],
+html[data-style="mint-light"] [class*="border-rose-800"], html[data-style="mint-light"] [class*="border-rose-900"] { border-color: #fecdd3 !important; }
+
+html[data-style="classic-light"] [class*="bg-purple-950"], html[data-style="nordic-warm"] [class*="bg-purple-950"], html[data-style="mint-light"] [class*="bg-purple-950"] { background-color: #faf5ff !important; }
+html[data-style="classic-light"] [class*="text-purple-200"], html[data-style="classic-light"] [class*="text-purple-300"],
+html[data-style="nordic-warm"] [class*="text-purple-200"], html[data-style="nordic-warm"] [class*="text-purple-300"],
+html[data-style="mint-light"] [class*="text-purple-200"], html[data-style="mint-light"] [class*="text-purple-300"] { color: #7e22ce !important; }
+html[data-style="classic-light"] [class*="border-purple-800"], html[data-style="classic-light"] [class*="border-purple-900"],
+html[data-style="nordic-warm"] [class*="border-purple-800"], html[data-style="nordic-warm"] [class*="border-purple-900"],
+html[data-style="mint-light"] [class*="border-purple-800"], html[data-style="mint-light"] [class*="border-purple-900"] { border-color: #e9d5ff !important; }
+
+html[data-style="classic-light"] [class*="bg-violet-950"], html[data-style="nordic-warm"] [class*="bg-violet-950"], html[data-style="mint-light"] [class*="bg-violet-950"] { background-color: #f5f3ff !important; }
+html[data-style="classic-light"] [class*="text-violet-200"], html[data-style="classic-light"] [class*="text-violet-300"],
+html[data-style="nordic-warm"] [class*="text-violet-200"], html[data-style="nordic-warm"] [class*="text-violet-300"],
+html[data-style="mint-light"] [class*="text-violet-200"], html[data-style="mint-light"] [class*="text-violet-300"] { color: #6d28d9 !important; }
+html[data-style="classic-light"] [class*="border-violet-800"], html[data-style="classic-light"] [class*="border-violet-900"],
+html[data-style="nordic-warm"] [class*="border-violet-800"], html[data-style="nordic-warm"] [class*="border-violet-900"],
+html[data-style="mint-light"] [class*="border-violet-800"], html[data-style="mint-light"] [class*="border-violet-900"] { border-color: #ddd6fe !important; }
+
+html[data-style="classic-light"] [class*="bg-cyan-950"], html[data-style="nordic-warm"] [class*="bg-cyan-950"], html[data-style="mint-light"] [class*="bg-cyan-950"] { background-color: #ecfeff !important; }
+html[data-style="classic-light"] [class*="text-cyan-200"], html[data-style="classic-light"] [class*="text-cyan-300"],
+html[data-style="nordic-warm"] [class*="text-cyan-200"], html[data-style="nordic-warm"] [class*="text-cyan-300"],
+html[data-style="mint-light"] [class*="text-cyan-200"], html[data-style="mint-light"] [class*="text-cyan-300"] { color: #0e7490 !important; }
+html[data-style="classic-light"] [class*="border-cyan-800"], html[data-style="classic-light"] [class*="border-cyan-900"],
+html[data-style="nordic-warm"] [class*="border-cyan-800"], html[data-style="nordic-warm"] [class*="border-cyan-900"],
+html[data-style="mint-light"] [class*="border-cyan-800"], html[data-style="mint-light"] [class*="border-cyan-900"] { border-color: #a5f3fc !important; }
+
 /* 2. NORDIC WARM / CREAM LIGHT THEME */
 html[data-style="nordic-warm"] {
   background-color: #f5f5f4 !important;
@@ -279,7 +371,8 @@ html[data-style="nordic-warm"] .bg-zinc-900\/60,
 html[data-style="nordic-warm"] .bg-zinc-900\/50,
 html[data-style="nordic-warm"] .bg-zinc-900\/40,
 html[data-style="nordic-warm"] .bg-zinc-900,
-html[data-style="nordic-warm"] [class*="bg-zinc-9"] {
+html[data-style="nordic-warm"] [class*="bg-zinc-9"],
+html[data-style="nordic-warm"] [class*="bg-zinc-8"] {
   background-color: #ffffff !important;
   color: #1c1917 !important;
   border-color: #e7e5e4 !important;
@@ -377,7 +470,8 @@ html[data-style="mint-light"] .bg-zinc-900\/60,
 html[data-style="mint-light"] .bg-zinc-900\/50,
 html[data-style="mint-light"] .bg-zinc-900\/40,
 html[data-style="mint-light"] .bg-zinc-900,
-html[data-style="mint-light"] [class*="bg-zinc-9"] {
+html[data-style="mint-light"] [class*="bg-zinc-9"],
+html[data-style="mint-light"] [class*="bg-zinc-8"] {
   background-color: #ffffff !important;
   color: #064e3b !important;
   border-color: #bbf7d0 !important;
