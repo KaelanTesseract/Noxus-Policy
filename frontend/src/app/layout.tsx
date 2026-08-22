@@ -31,8 +31,8 @@ export default function RootLayout({
       </head>
       <body className="font-sans bg-zinc-950 text-zinc-50 antialiased min-h-screen selection:bg-indigo-500/30 flex flex-col justify-between">
         <ThemeProvider>
-          {/* Animated background gradient */}
-          <div className="fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-900/40 via-zinc-950 to-zinc-950"></div>
+          {/* Animated ambient background: aurora glow + fine grid, adapts per design style */}
+          <div className="fixed inset-0 -z-10 app-ambient-bg"></div>
           <main className="container mx-auto px-4 pt-2 pb-6 max-w-6xl flex-1 flex flex-col justify-between">
             {children}
           </main>
