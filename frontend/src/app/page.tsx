@@ -35,6 +35,7 @@ export default function Dashboard() {
   
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [inboxCount, setInboxCount] = useState(0);
 
   // Filter & Search States
   const [searchQuery, setSearchQuery] = useState("");
@@ -57,10 +58,12 @@ export default function Dashboard() {
     if (typeof window !== "undefined") {
       const cachedUser = sessionStorage.getItem("cache_user");
       const cachedInsurances = sessionStorage.getItem("cache_insurances");
+      const cachedInboxCount = sessionStorage.getItem("cache_inbox_count");
       if (cachedUser && cachedInsurances) {
         try {
           setCurrentUser(JSON.parse(cachedUser));
           setInsurances(JSON.parse(cachedInsurances));
+          if (cachedInboxCount !== null) setInboxCount(parseInt(cachedInboxCount, 10) || 0);
           setIsAuthenticated(true);
           setIsCheckingAuth(false);
         } catch (_) {}
@@ -70,15 +73,17 @@ export default function Dashboard() {
     // Parallel network fetch (zero waterfall)
     try {
       const authHeaders = { Authorization: `Bearer ${token}` };
-      const [userRes, insRes] = await Promise.all([
+      const [userRes, insRes, inboxRes] = await Promise.all([
         fetch("/api/users/me", { headers: authHeaders }),
-        fetch("/api/insurances", { headers: authHeaders })
+        fetch("/api/insurances", { headers: authHeaders }),
+        fetch("/api/inbox", { headers: authHeaders })
       ]);
 
       if (!userRes.ok || !insRes.ok) {
         localStorage.removeItem("token");
         sessionStorage.removeItem("cache_user");
         sessionStorage.removeItem("cache_insurances");
+        sessionStorage.removeItem("cache_inbox_count");
         window.location.href = "/login";
         return;
       }
@@ -93,6 +98,15 @@ export default function Dashboard() {
       setCurrentUser(userData);
       setInsurances(insData);
       setIsAuthenticated(true);
+
+      if (inboxRes.ok) {
+        const inboxData = await inboxRes.json();
+        const count = Array.isArray(inboxData) ? inboxData.length : 0;
+        setInboxCount(count);
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("cache_inbox_count", String(count));
+        }
+      }
 
       if (typeof window !== "undefined") {
         sessionStorage.setItem("cache_user", JSON.stringify(userData));
@@ -223,18 +237,21 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="border-zinc-800/80 bg-zinc-900/40 backdrop-blur-md relative overflow-hidden group hover:border-zinc-700 transition-all">
+          <Card
+            onClick={() => router.push("/inbox")}
+            className="border-zinc-800/80 bg-zinc-900/40 backdrop-blur-md relative overflow-hidden group hover:border-zinc-700 transition-all cursor-pointer"
+          >
             <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-cyan-500/10 to-transparent rounded-bl-full pointer-events-none"></div>
             <CardContent className="p-5 flex items-center justify-between">
               <div>
-                <p className="text-xs font-mono uppercase tracking-wider text-zinc-400">AI OCR Vision Engine</p>
-                <div className="flex items-center gap-1.5 mt-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                  <span className="text-xs font-mono font-medium text-emerald-400">BEREIT</span>
-                </div>
+                <p className="text-xs font-mono uppercase tracking-wider text-zinc-400">Posteingang</p>
+                <h3 className="text-3xl font-bold text-white mt-1">{inboxCount}</h3>
+                <p className="text-[11px] text-zinc-500 mt-0.5">
+                  {inboxCount > 0 ? "Dokumente warten auf Zuordnung" : "Alles erledigt"}
+                </p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-cyan-950/40 border border-cyan-800/50 flex items-center justify-center text-xl text-cyan-300">
-                ⚡
+                📬
               </div>
             </CardContent>
           </Card>
