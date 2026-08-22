@@ -90,9 +90,33 @@ interface CompanyLogoProps {
   size?: "sm" | "md" | "lg";
 }
 
+const FAILED_DOMAINS_KEY = "company_logo_failed_domains";
+
+function isDomainKnownToFail(domain: string): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const raw = window.localStorage.getItem(FAILED_DOMAINS_KEY);
+    return raw ? JSON.parse(raw).includes(domain) : false;
+  } catch (_) {
+    return false;
+  }
+}
+
+function rememberFailedDomain(domain: string) {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = window.localStorage.getItem(FAILED_DOMAINS_KEY);
+    const failed: string[] = raw ? JSON.parse(raw) : [];
+    if (!failed.includes(domain)) {
+      failed.push(domain);
+      window.localStorage.setItem(FAILED_DOMAINS_KEY, JSON.stringify(failed.slice(-200)));
+    }
+  } catch (_) {}
+}
+
 export function CompanyLogo({ company, className = "", size = "md" }: CompanyLogoProps) {
-  const [hasError, setHasError] = useState(false);
   const domain = getDomainForCompany(company);
+  const [hasError, setHasError] = useState(() => isDomainKnownToFail(domain));
 
   const sizeClasses = {
     sm: "w-8 h-8 text-xs rounded-lg",
@@ -127,7 +151,14 @@ export function CompanyLogo({ company, className = "", size = "md" }: CompanyLog
       <img
         src={logoUrl}
         alt={`${company} Logo`}
-        onError={() => setHasError(true)}
+        width={128}
+        height={128}
+        loading="lazy"
+        decoding="async"
+        onError={() => {
+          rememberFailedDomain(domain);
+          setHasError(true);
+        }}
         className={`${imgSizes[size]} object-contain drop-shadow-md`}
       />
     </div>

@@ -1,7 +1,7 @@
 # Copyright (c) 2026 Dennis Guse. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in project root.
 
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, field_validator
 from typing import Optional, List
 from datetime import date, datetime
 

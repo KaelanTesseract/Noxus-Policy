@@ -224,6 +224,10 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
       fd.append("file", file);
       fd.append("custom_name", customDocName || file.name);
       fd.append("doc_type", docType || "Vertragsschreiben");
+      if (extractedData && !extractedData.manual && extractedData.extracted_text) {
+        // Reuse the extraction already performed above so the backend doesn't re-run OCR/AI.
+        fd.append("extracted_data", JSON.stringify(extractedData));
+      }
 
       await api.postForm(`/documents?insurance_id=${insId}&original_filename=${encodeURIComponent(file.name)}`, fd);
       

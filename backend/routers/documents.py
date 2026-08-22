@@ -76,6 +76,7 @@ def create_document(
     file: UploadFile = File(...),
     document_date: str = None,
     category_id: int = None,
+    extracted_data: str = Form(None),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
@@ -103,12 +104,26 @@ def create_document(
     with open(filepath, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    # Perform background OCR analysis & record PremiumHistory if cost is detected
+    # Reuse the extraction already performed by the "/documents/extract" preview step the
+    # frontend calls before this endpoint, instead of re-running the OCR/AI pipeline a second time.
+    extracted = None
+    if extracted_data:
+        try:
+            parsed = json.loads(extracted_data)
+            if isinstance(parsed, dict) and parsed.get("extracted_text"):
+                extracted = parsed
+                for date_field in ("start_date", "end_date", "cancellation_date", "document_date"):
+                    if extracted.get(date_field):
+                        extracted[date_field] = ocr.parse_date(str(extracted[date_field]))
+        except Exception:
+            extracted = None
+
     try:
-        text = ocr.extract_text_from_file(filepath)
-        extracted = ocr.extract_insurance_data(text, db=db)
-        extracted["extracted_text"] = text
-        db_doc.ai_data = json.dumps(extracted)
+        if extracted is None:
+            text = ocr.extract_text_from_file(filepath)
+            extracted = ocr.extract_insurance_data(text, db=db)
+            extracted["extracted_text"] = text
+        db_doc.ai_data = json.dumps(extracted, default=str)
 
         new_c = extracted.get("new_cost") or extracted.get("cost") or db_insurance.cost
         if new_c and float(new_c) > 0:
@@ -239,15 +254,24 @@ def update_document(
 
 @router.get("/{document_id}/view")
 @router.get("/{document_id}/file")
-def view_document(document_id: int, token: str = None, db: Session = Depends(get_db)):
+def view_document(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
     doc = db.query(models.Document).filter(models.Document.id == document_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
-        
+
+    if doc.insurance and doc.insurance.owner_id != current_user.id and not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    if doc.owner_id and doc.owner_id != current_user.id and not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
     filepath = os.path.join(UPLOAD_DIR, doc.filename)
     if not os.path.exists(filepath):
         raise HTTPException(status_code=404, detail="File missing")
-        
+
     ext = os.path.splitext(doc.original_filename)[1].lower()
     media_type = "application/pdf" if ext == ".pdf" else "image/jpeg" if ext in [".jpg", ".jpeg"] else "image/png" if ext == ".png" else "application/octet-stream"
 
@@ -258,15 +282,24 @@ def view_document(document_id: int, token: str = None, db: Session = Depends(get
     )
 
 @router.get("/{document_id}/download")
-def download_document(document_id: int, db: Session = Depends(get_db)):
+def download_document(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
     doc = db.query(models.Document).filter(models.Document.id == document_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
-        
+
+    if doc.insurance and doc.insurance.owner_id != current_user.id and not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    if doc.owner_id and doc.owner_id != current_user.id and not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
     filepath = os.path.join(UPLOAD_DIR, doc.filename)
     if not os.path.exists(filepath):
         raise HTTPException(status_code=404, detail="File missing")
-        
+
     return FileResponse(
         filepath,
         filename=doc.original_filename,

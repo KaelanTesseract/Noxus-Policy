@@ -8,14 +8,18 @@ from sqlalchemy.ext.declarative import declarative_base
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:////app/data/versicherungsmanager.db")
 
+def resolve_sqlite_path(database_url: str) -> str:
+    """Extract the filesystem path from a sqlite:// DATABASE_URL, or None if not sqlite."""
+    if "sqlite" not in database_url:
+        return None
+    if database_url.startswith("sqlite:////"):
+        return "/" + database_url[11:]
+    if database_url.startswith("sqlite:///"):
+        return database_url[9:]
+    return "data/versicherungsmanager.db"
+
 if "sqlite" in DATABASE_URL:
-    if DATABASE_URL.startswith("sqlite:////"):
-        db_path = "/" + DATABASE_URL[11:]
-    elif DATABASE_URL.startswith("sqlite:///"):
-        db_path = DATABASE_URL[9:]
-    else:
-        db_path = "data/versicherungsmanager.db"
-    
+    db_path = resolve_sqlite_path(DATABASE_URL)
     db_dir = os.path.dirname(db_path)
     if db_dir:
         try:

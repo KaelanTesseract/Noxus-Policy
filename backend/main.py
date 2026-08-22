@@ -3,17 +3,14 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from database import engine, Base, DATABASE_URL, SessionLocal
+from database import engine, Base, DATABASE_URL, SessionLocal, resolve_sqlite_path
 import models
 from routers import users, insurances, documents, backup, inbox
-from sqlalchemy.orm import Session
 import auth
 import os
 import sqlite3
 
 from backup_scheduler import start_scheduler_thread
-from webdav_server import start_webdav_server_thread
-from inbox_watcher import start_inbox_watcher_thread
 
 app = FastAPI(title="Versicherungsmanager API")
 
@@ -34,12 +31,7 @@ app.include_router(inbox.router)
 def auto_migrate_sqlite():
     try:
         if "sqlite" in DATABASE_URL:
-            if DATABASE_URL.startswith("sqlite:////"):
-                db_path = "/" + DATABASE_URL[11:]
-            elif DATABASE_URL.startswith("sqlite:///"):
-                db_path = DATABASE_URL[9:]
-            else:
-                db_path = "data/versicherungsmanager.db"
+            db_path = resolve_sqlite_path(DATABASE_URL)
 
             if os.path.exists(db_path):
                 conn = sqlite3.connect(db_path)
@@ -103,14 +95,18 @@ def auto_migrate_sqlite():
                         cursor.execute("ALTER TABLE users ADD COLUMN email_notifications_enabled BOOLEAN DEFAULT 1")
                     if "calendar_token" not in usr_cols:
                         cursor.execute("ALTER TABLE users ADD COLUMN calendar_token VARCHAR")
-                    if "netdrive_username" not in usr_cols:
-                        cursor.execute("ALTER TABLE users ADD COLUMN netdrive_username VARCHAR")
-                    if "netdrive_password_hash" not in usr_cols:
-                        cursor.execute("ALTER TABLE users ADD COLUMN netdrive_password_hash VARCHAR")
-                    if "netdrive_digest_ha1" not in usr_cols:
-                        cursor.execute("ALTER TABLE users ADD COLUMN netdrive_digest_ha1 VARCHAR")
                 except Exception as e:
                     print(f"[Auto-Migrate users] {e}")
+
+                # Indexes on foreign key columns (added after initial release; safe to (re-)create)
+                try:
+                    cursor.execute("CREATE INDEX IF NOT EXISTS ix_insurances_owner_id ON insurances (owner_id)")
+                    cursor.execute("CREATE INDEX IF NOT EXISTS ix_documents_owner_id ON documents (owner_id)")
+                    cursor.execute("CREATE INDEX IF NOT EXISTS ix_documents_insurance_id ON documents (insurance_id)")
+                    cursor.execute("CREATE INDEX IF NOT EXISTS ix_claims_insurance_id ON claims (insurance_id)")
+                    cursor.execute("CREATE INDEX IF NOT EXISTS ix_premium_history_insurance_id ON premium_history (insurance_id)")
+                except Exception as e:
+                    print(f"[Auto-Migrate indexes] {e}")
 
                 conn.commit()
                 conn.close()
@@ -149,21 +145,11 @@ def startup_db_init():
     except Exception as e:
         print(f"Error initializing admin user: {e}")
 
-    # 4. Start background schedulers, WebDAV server & inbox watcher threads AFTER DB initialization
+    # 4. Start background schedulers AFTER DB initialization
     try:
         start_scheduler_thread()
     except Exception as se:
         print(f"Error starting backup scheduler thread: {se}")
-
-    try:
-        start_webdav_server_thread()
-    except Exception as we:
-        print(f"Error starting WebDAV server thread: {we}")
-
-    try:
-        start_inbox_watcher_thread()
-    except Exception as ie:
-        print(f"Error starting inbox watcher thread: {ie}")
 
     try:
         from learning import start_daily_pattern_scheduler

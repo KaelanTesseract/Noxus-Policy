@@ -15,11 +15,6 @@ class User(Base):
     must_change_password = Column(Boolean, default=False)
     email_notifications_enabled = Column(Boolean, default=True)
     calendar_token = Column(String, unique=True, index=True, nullable=True)
-    
-    # Netzlaufwerk (WebDAV / SMB) credentials
-    netdrive_username = Column(String, unique=True, index=True, nullable=True)
-    netdrive_password_hash = Column(String, nullable=True)
-    netdrive_digest_ha1 = Column(String, nullable=True)
 
     insurances = relationship("Insurance", back_populates="owner")
     inbox_documents = relationship("Document", back_populates="owner")
@@ -54,9 +49,9 @@ class Insurance(Base):
     is_suspended = Column(Boolean, default=False)
     suspension_reason = Column(String, nullable=True)
     
-    owner_id = Column(Integer, ForeignKey("users.id"))
+    owner_id = Column(Integer, ForeignKey("users.id"), index=True)
     owner = relationship("User", back_populates="insurances")
-    
+
     documents = relationship("Document", back_populates="insurance", cascade="all, delete-orphan")
     claims = relationship("Claim", back_populates="insurance", cascade="all, delete-orphan")
     premium_history = relationship("PremiumHistory", back_populates="insurance", cascade="all, delete-orphan", order_by="PremiumHistory.effective_date.asc()")
@@ -71,7 +66,7 @@ class PremiumHistory(Base):
     note = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     
-    insurance_id = Column(Integer, ForeignKey("insurances.id"))
+    insurance_id = Column(Integer, ForeignKey("insurances.id"), index=True)
     insurance = relationship("Insurance", back_populates="premium_history")
 
 class Claim(Base):
@@ -83,7 +78,7 @@ class Claim(Base):
     status = Column(String, default="In Bearbeitung")
     description = Column(String, nullable=True)
     
-    insurance_id = Column(Integer, ForeignKey("insurances.id"))
+    insurance_id = Column(Integer, ForeignKey("insurances.id"), index=True)
     insurance = relationship("Insurance", back_populates="claims")
 
 class Document(Base):
@@ -102,10 +97,10 @@ class Document(Base):
     status = Column(String, default="pending")  # pending, analyzed, assigned
     ai_data = Column(String, nullable=True)     # JSON string of extracted data
     
-    owner_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     owner = relationship("User", back_populates="inbox_documents")
 
-    insurance_id = Column(Integer, ForeignKey("insurances.id"), nullable=True)
+    insurance_id = Column(Integer, ForeignKey("insurances.id"), nullable=True, index=True)
     insurance = relationship("Insurance", back_populates="documents")
     
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)

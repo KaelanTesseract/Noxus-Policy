@@ -118,7 +118,7 @@ def analyze_inbox_document(
     extracted_data = ocr.extract_insurance_data(extracted_text, db=db)
     extracted_data["extracted_text"] = extracted_text
 
-    doc.ai_data = json.dumps(extracted_data)
+    doc.ai_data = json.dumps(extracted_data, default=str)
     doc.status = "analyzed"
     db.commit()
 

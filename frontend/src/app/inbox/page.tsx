@@ -47,14 +47,39 @@ export default function InboxPage() {
   useEffect(() => {
     loadData();
 
-    // Auto-refresh inbox every 4s to catch newly dropped Netzlaufwerk files immediately
-    const interval = setInterval(() => {
+    // Periodically refresh the inbox list, but only while the tab is actually visible.
+    const refresh = () => {
       api.get("/inbox").then((docs) => {
         if (docs) setInboxDocs(docs);
       }).catch(() => {});
-    }, 4000);
+    };
 
-    return () => clearInterval(interval);
+    let interval: ReturnType<typeof setInterval> | null = null;
+    const startPolling = () => {
+      if (!interval) interval = setInterval(refresh, 20000);
+    };
+    const stopPolling = () => {
+      if (interval) {
+        clearInterval(interval);
+        interval = null;
+      }
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refresh();
+        startPolling();
+      } else {
+        stopPolling();
+      }
+    };
+
+    startPolling();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      stopPolling();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, []);
 
   const loadData = async () => {
@@ -212,25 +237,15 @@ export default function InboxPage() {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-zinc-100 to-indigo-200 bg-clip-text text-transparent">
-                📬 Posteingang & Netzlaufwerk
+                📬 Posteingang
               </h1>
               <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
                 {inboxDocs.length} Dokumente
               </span>
             </div>
             <p className="text-xs sm:text-sm text-zinc-400 mt-1">
-              Hier landen alle per Windows-Netzlaufwerk abgelegten oder hochgeladenen Dokumente zur KI-Analyse & Zuordnung.
+              Hier landen alle hochgeladenen Dokumente zur KI-Analyse & Zuordnung.
             </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={() => router.push("/settings")}
-              variant="outline"
-              className="border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 text-xs sm:text-sm"
-            >
-              ⚙️ Netzlaufwerk einrichten
-            </Button>
           </div>
         </div>
 
@@ -254,10 +269,10 @@ export default function InboxPage() {
               </div>
               <div>
                 <p className="text-sm font-semibold text-zinc-200">
-                  Dateien in den Posteingang hochladen oder per Netzlaufwerk ablegen
+                  Dateien in den Posteingang hochladen
                 </p>
                 <p className="text-xs text-zinc-500 mt-0.5">
-                  PDF, PNG, JPG (Dokumente werden automatisch im Hintergrund registriert)
+                  PDF, PNG, JPG
                 </p>
               </div>
               <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs sm:text-sm transition-all shadow-md">
@@ -284,7 +299,7 @@ export default function InboxPage() {
               <span className="text-4xl">📭</span>
               <h3 className="text-base font-semibold text-zinc-300">Dein Posteingang ist leer</h3>
               <p className="text-xs text-zinc-500 max-w-md mx-auto">
-                Lege Dokumente über dein Windows-Netzlaufwerk im Ordner ab oder lade Dateien oben hoch.
+                Lade Dateien oben hoch, um sie hier zu analysieren und zuzuordnen.
               </p>
             </CardContent>
           </Card>

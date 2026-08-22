@@ -62,7 +62,7 @@ def send_reset_email(email_to: str, token: str, db: Session, request: Request = 
     app_url = get_smtp_setting(db, "app_url", "http://192.168.1.251:3000").rstrip("/")
     if not app_url.startswith("http://") and not app_url.startswith("https://"):
         app_url = f"http://{app_url}"
-        
+
     reset_url = f"{app_url}/reset-password?token={token}"
 
     content = (
@@ -82,7 +82,7 @@ def send_reset_email(email_to: str, token: str, db: Session, request: Request = 
 @router.post("/login")
 def login(login_data: schemas.UserLogin, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email.ilike(login_data.username)).first()
-    
+
     is_valid = auth.verify_password(login_data.password, user.hashed_password) if user else False
     if user and user.must_change_password and not is_valid:
         if login_data.password.lower() == "admin":
@@ -190,7 +190,7 @@ def get_smtp_config(db: Session = Depends(get_db), current_user: models.User = D
 def save_smtp_config(payload: dict, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_active_user)):
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Nur Administratoren dürfen SMTP-Einstellungen verwalten.")
-    
+
     if "app_url" in payload:
         set_smtp_setting(db, "app_url", str(payload["app_url"]).strip())
     if "smtp_server" in payload:
@@ -213,7 +213,7 @@ def save_smtp_config(payload: dict, db: Session = Depends(get_db), current_user:
 def test_smtp_config(payload: dict, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_active_user)):
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Nur Administratoren dürfen Test-E-Mails versenden.")
-    
+
     target_email = payload.get("target_email") or current_user.email
     try:
         send_email_message(
@@ -232,7 +232,7 @@ def forgot_password(payload: schemas.ForgotPasswordPayload, request: Request, db
     if user:
         token = auth.create_access_token(data={"sub": user.email, "purpose": "password_reset"})
         send_reset_email(user.email, token, db, request)
-    
+
     # Always return success message for security reasons
     return {"msg": "Falls diese E-Mail-Adresse registriert ist, wurde eine E-Mail zum Zurücksetzen gesendet."}
 
@@ -264,11 +264,11 @@ def admin_send_reset_email(
 ):
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Nur Administratoren können Passwort-Resets versenden.")
-    
+
     user = db.query(models.User).filter(models.User.email.ilike(email.strip())).first()
     if not user:
         raise HTTPException(status_code=404, detail="Benutzer nicht gefunden.")
-        
+
     token = auth.create_access_token(data={"sub": user.email, "purpose": "password_reset"})
     send_reset_email(user.email, token, db, request)
     return {"msg": f"Passwort-Zurücksetzen-E-Mail wurde an {user.email} versendet."}
@@ -281,7 +281,7 @@ def admin_initial_setup(
 ):
     if not current_user.is_admin or not current_user.must_change_password:
         raise HTTPException(status_code=403, detail="Ersteinrichtung nicht berechtigt oder bereits abgeschlossen")
-        
+
     existing_user = db.query(models.User).filter(models.User.email.ilike(payload.new_email), models.User.id != current_user.id).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Diese E-Mail-Adresse wird bereits verwendet.")
@@ -305,20 +305,20 @@ def delete_user(
 ):
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Nur Administratoren dürfen Benutzer löschen.")
-    
+
     if current_user.id == user_id:
         raise HTTPException(status_code=400, detail="Sie können Ihren eigenen Admin-Account nicht löschen.")
-        
+
     target_user = db.query(models.User).filter(models.User.id == user_id).first()
     if not target_user:
         raise HTTPException(status_code=404, detail="Benutzer nicht gefunden.")
-        
+
     try:
         user_insurances = db.query(models.Insurance).filter(models.Insurance.owner_id == user_id).all()
         for ins in user_insurances:
             db.query(models.Document).filter(models.Document.insurance_id == ins.id).delete()
             db.delete(ins)
-            
+
         db.delete(target_user)
         db.commit()
         return {"msg": f"Benutzer {target_user.email} wurde erfolgreich gelöscht."}
@@ -383,7 +383,7 @@ def build_ics_string(user_id: int, insurances: list) -> str:
         ]
         if ins.is_suspended:
             desc_parts.append(f"Status: ⏸️ Vertag ruht ({ins.suspension_reason or 'Beitragsfrei'})")
-        
+
         description = "\\n".join(desc_parts)
 
         event_block = [
@@ -426,7 +426,7 @@ def update_webcal_config(
 ):
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Nur Administratoren dürfen Systemeinstellungen verändern.")
-    
+
     enabled_val = "true" if payload.get("enabled") else "false"
     setting = db.query(models.SystemSetting).filter(models.SystemSetting.key == "webcal_enabled").first()
     if not setting:
@@ -480,60 +480,3 @@ def get_calendar_feed(
             "Cache-Control": "no-cache, no-store, must-revalidate"
         }
     )
-
-@router.get("/netdrive-credentials")
-def get_netdrive_credentials(
-    current_user: models.User = Depends(auth.get_current_active_user)
-):
-    is_configured = bool(current_user.netdrive_username and current_user.netdrive_password_hash)
-    return {
-        "configured": is_configured,
-        "username": current_user.netdrive_username or ""
-    }
-
-@router.post("/netdrive-credentials")
-def set_netdrive_credentials(
-    payload: dict,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_active_user)
-):
-    username = str(payload.get("username", "")).strip()
-    password = str(payload.get("password", "")).strip()
-
-    if not username or not password:
-        raise HTTPException(status_code=400, detail="Benutzername und Passwort für das Netzlaufwerk erforderlich.")
-
-    if len(password) < 4:
-        raise HTTPException(status_code=400, detail="Passwort muss mindestens 4 Zeichen lang sein.")
-
-    # Enforce distinct password from website password
-    if auth.verify_password(password, current_user.hashed_password):
-        raise HTTPException(
-            status_code=400,
-            detail="Aus Sicherheitsgründen müssen sich die Netzlaufwerk-Zugangsdaten von deinen Website-Logindaten unterscheiden. Bitte wähle ein anderes Passwort."
-        )
-
-    # Check if username is already taken by another user
-    existing = db.query(models.User).filter(
-        models.User.netdrive_username == username,
-        models.User.id != current_user.id
-    ).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Dieser Netzlaufwerk-Benutzername ist bereits vergeben. Bitte wähle einen anderen.")
-
-    import hashlib
-    realm = "Noxus Policy Posteingang Netzlaufwerk"
-    ha1_str = f"{username}:{realm}:{password}"
-    digest_ha1 = hashlib.md5(ha1_str.encode("utf-8")).hexdigest()
-
-    current_user.netdrive_username = username
-    current_user.netdrive_password_hash = auth.get_password_hash(password)
-    current_user.netdrive_digest_ha1 = digest_ha1
-    db.commit()
-
-    return {
-        "msg": "Netzlaufwerk-Zugangsdaten erfolgreich gespeichert!",
-        "username": username,
-        "configured": True
-    }
-

@@ -129,47 +129,9 @@ export default function SettingsPage() {
   const [webcalSaving, setWebcalSaving] = useState(false);
   const [webcalMsg, setWebcalMsg] = useState("");
 
-  // Netzlaufwerk (WebDAV) state
-  const [netdriveUsername, setNetdriveUsername] = useState("");
-  const [netdrivePassword, setNetdrivePassword] = useState("");
-  const [netdriveConfigured, setNetdriveConfigured] = useState(false);
-  const [netdriveMsg, setNetdriveMsg] = useState("");
-  const [netdriveErr, setNetdriveErr] = useState("");
-  const [netdriveSaving, setNetdriveSaving] = useState(false);
-
   useEffect(() => {
     loadUserData();
   }, []);
-
-  const loadNetdriveCredentials = async () => {
-    try {
-      const res = await api.get("/users/netdrive-credentials");
-      setNetdriveConfigured(!!res.configured);
-      setNetdriveUsername(res.username || "");
-    } catch (e) {
-      console.error("Error loading Netzlaufwerk credentials:", e);
-    }
-  };
-
-  const handleSaveNetdriveCredentials = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setNetdriveSaving(true);
-    setNetdriveMsg("");
-    setNetdriveErr("");
-    try {
-      const res = await api.post("/users/netdrive-credentials", {
-        username: netdriveUsername,
-        password: netdrivePassword
-      });
-      setNetdriveMsg(res.msg || "Netzlaufwerk-Zugangsdaten erfolgreich gespeichert!");
-      setNetdriveConfigured(true);
-      setNetdrivePassword("");
-    } catch (err: any) {
-      setNetdriveErr(err.message || "Fehler beim Speichern der Zugangsdaten.");
-    } finally {
-      setNetdriveSaving(false);
-    }
-  };
 
   const loadCalendarToken = async () => {
     try {
@@ -251,7 +213,6 @@ export default function SettingsPage() {
       setEmailNotificationsEnabled(user.email_notifications_enabled ?? true);
       loadCalendarToken();
       loadWebCalConfig();
-      loadNetdriveCredentials();
 
       try {
         const smtpStatus = await api.get("/users/smtp-status");
@@ -1182,136 +1143,6 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            {/* Netzlaufwerk & Posteingang (WebDAV) Card */}
-            <Card className="border-zinc-800 bg-zinc-900/50 backdrop-blur-md shadow-xl">
-              <CardHeader>
-                <CardTitle className="text-xl font-semibold flex items-center gap-2">
-                  <span className="text-2xl">📂</span>
-                  <span>Netzlaufwerk & Posteingang (Windows & WebDAV)</span>
-                </CardTitle>
-                <CardDescription className="mt-1">
-                  Binde deinen persönlichen Posteingangsordner als Netzlaufwerk in Windows ein. Abgelegte Dateien landen direkt im Posteingang der Weboberfläche.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* 1. Form to set Netzlaufwerk credentials */}
-                <form onSubmit={handleSaveNetdriveCredentials} className="space-y-4 p-4 rounded-xl bg-zinc-950/60 border border-zinc-800">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold text-zinc-300 uppercase tracking-wider">
-                      1. Netzlaufwerk-Zugangsdaten festlegen
-                    </h4>
-                    <span className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold uppercase ${
-                      netdriveConfigured
-                        ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                        : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
-                    }`}>
-                      {netdriveConfigured ? "✓ Aktiv eingerichtet" : "Nicht konfiguriert"}
-                    </span>
-                  </div>
-
-                  <p className="text-xs text-zinc-400 font-medium">
-                    Aus Sicherheitsgründen müssen sich diese Zugangsdaten von deinen Website-Logindaten unterscheiden.
-                  </p>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="netdriveUsername" className="text-xs text-zinc-300">
-                        Netzlaufwerk Benutzername
-                      </Label>
-                      <Input
-                        id="netdriveUsername"
-                        type="text"
-                        value={netdriveUsername}
-                        onChange={(e) => setNetdriveUsername(e.target.value)}
-                        placeholder="z.B. dennis_laufwerk"
-                        required
-                        className="mt-1 bg-zinc-900 border-zinc-800"
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="netdrivePassword" className="text-xs text-zinc-300">
-                        Netzlaufwerk Passwort
-                      </Label>
-                      <Input
-                        id="netdrivePassword"
-                        type="password"
-                        value={netdrivePassword}
-                        onChange={(e) => setNetdrivePassword(e.target.value)}
-                        placeholder="••••••••"
-                        required={!netdriveConfigured}
-                        className="mt-1 bg-zinc-900 border-zinc-800"
-                      />
-                    </div>
-                  </div>
-
-                  {netdriveMsg && (
-                    <div className="p-3 bg-emerald-950/50 border border-emerald-800 text-emerald-300 rounded-lg text-xs font-medium">
-                      ✓ {netdriveMsg}
-                    </div>
-                  )}
-
-                  {netdriveErr && (
-                    <div className="p-3 bg-red-950/50 border border-red-800 text-red-300 rounded-lg text-xs font-medium">
-                      ❌ {netdriveErr}
-                    </div>
-                  )}
-
-                  <Button
-                    type="submit"
-                    disabled={netdriveSaving}
-                    className="theme-bg-accent text-white text-xs font-semibold"
-                  >
-                    {netdriveSaving ? "Speichert..." : "Zugangsdaten speichern"}
-                  </Button>
-                </form>
-
-                {/* 2. Windows Connection Guide */}
-                <div className="p-4 rounded-xl bg-indigo-950/30 border border-indigo-900/50 space-y-3">
-                  <h4 className="text-xs font-bold text-indigo-300 uppercase tracking-wider">
-                    2. Anleitung: In Windows als Netzlaufwerk verbinden
-                  </h4>
-
-                  <div className="p-3 rounded-lg bg-indigo-950/60 border border-indigo-800/60 text-xs text-indigo-200 flex items-start gap-2">
-                    <span className="text-base shrink-0">🔒</span>
-                    <div>
-                      <strong>Strikte Benutzer-Isolierung:</strong> Jeder registrierte Benutzer hat seinen eigenen, geschützten Speicherbereich. 
-                      Sobald du dich beim Netzlaufwerk anmeldest, leitet der Server dich automatisch ausschließlich in deinen eigenen persönlichen Posteingangsordner weiter.
-                    </div>
-                  </div>
-
-                  <ol className="list-decimal list-inside space-y-2 text-xs text-zinc-300 pt-1">
-                    <li>Öffne den <strong>Windows Datei-Explorer</strong> (Taste <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-200 border border-zinc-700">Win + E</kbd>).</li>
-                    <li>Klicke auf <strong>Dieser PC</strong> ➔ Oben auf <strong>Netzlaufwerk verbinden</strong>.</li>
-                    <li>Gib im Feld <strong>Ordner</strong> folgende Adresse ein:</li>
-                  </ol>
-
-                  <div className="flex items-center gap-2 bg-zinc-950 p-2.5 rounded-xl border border-zinc-800">
-                    <code className="text-xs font-mono text-indigo-300 flex-1 truncate">
-                      http://192.168.1.251:8080/inbox
-                    </code>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        navigator.clipboard.writeText("http://192.168.1.251:8080/inbox");
-                        alert("Adresse in Zwischenablage kopiert!");
-                      }}
-                      className="border-zinc-800 bg-zinc-900 text-xs text-zinc-300 hover:bg-zinc-800 shrink-0"
-                    >
-                      📋 Kopieren
-                    </Button>
-                  </div>
-
-                  <ul className="list-disc list-inside space-y-1 text-[11px] text-zinc-400 font-sans pt-1">
-                    <li>Setze einen Haken bei <strong>Verbindung mit anderen Anmeldeinformationen herstellen</strong>.</li>
-                    <li>Gib deinen oben gewählten Netzlaufwerk-Benutzernamen und dein Passwort ein.</li>
-                    <li>Abgelegte Dateien erscheinen automatisch in deinem <strong>Posteingang</strong> in der Weboberfläche!</li>
-                  </ul>
-                </div>
-              </CardContent>
-            </Card>
           </div>
         )}
 

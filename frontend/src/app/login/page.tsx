@@ -139,11 +139,11 @@ export default function Login() {
 
               <div className="flex items-center justify-between pt-1">
                 <div className="flex items-center space-x-2">
-                  <input 
-                    type="checkbox" 
-                    id="rememberMe" 
-                    checked={rememberMe} 
-                    onChange={e => setRememberMe(e.target.checked)} 
+                  <input
+                    type="checkbox"
+                    id="rememberMe"
+                    checked={rememberMe}
+                    onChange={e => setRememberMe(e.target.checked)}
                     className="w-4 h-4 rounded border-zinc-700 bg-zinc-950 text-indigo-600 focus:ring-indigo-500 accent-indigo-600 cursor-pointer"
                   />
                   <Label htmlFor="rememberMe" className="text-xs text-zinc-300 cursor-pointer select-none">

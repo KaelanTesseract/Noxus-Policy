@@ -6,13 +6,12 @@ import time
 import datetime
 import zipfile
 import json
-import shutil
 import tempfile
 import threading
 from sqlalchemy.orm import Session
 from database import SessionLocal
 import models
-from routers.backup import DB_FILE_PATH, DOCUMENTS_DIR, encrypt_archive, decrypt_archive
+from routers.backup import DB_FILE_PATH, DOCUMENTS_DIR, encrypt_archive
 
 BACKUPS_STORE_DIR = os.path.join("data", "backups")
 
@@ -221,7 +220,7 @@ def check_and_send_cancellation_notifications():
                     company_name = ins.company or "Gesellschaft k.A."
                     lines.append(f"• {ins.name} ({company_name}): Kündigungsfrist am {ins.cancellation_date.strftime('%d.%m.%Y')} (in {days} Tagen)")
                 lines.append("\nBitte überprüfe deine Verträge rechtzeitig in deiner Noxus Policy App.\n\nViele Grüße,\nDein Noxus Policy Team")
-                
+
                 content = "\n".join(lines)
                 try:
                     send_email_message(user.email, f"⏰ Kündigungsfrist-Erinnerung ({len(upcoming)} Verträge)", content, db)
@@ -240,7 +239,7 @@ def start_scheduler_thread():
         while True:
             try:
                 check_and_run_scheduled_backup()
-                
+
                 # Run cancellation notification check once every 24 hours (86400 seconds)
                 now = time.time()
                 if now - last_notification_check > 86400:
