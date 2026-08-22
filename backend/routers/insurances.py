@@ -182,7 +182,12 @@ def get_insurances(db: Session = Depends(get_db), current_user: models.User = De
 
 @router.get("/{insurance_id}", response_model=schemas.InsuranceResponse)
 def get_insurance(insurance_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_active_user)):
-    db_insurance = db.query(models.Insurance).filter(models.Insurance.id == insurance_id, models.Insurance.owner_id == current_user.id).first()
+    db_insurance = (
+        db.query(models.Insurance)
+        .options(selectinload(models.Insurance.claims), selectinload(models.Insurance.premium_history))
+        .filter(models.Insurance.id == insurance_id, models.Insurance.owner_id == current_user.id)
+        .first()
+    )
     if db_insurance is None:
         raise HTTPException(status_code=404, detail="Insurance not found")
     return format_insurance_dict(db_insurance)

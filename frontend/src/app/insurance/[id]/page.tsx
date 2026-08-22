@@ -185,43 +185,80 @@ export default function InsuranceDetailPage() {
     return c.includes("kfz") || c.includes("auto") || c.includes("fahrzeug") || c.includes("motorrad");
   };
 
+  const applyInsuranceData = (insData: any) => {
+    setInsurance(insData);
+    setFormData({
+      name: insData.name || "",
+      company: insData.company || "",
+      insurance_number: insData.insurance_number || "",
+      category: insData.category || "",
+      cost: insData.cost !== null && insData.cost !== undefined ? String(insData.cost) : "",
+      payment_cycle: insData.payment_cycle || "jährlich",
+      start_date: insData.start_date || "",
+      end_date: insData.end_date || "",
+      cancellation_date: insData.cancellation_date || "",
+      sf_class: insData.sf_class || "",
+      regional_class: insData.regional_class || "",
+      type_class: insData.type_class || "",
+      is_suspended: !!insData.is_suspended,
+      suspension_reason: insData.suspension_reason || ""
+    });
+    setNotesText(insData.notes || "");
+    setClaimsList(insData.claims || []);
+    setCoverageList(insData.coverage_details || []);
+  };
+
   const loadData = async () => {
-    setLoading(true);
+    // The dashboard already has this exact insurance (and the current user) cached from
+    // its own load — render instantly from that instead of a blank page, then refresh
+    // in the background (stale-while-revalidate) instead of always waiting on the network.
+    let cachedUserData: any = null;
+    let cachedInsuranceData: any = null;
+
+    if (typeof window !== "undefined") {
+      try {
+        const cachedUserRaw = sessionStorage.getItem("cache_user");
+        if (cachedUserRaw) cachedUserData = JSON.parse(cachedUserRaw);
+      } catch (_) {}
+      try {
+        const cachedInsurancesRaw = sessionStorage.getItem("cache_insurances");
+        if (cachedInsurancesRaw) {
+          const list = JSON.parse(cachedInsurancesRaw);
+          cachedInsuranceData = Array.isArray(list)
+            ? list.find((i: any) => String(i.id) === String(insuranceId))
+            : null;
+        }
+      } catch (_) {}
+    }
+
+    if (cachedUserData) setCurrentUser(cachedUserData);
+    if (cachedInsuranceData) {
+      applyInsuranceData(cachedInsuranceData);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
     try {
-      const u = await api.get("/users/me");
-      setCurrentUser(u);
+      // Fetch the up-to-date insurance and its documents in parallel instead of one after
+      // another, and skip re-fetching the current user when we already have it cached.
+      const [insData, docsData] = await Promise.all([
+        api.get(`/insurances/${insuranceId}`),
+        api.get(`/documents/insurance/${insuranceId}`)
+      ]);
 
-      const insData = await api.get(`/insurances/${insuranceId}`);
-      setInsurance(insData);
-
-      setFormData({
-        name: insData.name || "",
-        company: insData.company || "",
-        insurance_number: insData.insurance_number || "",
-        category: insData.category || "",
-        cost: insData.cost !== null && insData.cost !== undefined ? String(insData.cost) : "",
-        payment_cycle: insData.payment_cycle || "jährlich",
-        start_date: insData.start_date || "",
-        end_date: insData.end_date || "",
-        cancellation_date: insData.cancellation_date || "",
-        sf_class: insData.sf_class || "",
-        regional_class: insData.regional_class || "",
-        type_class: insData.type_class || "",
-        is_suspended: !!insData.is_suspended,
-        suspension_reason: insData.suspension_reason || ""
-      });
-
-      setNotesText(insData.notes || "");
-      setClaimsList(insData.claims || []);
-      setCoverageList(insData.coverage_details || []);
-
-      const docsData = await api.get(`/documents/insurance/${insuranceId}`);
+      applyInsuranceData(insData);
       setDocuments(docsData);
+
+      if (!cachedUserData) {
+        const u = await api.get("/users/me");
+        setCurrentUser(u);
+      }
     } catch (err: any) {
       console.error("Error loading insurance details:", err);
       if (err.message?.includes("401") || err.message?.includes("Unauthorized")) {
         router.push("/login");
-      } else {
+      } else if (!cachedInsuranceData) {
         setErrorMsg(err.message || "Versicherung konnte nicht geladen werden.");
       }
     } finally {

@@ -61,15 +61,25 @@ export default function Login() {
       }
       const data = await res.json();
       localStorage.setItem("token", data.access_token);
-      
+
       const userData = data.user || { email };
       if (typeof window !== "undefined") {
         sessionStorage.setItem("cache_user", JSON.stringify(userData));
       }
-      
+
       if (userData.must_change_password) {
         router.push("/admin-setup");
       } else {
+        // Warm the dashboard's cache before navigating so it can render instantly
+        // instead of showing a blank page while it fetches the insurance list itself.
+        try {
+          const insRes = await fetch("/api/insurances", {
+            headers: { Authorization: `Bearer ${data.access_token}` }
+          });
+          if (insRes.ok && typeof window !== "undefined") {
+            sessionStorage.setItem("cache_insurances", JSON.stringify(await insRes.json()));
+          }
+        } catch (_) {}
         router.push("/");
       }
     } catch (e: any) {
