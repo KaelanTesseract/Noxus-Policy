@@ -132,6 +132,18 @@ export default function Dashboard() {
 
   const totalCostAnnual = insurances.reduce((acc, ins) => acc + getAnnualCost(ins), 0);
 
+  // Upcoming cancellation deadlines within the next 90 days (excludes suspended policies)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const upcomingDeadlines = insurances
+    .filter((ins: any) => {
+      if (!ins.cancellation_date || ins.is_suspended) return false;
+      const days = (new Date(ins.cancellation_date).getTime() - today.getTime()) / 86400000;
+      return days >= 0 && days <= 90;
+    })
+    .sort((a: any, b: any) => a.cancellation_date.localeCompare(b.cancellation_date));
+  const nextDeadline = upcomingDeadlines[0];
+
   // Calculate category statistics & breakdown
   const categoryStats = insurances.reduce((acc: any, ins: any) => {
     const cat = ins.category || "Sonstige";
@@ -172,9 +184,9 @@ export default function Dashboard() {
       return (a.name || "").localeCompare(b.name || "");
     }
     if (sortBy === "fristen") {
-      if (!a.cancellation_deadline) return 1;
-      if (!b.cancellation_deadline) return -1;
-      return a.cancellation_deadline.localeCompare(b.cancellation_deadline);
+      if (!a.cancellation_date) return 1;
+      if (!b.cancellation_date) return -1;
+      return a.cancellation_date.localeCompare(b.cancellation_date);
     }
     return 0;
   });
@@ -196,10 +208,11 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="border-zinc-800/80 bg-zinc-900/40 backdrop-blur-md relative overflow-hidden group hover:border-zinc-700 transition-all">
             <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-indigo-500/10 to-transparent rounded-bl-full pointer-events-none"></div>
-            <CardContent className="p-5 flex items-center justify-between">
+            <CardContent className="p-5 flex items-center justify-between h-full">
               <div>
                 <p className="text-xs font-mono uppercase tracking-wider text-zinc-400">Aktive Policen</p>
                 <h3 className="text-3xl font-bold text-white mt-1">{insurances.length}</h3>
+                <p className="text-[11px] text-zinc-500 mt-0.5">&nbsp;</p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-zinc-800/80 border border-zinc-700/50 flex items-center justify-center text-xl text-zinc-200">
                 🛡️
@@ -209,12 +222,13 @@ export default function Dashboard() {
 
           <Card className="border-zinc-800/80 bg-zinc-900/40 backdrop-blur-md relative overflow-hidden group hover:border-zinc-700 transition-all">
             <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-emerald-500/10 to-transparent rounded-bl-full pointer-events-none"></div>
-            <CardContent className="p-5 flex items-center justify-between">
+            <CardContent className="p-5 flex items-center justify-between h-full">
               <div>
                 <p className="text-xs font-mono uppercase tracking-wider text-zinc-400">Gesamtkosten / Jahr</p>
                 <h3 className="text-2xl font-bold text-emerald-400 mt-1">
                   {totalCostAnnual > 0 ? `${totalCostAnnual.toFixed(2)} €` : "0,00 €"}
                 </h3>
+                <p className="text-[11px] text-zinc-500 mt-0.5">&nbsp;</p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-emerald-950/40 border border-emerald-800/50 flex items-center justify-center text-xl text-emerald-300">
                 💰
@@ -222,14 +236,20 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="border-zinc-800/80 bg-zinc-900/40 backdrop-blur-md relative overflow-hidden group hover:border-zinc-700 transition-all">
+          <Card
+            onClick={() => { if (nextDeadline) router.push(`/insurance/${nextDeadline.id}`); }}
+            className={`border-zinc-800/80 bg-zinc-900/40 backdrop-blur-md relative overflow-hidden group hover:border-zinc-700 transition-all ${nextDeadline ? "cursor-pointer" : ""}`}
+          >
             <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-amber-500/10 to-transparent rounded-bl-full pointer-events-none"></div>
-            <CardContent className="p-5 flex items-center justify-between">
+            <CardContent className="p-5 flex items-center justify-between h-full">
               <div>
                 <p className="text-xs font-mono uppercase tracking-wider text-zinc-400">Kündigungsfristen</p>
-                <h3 className="text-sm font-semibold text-amber-300 mt-2">
-                  {insurances.length > 0 ? "Überwachung aktiv" : "Keine Fristen"}
-                </h3>
+                <h3 className="text-3xl font-bold text-white mt-1">{upcomingDeadlines.length}</h3>
+                <p className="text-[11px] text-zinc-500 mt-0.5">
+                  {nextDeadline
+                    ? `${nextDeadline.name}: ${new Date(nextDeadline.cancellation_date).toLocaleDateString("de-DE")}`
+                    : "Keine Frist in 90 Tagen"}
+                </p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-amber-950/40 border border-amber-800/50 flex items-center justify-center text-xl text-amber-300">
                 ⏰
@@ -242,7 +262,7 @@ export default function Dashboard() {
             className="border-zinc-800/80 bg-zinc-900/40 backdrop-blur-md relative overflow-hidden group hover:border-zinc-700 transition-all cursor-pointer"
           >
             <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-cyan-500/10 to-transparent rounded-bl-full pointer-events-none"></div>
-            <CardContent className="p-5 flex items-center justify-between">
+            <CardContent className="p-5 flex items-center justify-between h-full">
               <div>
                 <p className="text-xs font-mono uppercase tracking-wider text-zinc-400">Posteingang</p>
                 <h3 className="text-3xl font-bold text-white mt-1">{inboxCount}</h3>
@@ -478,7 +498,7 @@ export default function Dashboard() {
                   <div className="pt-2 border-t border-zinc-800/60 flex items-center justify-between text-xs font-mono">
                     <span className="text-zinc-400">Kündigungsfrist:</span>
                     <span className="text-amber-400 font-bold px-2 py-0.5 bg-amber-950/30 rounded border border-amber-800/40">
-                      {ins.cancellation_deadline || "Keine Angabe"}
+                      {ins.cancellation_date ? new Date(ins.cancellation_date).toLocaleDateString("de-DE") : "Keine Angabe"}
                     </span>
                   </div>
                 </CardContent>
