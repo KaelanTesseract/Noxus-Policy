@@ -87,21 +87,18 @@
    classes, so it reaches every page/card/button without touching each one.
    ========================================================================== */
 
-/* Ambient backdrop: layered aurora glow + faint technical grid, behind everything */
+/* Ambient backdrop: layered aurora glow, behind everything */
 .app-ambient-bg {
   background-color: #050509;
   background-image:
     radial-gradient(ellipse 70% 45% at 15% -8%, var(--primary-glow), transparent 60%),
     radial-gradient(ellipse 55% 40% at 100% 0%, rgba(16, 185, 129, 0.10), transparent 65%),
-    radial-gradient(ellipse 60% 50% at 50% 120%, rgba(99, 102, 241, 0.08), transparent 65%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
-  background-size: auto, auto, auto, 48px 48px, 48px 48px;
+    radial-gradient(ellipse 60% 50% at 50% 120%, rgba(99, 102, 241, 0.08), transparent 65%);
   animation: ambient-drift 50s ease-in-out infinite alternate;
 }
 @keyframes ambient-drift {
-  0% { background-position: 0 0, 0 0, 0 0, 0 0, 0 0; }
-  100% { background-position: 3% 2%, -2% 1%, 0 -3%, 0 0, 0 0; }
+  0% { background-position: 0 0, 0 0, 0 0; }
+  100% { background-position: 3% 2%, -2% 1%, 0 -3%; }
 }
 @media (prefers-reduced-motion: reduce) {
   .app-ambient-bg { animation: none; }
@@ -449,10 +446,7 @@ html[data-style="executive-slate"] .app-ambient-bg {
   background-color: #0b1329;
   background-image:
     radial-gradient(ellipse 70% 45% at 20% -10%, rgba(56, 189, 248, 0.14), transparent 60%),
-    radial-gradient(ellipse 55% 40% at 100% 10%, rgba(99, 102, 241, 0.10), transparent 65%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  background-size: auto, auto, 52px 52px, 52px 52px;
+    radial-gradient(ellipse 55% 40% at 100% 10%, rgba(99, 102, 241, 0.10), transparent 65%);
 }
 
 /* 4. MINT FRESH LIGHT THEME */
@@ -546,10 +540,7 @@ html[data-style="cyberpunk"] .app-ambient-bg {
   background-image:
     radial-gradient(ellipse 70% 45% at 15% -10%, rgba(217, 70, 239, 0.22), transparent 60%),
     radial-gradient(ellipse 55% 40% at 100% 0%, rgba(6, 182, 212, 0.18), transparent 65%),
-    radial-gradient(ellipse 60% 50% at 50% 120%, rgba(168, 85, 247, 0.16), transparent 65%),
-    linear-gradient(180deg, rgba(217, 70, 239, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(217, 70, 239, 0.05) 1px, transparent 1px);
-  background-size: auto, auto, auto, 40px 40px, 40px 40px;
+    radial-gradient(ellipse 60% 50% at 50% 120%, rgba(168, 85, 247, 0.16), transparent 65%);
 }
 html[data-style="cyberpunk"] header {
   background-color: rgba(3, 0, 8, 0.92) !important;
