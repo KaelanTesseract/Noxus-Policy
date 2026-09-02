@@ -52,9 +52,16 @@ cd "$INSTALL_DIR" || exit 1
 
 # Step 1: DNS Check (15%)
 render_progress 15 100 "1/5: Prüfe Netzwerk- und DNS-Verbindung..."
-if ! ping -c 1 -W 2 registry-1.docker.io >/dev/null 2>&1; then
-  echo "nameserver 1.1.1.1" > /etc/resolv.conf 2>/dev/null || true
-  echo "nameserver 192.168.1.1" >> /etc/resolv.conf 2>/dev/null || true
+# Use a real DNS lookup, not ICMP: many networks/firewalls (and Cloudflare-
+# fronted hosts like the Docker registry) drop ping entirely even when DNS
+# and HTTPS work fine, which previously caused resolv.conf to be overwritten
+# on working setups. Only touch it if name resolution is actually broken,
+# back up the existing file first, and use well-known public resolvers
+# instead of a guessed private IP that only happens to be a DNS server on
+# some home routers.
+if ! getent hosts registry-1.docker.io >/dev/null 2>&1; then
+  cp /etc/resolv.conf /etc/resolv.conf.noxus-bak 2>/dev/null || true
+  { echo "nameserver 1.1.1.1"; echo "nameserver 8.8.8.8"; } > /etc/resolv.conf 2>/dev/null || true
 fi
 sleep 1
 
