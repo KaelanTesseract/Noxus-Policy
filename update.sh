@@ -160,7 +160,18 @@ if [ -z "$DC_CMD" ]; then
 fi
 
 BUILD_LOG="/tmp/noxus_build.log"
-if ! $DC_CMD build --no-cache >"$BUILD_LOG" 2>&1; then
+# Image pulls hit the Docker registry over the network too, so they can hit
+# the same kind of transient DNS/network blip as the Git step above — retry
+# a couple of times before treating it as a real failure.
+BUILD_OK=0
+for attempt in 1 2; do
+  if $DC_CMD build --no-cache >"$BUILD_LOG" 2>&1; then
+    BUILD_OK=1
+    break
+  fi
+  sleep 5
+done
+if [ "$BUILD_OK" != "1" ]; then
   echo -e "\n\n${RED}❌ Fehler beim Bauen der Docker-Container:${NC}\n"
   cat "$BUILD_LOG"
   exit 1
