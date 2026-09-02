@@ -92,9 +92,23 @@ git remote set-url origin https://github.com/KaelanTesseract/Noxus-Policy.git >/
 # The repo is public and read-only here, so no credentials should ever be
 # needed. Disabling the terminal prompt turns a silent hang on unexpected
 # auth into a fast, visible failure instead of blocking the update forever.
+# A few short retries ride out transient DNS/network blips instead of
+# giving up (and silently NOT updating) on the very first hiccup.
 export GIT_TERMINAL_PROMPT=0
-git -c credential.helper= fetch origin main >/dev/null 2>&1 || true
-git -c credential.helper= reset --hard origin/main >/dev/null 2>&1 || git -c credential.helper= pull origin main >/dev/null 2>&1 || true
+GIT_FETCH_OK=0
+for attempt in 1 2 3; do
+  if git -c credential.helper= fetch origin main >/dev/null 2>&1; then
+    GIT_FETCH_OK=1
+    break
+  fi
+  sleep 3
+done
+
+if [ "$GIT_FETCH_OK" = "1" ]; then
+  git -c credential.helper= reset --hard origin/main >/dev/null 2>&1 || git -c credential.helper= pull origin main >/dev/null 2>&1 || true
+else
+  echo -e "\n\n${YELLOW}⚠ Konnte GitHub nach mehreren Versuchen nicht erreichen (Netzwerk-/DNS-Problem). Fahre mit der aktuell installierten Version fort, es wird also NICHTS aktualisiert.${NC}"
+fi
 
 chmod +x update.sh install.sh 2>/dev/null || true
 ln -sf "$INSTALL_DIR/update.sh" /usr/local/bin/update 2>/dev/null || true
