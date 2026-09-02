@@ -52,16 +52,16 @@ cd "$INSTALL_DIR" || exit 1
 
 # Step 1: DNS Check (15%)
 render_progress 15 100 "1/5: Prüfe Netzwerk- und DNS-Verbindung..."
-# Use a real DNS lookup, not ICMP: many networks/firewalls (and Cloudflare-
-# fronted hosts like the Docker registry) drop ping entirely even when DNS
-# and HTTPS work fine, which previously caused resolv.conf to be overwritten
-# on working setups. Only touch it if name resolution is actually broken,
-# back up the existing file first, and use well-known public resolvers
-# instead of a guessed private IP that only happens to be a DNS server on
-# some home routers.
+# This used to overwrite /etc/resolv.conf with hardcoded public resolvers on
+# any failed lookup (first via a flaky ICMP ping check, later via a single
+# unretried DNS lookup). Both versions ended up clobbering DNS setups that
+# were actually fine — including, on at least one deployment, a
+# working router-relayed resolver getting replaced by public resolvers that
+# were the actually unreliable ones for that network. DNS/network config on
+# an LXC container is Proxmox's (or the admin's) responsibility, not this
+# script's — so this step now only ever warns, never writes to system files.
 if ! getent hosts registry-1.docker.io >/dev/null 2>&1; then
-  cp /etc/resolv.conf /etc/resolv.conf.noxus-bak 2>/dev/null || true
-  { echo "nameserver 1.1.1.1"; echo "nameserver 8.8.8.8"; } > /etc/resolv.conf 2>/dev/null || true
+  echo -e "\n${YELLOW}⚠ DNS-Auflösung scheint gerade gestört zu sein (registry-1.docker.io nicht erreichbar). Fahre trotzdem fort — falls spätere Schritte fehlschlagen, prüfe /etc/resolv.conf bzw. deine Netzwerk-/DNS-Konfiguration.${NC}"
 fi
 sleep 1
 
