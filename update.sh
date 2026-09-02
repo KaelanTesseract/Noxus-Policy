@@ -50,18 +50,32 @@ fi
 
 cd "$INSTALL_DIR" || exit 1
 
+# Use Google's public resolvers for this script's own network access (Git +
+# Docker registry lookups), but only for the duration of this run: back up
+# the existing /etc/resolv.conf and restore it on exit no matter how the
+# script ends (success, failure, or being interrupted). A previous version
+# of this script overwrote /etc/resolv.conf permanently, which on at least
+# one deployment clobbered a working router-relayed resolver with public
+# ones that turned out to be the less reliable choice on that network - so
+# this is deliberately temporary and always reverted, never left behind.
+RESOLV_BACKUP=""
+if [ -f /etc/resolv.conf ]; then
+  RESOLV_BACKUP="$(mktemp /tmp/noxus-resolv-backup.XXXXXX)"
+  cp /etc/resolv.conf "$RESOLV_BACKUP" 2>/dev/null || RESOLV_BACKUP=""
+fi
+restore_resolv_conf() {
+  if [ -n "$RESOLV_BACKUP" ] && [ -f "$RESOLV_BACKUP" ]; then
+    cp "$RESOLV_BACKUP" /etc/resolv.conf 2>/dev/null || true
+    rm -f "$RESOLV_BACKUP" 2>/dev/null || true
+  fi
+}
+trap restore_resolv_conf EXIT
+{ echo "nameserver 8.8.8.8"; echo "nameserver 8.8.4.4"; } > /etc/resolv.conf 2>/dev/null || true
+
 # Step 1: DNS Check (15%)
 render_progress 15 100 "1/5: Prüfe Netzwerk- und DNS-Verbindung..."
-# This used to overwrite /etc/resolv.conf with hardcoded public resolvers on
-# any failed lookup (first via a flaky ICMP ping check, later via a single
-# unretried DNS lookup). Both versions ended up clobbering DNS setups that
-# were actually fine — including, on at least one deployment, a
-# working router-relayed resolver getting replaced by public resolvers that
-# were the actually unreliable ones for that network. DNS/network config on
-# an LXC container is Proxmox's (or the admin's) responsibility, not this
-# script's — so this step now only ever warns, never writes to system files.
 if ! getent hosts registry-1.docker.io >/dev/null 2>&1; then
-  echo -e "\n${YELLOW}⚠ DNS-Auflösung scheint gerade gestört zu sein (registry-1.docker.io nicht erreichbar). Fahre trotzdem fort — falls spätere Schritte fehlschlagen, prüfe /etc/resolv.conf bzw. deine Netzwerk-/DNS-Konfiguration.${NC}"
+  echo -e "\n${YELLOW}⚠ DNS-Auflösung über 8.8.8.8/8.8.4.4 scheint gerade gestört zu sein. Fahre trotzdem fort.${NC}"
 fi
 sleep 1
 
