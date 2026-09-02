@@ -77,8 +77,17 @@ if [ ! -d ".git" ]; then
   git remote add origin https://github.com/KaelanTesseract/Noxus-Policy.git >/dev/null 2>&1 || true
 fi
 
-git fetch origin main >/dev/null 2>&1 || true
-git reset --hard origin/main >/dev/null 2>&1 || git pull origin main >/dev/null 2>&1 || true
+# Always re-point origin at the canonical public repo, in case it ever drifted
+# (old fork, rename, manual edit) — a stale/wrong URL is what makes Git treat
+# the remote as potentially private and prompt for credentials below.
+git remote set-url origin https://github.com/KaelanTesseract/Noxus-Policy.git >/dev/null 2>&1 || true
+
+# The repo is public and read-only here, so no credentials should ever be
+# needed. Disabling the terminal prompt turns a silent hang on unexpected
+# auth into a fast, visible failure instead of blocking the update forever.
+export GIT_TERMINAL_PROMPT=0
+git -c credential.helper= fetch origin main >/dev/null 2>&1 || true
+git -c credential.helper= reset --hard origin/main >/dev/null 2>&1 || git -c credential.helper= pull origin main >/dev/null 2>&1 || true
 
 chmod +x update.sh install.sh 2>/dev/null || true
 ln -sf "$INSTALL_DIR/update.sh" /usr/local/bin/update 2>/dev/null || true

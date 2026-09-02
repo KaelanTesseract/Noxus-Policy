@@ -62,7 +62,10 @@ echo -e "${GREEN}📂 Richte Installationsverzeichnis in ${INSTALL_DIR} ein...${
 if [ -d "$INSTALL_DIR/.git" ]; then
   echo -e "${YELLOW}🔄 Aktualisiere bestehende Installation...${NC}"
   cd "$INSTALL_DIR"
-  git pull origin main || true
+  # Re-point origin at the canonical public repo in case it ever drifted, and
+  # never let this block on an unexpected credential prompt (repo is public).
+  git remote set-url origin https://github.com/KaelanTesseract/Noxus-Policy.git >/dev/null 2>&1 || true
+  GIT_TERMINAL_PROMPT=0 git -c credential.helper= pull origin main || true
 else
   mkdir -p "$INSTALL_DIR"
   cd "$INSTALL_DIR"
