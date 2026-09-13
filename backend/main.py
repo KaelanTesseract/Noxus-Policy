@@ -12,15 +12,46 @@ import sqlite3
 
 from backup_scheduler import start_scheduler_thread
 
-app = FastAPI(title="Versicherungsmanager API")
+# The frontend never calls this API directly from the browser (its Next.js
+# server proxies every request, see frontend/src/app/api/[...path]/route.ts),
+# so cross-origin browser access isn't something this app needs by default.
+# A wildcard origin combined with allow_credentials=True previously let any
+# website's JS call this API with a visitor's stolen/leaked bearer token.
+# CORS_ORIGINS lets an admin explicitly opt specific origins back in if they
+# have a real cross-origin use case (comma-separated list).
+_cors_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()]
+
+# Docs/Swagger/OpenAPI are open by default in FastAPI and unauthenticated -
+# fine for local development, but they hand an attacker a full map of every
+# endpoint (including the ones fixed in this pass) on a public deployment.
+_enable_docs = os.getenv("ENABLE_API_DOCS", "false").lower() in ("true", "1", "yes")
+
+app = FastAPI(
+    title="Versicherungsmanager API",
+    docs_url="/docs" if _enable_docs else None,
+    redoc_url="/redoc" if _enable_docs else None,
+    openapi_url="/openapi.json" if _enable_docs else None,
+)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # In production, restrict this
-    allow_credentials=True,
+    allow_origins=_cors_origins,
+    allow_credentials=bool(_cors_origins),
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    # Harmless over plain HTTP, and takes effect automatically once a reverse
+    # proxy terminates TLS in front of this app.
+    response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
+    return response
 
 app.include_router(users.router)
 app.include_router(insurances.router)
