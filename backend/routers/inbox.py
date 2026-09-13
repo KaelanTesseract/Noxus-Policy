@@ -13,6 +13,7 @@ import datetime
 
 import models, schemas, auth, ocr
 from database import get_db
+from upload_validation import sanitize_filename, validate_upload
 
 router = APIRouter(prefix="/api/inbox", tags=["inbox"])
 
@@ -73,18 +74,19 @@ def upload_to_inbox(
     user_inbox_dir = os.path.join(INBOX_BASE_DIR, str(current_user.id))
     os.makedirs(user_inbox_dir, exist_ok=True)
 
-    safe_filename = file.filename
+    safe_filename = sanitize_filename(file.filename)
+    contents = validate_upload(file, safe_filename)
     target_path = os.path.join(user_inbox_dir, safe_filename)
 
     with open(target_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+        buffer.write(contents)
 
     file_size = os.path.getsize(target_path)
 
     doc = models.Document(
         filename=safe_filename,
-        original_filename=file.filename,
-        custom_name=os.path.splitext(file.filename)[0],
+        original_filename=safe_filename,
+        custom_name=os.path.splitext(safe_filename)[0],
         doc_type="Posteingang",
         upload_date=datetime.datetime.utcnow(),
         file_size=file_size,

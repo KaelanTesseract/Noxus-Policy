@@ -317,6 +317,8 @@ def delete_claim(
     db_claim = db.query(models.Claim).filter(models.Claim.id == claim_id, models.Claim.insurance_id == insurance_id).first()
     if not db_claim:
         raise HTTPException(status_code=404, detail="Schadensmeldung nicht gefunden.")
+    if db_claim.insurance.owner_id != current_user.id and not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Nicht berechtigt.")
 
     db.delete(db_claim)
     db.commit()
@@ -365,6 +367,8 @@ def delete_premium_history_entry(
     db_entry = db.query(models.PremiumHistory).filter(models.PremiumHistory.id == history_id, models.PremiumHistory.insurance_id == insurance_id).first()
     if not db_entry:
         raise HTTPException(status_code=404, detail="Beitragseintrag nicht gefunden.")
+    if db_entry.insurance.owner_id != current_user.id and not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Nicht berechtigt.")
 
     db.delete(db_entry)
     db.commit()

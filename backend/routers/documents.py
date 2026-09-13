@@ -11,11 +11,23 @@ import json
 
 import models, schemas, auth, ocr
 from database import get_db
+from upload_validation import sanitize_filename, validate_upload
+from secrets_crypto import encrypt_secret, decrypt_secret
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
 UPLOAD_DIR = "documents"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+def _check_document_access(doc: "models.Document", current_user: "models.User"):
+    """Same ownership rule view_document/download_document already used -
+    reanalyze/update/delete previously only checked doc.insurance.owner_id,
+    which is None (and so silently skipped) for inbox documents not yet
+    assigned to an insurance, even though doc.owner_id is set on those rows."""
+    if doc.insurance and doc.insurance.owner_id != current_user.id and not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    if doc.owner_id and doc.owner_id != current_user.id and not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Forbidden")
 
 @router.get("/ai-config")
 def get_ai_config(db: Session = Depends(get_db)):
@@ -45,19 +57,25 @@ def set_ai_config(
 
     return {"msg": f"KI-Dokumentenanalyse wurde {'aktiviert' if use_ai else 'deaktiviert (nur klassische OCR)'}!", "use_ai": use_ai}
 
+_ENCRYPTED_SETTING_KEYS = {"pattern_sync_github_token"}
+
 def _get_system_setting(db: Session, key: str, default_val: str = "") -> str:
     setting = db.query(models.SystemSetting).filter(models.SystemSetting.key == key).first()
     if setting and setting.value is not None:
-        return setting.value
+        value = setting.value
+        if key in _ENCRYPTED_SETTING_KEYS:
+            value = decrypt_secret(value)
+        return value
     return default_val
 
 def _set_system_setting(db: Session, key: str, value: str):
+    stored_value = encrypt_secret(value) if key in _ENCRYPTED_SETTING_KEYS else value
     setting = db.query(models.SystemSetting).filter(models.SystemSetting.key == key).first()
     if not setting:
-        setting = models.SystemSetting(key=key, value=value)
+        setting = models.SystemSetting(key=key, value=stored_value)
         db.add(setting)
     else:
-        setting.value = value
+        setting.value = stored_value
 
 @router.get("/pattern-sync-config")
 def get_pattern_sync_config(
@@ -94,10 +112,12 @@ def extract_document_data(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
-    temp_filepath = os.path.join(UPLOAD_DIR, f"temp_{file.filename}")
+    safe_name = sanitize_filename(file.filename)
+    contents = validate_upload(file, safe_name)
+    temp_filepath = os.path.join(UPLOAD_DIR, f"temp_{current_user.id}_{safe_name}")
     with open(temp_filepath, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-        
+        buffer.write(contents)
+
     text = ocr.extract_text_from_file(temp_filepath)
     extracted_data = ocr.extract_insurance_data(text, db=db)
     extracted_data["extracted_text"] = text
@@ -126,26 +146,29 @@ def create_document(
     db_insurance = db.query(models.Insurance).filter(models.Insurance.id == insurance_id, models.Insurance.owner_id == current_user.id).first()
     if db_insurance is None:
         raise HTTPException(status_code=404, detail="Insurance not found")
-        
-    file_extension = os.path.splitext(original_filename)[1]
+
+    safe_original_name = sanitize_filename(original_filename)
+    contents = validate_upload(file, safe_original_name)
+    file_extension = os.path.splitext(safe_original_name)[1]
     db_doc = models.Document(
         original_filename=original_filename,
         custom_name=custom_name or original_filename,
         doc_type=doc_type or "Vertragsschreiben",
         insurance_id=insurance_id,
         category_id=category_id,
+        owner_id=current_user.id,
     )
     db.add(db_doc)
     db.commit()
     db.refresh(db_doc)
-    
+
     saved_filename = f"doc_{db_doc.id}{file_extension}"
     db_doc.filename = saved_filename
     db.commit()
-    
+
     filepath = os.path.join(UPLOAD_DIR, saved_filename)
     with open(filepath, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+        buffer.write(contents)
 
     # Reuse the extraction already performed by the "/documents/extract" preview step the
     # frontend calls before this endpoint, instead of re-running the OCR/AI pipeline a second time.
@@ -198,9 +221,8 @@ def reanalyze_document(
     doc = db.query(models.Document).filter(models.Document.id == document_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Dokument nicht gefunden.")
-        
-    if doc.insurance and doc.insurance.owner_id != current_user.id and not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="Keine Berechtigung.")
+
+    _check_document_access(doc, current_user)
 
     filepath = os.path.join(UPLOAD_DIR, doc.filename)
     if not os.path.exists(filepath):
@@ -282,9 +304,8 @@ def update_document(
     doc = db.query(models.Document).filter(models.Document.id == document_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
-        
-    if doc.insurance and doc.insurance.owner_id != current_user.id and not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="Forbidden")
+
+    _check_document_access(doc, current_user)
 
     if "custom_name" in payload:
         doc.custom_name = payload["custom_name"]
@@ -306,10 +327,7 @@ def view_document(
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    if doc.insurance and doc.insurance.owner_id != current_user.id and not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="Forbidden")
-    if doc.owner_id and doc.owner_id != current_user.id and not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="Forbidden")
+    _check_document_access(doc, current_user)
 
     filepath = os.path.join(UPLOAD_DIR, doc.filename)
     if not os.path.exists(filepath):
@@ -334,10 +352,7 @@ def download_document(
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    if doc.insurance and doc.insurance.owner_id != current_user.id and not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="Forbidden")
-    if doc.owner_id and doc.owner_id != current_user.id and not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="Forbidden")
+    _check_document_access(doc, current_user)
 
     filepath = os.path.join(UPLOAD_DIR, doc.filename)
     if not os.path.exists(filepath):
@@ -358,9 +373,8 @@ def delete_document(
     doc = db.query(models.Document).filter(models.Document.id == document_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
-        
-    if doc.insurance and doc.insurance.owner_id != current_user.id and not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="Forbidden")
+
+    _check_document_access(doc, current_user)
 
     if doc.filename:
         filepath = os.path.join(UPLOAD_DIR, doc.filename)

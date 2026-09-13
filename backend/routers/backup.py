@@ -18,6 +18,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 import models, auth
 from database import get_db, engine
+from upload_validation import sanitize_filename
 
 router = APIRouter(prefix="/api/backup", tags=["backup"])
 
@@ -297,7 +298,7 @@ def download_stored_backup(
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Nur Administratoren dürfen Backups herunterladen.")
 
-    file_path = os.path.join(BACKUPS_STORE_DIR, filename)
+    file_path = os.path.join(BACKUPS_STORE_DIR, sanitize_filename(filename))
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="Backup-Datei nicht gefunden.")
 
@@ -321,7 +322,7 @@ def restore_stored_backup(
     if not password:
         raise HTTPException(status_code=400, detail="Bitte gib das Entschlüsselungs-Passwort an.")
 
-    file_path = os.path.join(BACKUPS_STORE_DIR, filename)
+    file_path = os.path.join(BACKUPS_STORE_DIR, sanitize_filename(filename))
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="Backup-Datei nicht gefunden.")
 
@@ -378,7 +379,7 @@ def delete_stored_backup(
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Nur Administratoren dürfen Backups löschen.")
 
-    file_path = os.path.join(BACKUPS_STORE_DIR, filename)
+    file_path = os.path.join(BACKUPS_STORE_DIR, sanitize_filename(filename))
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="Backup-Datei nicht gefunden.")
 
