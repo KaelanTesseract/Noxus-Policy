@@ -82,13 +82,18 @@ export function Navbar({ userEmail, onUploadClick, onTaxExportClick }: NavbarPro
           <Button
             onClick={() => router.push("/inbox")}
             title="Posteingang"
+            aria-label={inboxCount > 0 ? `Posteingang, ${inboxCount} ungelesen` : "Posteingang"}
             variant="outline"
-            className="relative border-indigo-800/80 bg-indigo-950/40 hover:bg-indigo-900/60 text-indigo-200 transition-all font-semibold text-xs sm:text-sm px-2.5 sm:px-3.5 py-1.5 flex items-center gap-1.5"
+            size="icon"
+            className="relative size-11 sm:size-8 border-indigo-800/80 bg-indigo-950/40 hover:bg-indigo-900/60 text-indigo-200 transition-all rounded-xl"
           >
-            <span>📬 Posteingang</span>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 12h4.5l1.5 3h6l1.5-3H21" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5.5 12l1.72-6.45A2 2 0 019.15 4h5.7a2 2 0 011.93 1.55L18.5 12v6a2 2 0 01-2 2h-9a2 2 0 01-2-2v-6z" />
+            </svg>
             {inboxCount > 0 && (
-              <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-indigo-500 text-white animate-pulse">
-                {inboxCount}
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shadow-sm">
+                {inboxCount > 99 ? "99+" : inboxCount}
               </span>
             )}
           </Button>
@@ -100,7 +105,12 @@ export function Navbar({ userEmail, onUploadClick, onTaxExportClick }: NavbarPro
               variant="outline"
               className="border-sky-800/80 bg-sky-950/40 hover:bg-sky-900/60 text-sky-200 transition-all font-semibold text-xs sm:text-sm px-2.5 sm:px-3.5 py-1.5 flex items-center gap-1.5"
             >
-              <span>📑 Steuer-Export</span>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M14 3v5h5" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 13h6M9 17h6" />
+              </svg>
+              <span>Steuer-Export</span>
             </Button>
           )}
 
