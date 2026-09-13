@@ -7,7 +7,11 @@
 import { useEffect, useState, createContext, useContext } from "react";
 
 export type ColorTheme = "indigo" | "emerald" | "violet" | "cyan" | "amber" | "rose";
-export type StyleTheme = "dark-glass" | "classic-light" | "nordic-warm" | "executive-slate" | "cyberpunk" | "mint-light";
+
+// Only one style ships today; the type stays a union and STYLES stays a list so a
+// future theme can be added by appending an id here, an entry below, and a matching
+// `html[data-style="..."] { ... }` block in globals.css (see the comment there).
+export type StyleTheme = "dark-glass";
 
 export const STYLES: {
   id: StyleTheme;
@@ -26,51 +30,6 @@ export const STYLES: {
     previewBg: "#09090b",
     previewCard: "#18181b",
     previewBorder: "#27272a"
-  },
-  {
-    id: "classic-light",
-    name: "Klassisch Business (Hell)",
-    mode: "light",
-    desc: "Klassisches, strahlend helles Design mit klaren Kontrasten & weißen Karten.",
-    previewBg: "#f8fafc",
-    previewCard: "#ffffff",
-    previewBorder: "#cbd5e1"
-  },
-  {
-    id: "nordic-warm",
-    name: "Skandinavisch Warm (Soft)",
-    mode: "light",
-    desc: "Beruhigender, warmer Creme-Ton mit sanften Linien & zeitloser Ästhetik.",
-    previewBg: "#f5f5f4",
-    previewCard: "#ffffff",
-    previewBorder: "#e7e5e4"
-  },
-  {
-    id: "executive-slate",
-    name: "Executive Slate (Dunkel-Blau)",
-    mode: "dark",
-    desc: "Elegantes, tiefes Nachtblau-Silber für professionelles Arbeiten.",
-    previewBg: "#0b1329",
-    previewCard: "#152238",
-    previewBorder: "#263859"
-  },
-  {
-    id: "mint-light",
-    name: "Mint Frisch (Hell)",
-    mode: "light",
-    desc: "Frisches helles Design mit dezenten Minz- & Teal-Farbtönen.",
-    previewBg: "#f0fdf4",
-    previewCard: "#ffffff",
-    previewBorder: "#bbf7d0"
-  },
-  {
-    id: "cyberpunk",
-    name: "Cyberpunk Neon (Gamer)",
-    mode: "dark",
-    desc: "Futuristisches, tiefes Schwarz mit leuchtenden Violett-Bordüren.",
-    previewBg: "#030008",
-    previewCard: "#120324",
-    previewBorder: "#a855f7"
   }
 ];
 
