@@ -814,14 +814,14 @@ export default function SettingsPage() {
                   <span>Design & Erscheinungsbild</span>
                 </CardTitle>
                 <CardDescription className="mt-1">
-                  Wähle deine Akzentfarbe. Weitere Design-Stile neben Dark Neon Glass sind geplant.
+                  Wähle dein bevorzugtes UI-Design sowie deine Akzentfarbe. Jeder Benutzer kann sein persönliches Erscheinungsbild individuell festlegen.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* 1. Design-Stil (aktuell nur ein Stil verfügbar, weitere folgen) */}
+                {/* 1. Design-Stil Grid */}
                 <div>
                   <Label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3 block">
-                    1. Oberfläche & Design-Stil:
+                    1. Oberfläche & Design-Stil wählen:
                   </Label>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {STYLES.map(s => {

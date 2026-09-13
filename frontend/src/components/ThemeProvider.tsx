@@ -6,12 +6,12 @@
 
 import { useEffect, useState, createContext, useContext } from "react";
 
-export type ColorTheme = "indigo" | "emerald" | "violet" | "cyan" | "amber" | "rose";
+export type ColorTheme = "indigo" | "emerald" | "violet" | "cyan" | "amber" | "rose" | "apple-blue";
 
-// Only one style ships today; the type stays a union and STYLES stays a list so a
-// future theme can be added by appending an id here, an entry below, and a matching
-// `html[data-style="..."] { ... }` block in globals.css (see the comment there).
-export type StyleTheme = "dark-glass";
+// The type stays a union and STYLES stays a list so a future theme can be added by
+// appending an id here, an entry below, and a matching `html[data-style="..."] { ... }`
+// block in globals.css (see the comment there).
+export type StyleTheme = "dark-glass" | "apple-light";
 
 export const STYLES: {
   id: StyleTheme;
@@ -30,6 +30,15 @@ export const STYLES: {
     previewBg: "#09090b",
     previewCard: "#18181b",
     previewBorder: "#27272a"
+  },
+  {
+    id: "apple-light",
+    name: "Apple Light (HIG)",
+    mode: "light",
+    desc: "Helles, barrierefreies Design nach den Apple Human Interface Guidelines: klare Typografie, hoher Kontrast, dezente Trennlinien.",
+    previewBg: "#f5f5f7",
+    previewCard: "#ffffff",
+    previewBorder: "#d2d2d7"
   }
 ];
 
@@ -40,6 +49,7 @@ export const THEMES: { id: ColorTheme; name: string; color: string; bgGradient: 
   { id: "cyan", name: "Ocean Deep", color: "#06b6d4", bgGradient: "from-cyan-900/20" },
   { id: "amber", name: "Sunset Amber", color: "#f59e0b", bgGradient: "from-amber-900/20" },
   { id: "rose", name: "Rose Crimson", color: "#f43f5e", bgGradient: "from-rose-900/20" },
+  { id: "apple-blue", name: "Apple Blue", color: "#0071e3", bgGradient: "from-blue-900/20" },
 ];
 
 interface ThemeContextType {

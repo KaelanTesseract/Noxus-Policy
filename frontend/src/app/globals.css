@@ -60,6 +60,12 @@
   --primary-glow: rgba(244, 63, 94, 0.25);
 }
 
+[data-theme="apple-blue"] {
+  --primary-accent: #0071e3;
+  --primary-hover: #0058b0;
+  --primary-glow: rgba(0, 113, 227, 0.25);
+}
+
 .theme-bg-accent {
   background: linear-gradient(135deg, var(--primary-accent), color-mix(in srgb, var(--primary-accent) 65%, black)) !important;
   box-shadow: 0 8px 20px -8px var(--primary-glow), 0 0 0 1px rgba(255, 255, 255, 0.06) inset !important;
@@ -205,18 +211,129 @@ body, .theme-bg-accent, [class*="bg-zinc-9"], [class*="border-zinc-8"] {
 
 /* ==========================================================================
    DESIGN THEMES & UI STYLES (data-style attribute)
-   Only the default "dark-glass" style ships today (see STYLES in
-   ThemeProvider.tsx) — the app was designed against it directly, so it needs
-   no override block here.
+   "dark-glass" is the default the app was designed against directly, so it
+   needs no override block. Every other style (see STYLES in
+   ThemeProvider.tsx) is patched on top via a block scoped to
+   `html[data-style="<id>"]`.
 
-   To add another style later: give it an id in StyleTheme/STYLES
-   (frontend/src/components/ThemeProvider.tsx), then add a block here scoped
-   to `html[data-style="<id>"]` that overrides background/text/border colors
-   (the app's components use literal dark-mode Tailwind classes like
-   bg-zinc-900 and text-zinc-100/200/300/50, so a light style must override
-   every one of those shades it touches, plus the `input, select, textarea`
-   element selectors and `.app-ambient-bg` — an earlier version of this file
-   covered zinc-200/300/white but missed zinc-50/100, leaving some headings
-   unreadable in the light styles that existed then. Cover the full zinc
-   text scale actually used by the component you're theming.
+   To add another style: give it an id in StyleTheme/STYLES
+   (frontend/src/components/ThemeProvider.tsx), then add a block here that
+   overrides background/text/border colors. The app's components use literal
+   dark-mode Tailwind classes like bg-zinc-900 and text-zinc-100/200/300/50,
+   so a light style must override every shade it touches, plus the
+   `input, select, textarea` element selectors and `.app-ambient-bg` — an
+   earlier version of this file covered zinc-200/300/white but missed
+   zinc-50/100, leaving some headings unreadable in the light styles that
+   existed then. Cover the full zinc text scale actually used by the
+   component you're theming, and re-check with a contrast calculator: every
+   pairing below is verified at 4.5:1 or better (WCAG AA / Apple HIG
+   accessibility.md), most well above it.
    ========================================================================== */
+
+/* APPLE LIGHT (HIG-conformant) — systemGroupedBackground/systemBackground
+   layering, Apple's near-black label color, and the same light-tint +
+   saturated-text pairing Apple's own semantic colors use for status pills. */
+html[data-style="apple-light"] {
+  background-color: #f5f5f7 !important;
+  color: #1d1d1f !important;
+}
+html[data-style="apple-light"] body.bg-zinc-950 {
+  /* Beats the generic .bg-zinc-950 "white card" rule below on specificity, so the
+     page itself stays systemGroupedBackground gray while cards sit on top in white. */
+  background-color: #f5f5f7 !important;
+  color: #1d1d1f !important;
+}
+html[data-style="apple-light"] .bg-zinc-950,
+html[data-style="apple-light"] .bg-zinc-900\/80,
+html[data-style="apple-light"] .bg-zinc-900\/60,
+html[data-style="apple-light"] .bg-zinc-900\/50,
+html[data-style="apple-light"] .bg-zinc-900\/40,
+html[data-style="apple-light"] .bg-zinc-900,
+html[data-style="apple-light"] .bg-zinc-800,
+html[data-style="apple-light"] .bg-zinc-700,
+html[data-style="apple-light"] [class*="bg-zinc-9"],
+html[data-style="apple-light"] [class*="bg-zinc-8"] {
+  background-color: #ffffff !important;
+  color: #1d1d1f !important;
+  border-color: #d2d2d7 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px -12px rgba(0, 0, 0, 0.08) !important;
+}
+html[data-style="apple-light"] .border-zinc-800,
+html[data-style="apple-light"] .border-zinc-800\/80,
+html[data-style="apple-light"] .border-zinc-700,
+html[data-style="apple-light"] .border-zinc-600,
+html[data-style="apple-light"] .border-zinc-400 {
+  border-color: #d2d2d7 !important;
+}
+html[data-style="apple-light"] .text-zinc-400,
+html[data-style="apple-light"] .text-zinc-500 {
+  color: #6e6e73 !important; /* Apple secondary-label gray, 5.1:1 on white */
+}
+html[data-style="apple-light"] .text-zinc-50,
+html[data-style="apple-light"] .text-zinc-100,
+html[data-style="apple-light"] .text-zinc-200,
+html[data-style="apple-light"] .text-zinc-300,
+html[data-style="apple-light"] .text-white {
+  color: #1d1d1f !important; /* Apple label near-black, 16.8:1 on white */
+}
+html[data-style="apple-light"] .text-transparent {
+  background-image: none !important;
+  -webkit-text-fill-color: #1d1d1f !important;
+  color: #1d1d1f !important;
+}
+html[data-style="apple-light"] input,
+html[data-style="apple-light"] select,
+html[data-style="apple-light"] textarea {
+  background-color: #ffffff !important;
+  color: #1d1d1f !important;
+  border-color: #d2d2d7 !important;
+}
+html[data-style="apple-light"] header {
+  background-color: rgba(255, 255, 255, 0.85) !important;
+  border-color: #d2d2d7 !important;
+}
+html[data-style="apple-light"] .app-ambient-bg {
+  background-color: #f5f5f7;
+  background-image: none;
+  animation: none;
+}
+/* Status pills / alerts: light tint + saturated text, each pair >= 6.8:1 */
+html[data-style="apple-light"] [class*="bg-indigo-950"], html[data-style="apple-light"] [class*="bg-indigo-900"] { background-color: #eef2ff !important; }
+html[data-style="apple-light"] [class*="text-indigo-200"], html[data-style="apple-light"] [class*="text-indigo-300"] { color: #3730a3 !important; }
+html[data-style="apple-light"] [class*="border-indigo-800"], html[data-style="apple-light"] [class*="border-indigo-900"] { border-color: #c7d2fe !important; }
+
+html[data-style="apple-light"] [class*="bg-blue-950"] { background-color: #eff6ff !important; }
+html[data-style="apple-light"] [class*="text-blue-200"] { color: #1e40af !important; }
+html[data-style="apple-light"] [class*="border-blue-800"] { border-color: #bfdbfe !important; }
+
+html[data-style="apple-light"] [class*="bg-sky-950"], html[data-style="apple-light"] [class*="bg-sky-900"] { background-color: #f0f9ff !important; }
+html[data-style="apple-light"] [class*="text-sky-200"], html[data-style="apple-light"] [class*="text-sky-300"] { color: #075985 !important; }
+html[data-style="apple-light"] [class*="border-sky-800"] { border-color: #bae6fd !important; }
+
+html[data-style="apple-light"] [class*="bg-cyan-950"] { background-color: #ecfeff !important; }
+html[data-style="apple-light"] [class*="text-cyan-300"] { color: #155e75 !important; }
+html[data-style="apple-light"] [class*="border-cyan-800"], html[data-style="apple-light"] [class*="border-cyan-900"] { border-color: #a5f3fc !important; }
+
+html[data-style="apple-light"] [class*="bg-emerald-950"], html[data-style="apple-light"] [class*="bg-emerald-900"] { background-color: #ecfdf5 !important; }
+html[data-style="apple-light"] [class*="text-emerald-200"], html[data-style="apple-light"] [class*="text-emerald-300"] { color: #065f46 !important; }
+html[data-style="apple-light"] [class*="border-emerald-800"] { border-color: #a7f3d0 !important; }
+
+html[data-style="apple-light"] [class*="bg-amber-950"], html[data-style="apple-light"] [class*="bg-amber-900"] { background-color: #fffbeb !important; }
+html[data-style="apple-light"] [class*="text-amber-200"], html[data-style="apple-light"] [class*="text-amber-300"] { color: #92400e !important; }
+html[data-style="apple-light"] [class*="border-amber-800"] { border-color: #fde68a !important; }
+
+html[data-style="apple-light"] [class*="bg-red-950"], html[data-style="apple-light"] [class*="bg-red-900"] { background-color: #fef2f2 !important; }
+html[data-style="apple-light"] [class*="text-red-300"] { color: #991b1b !important; }
+html[data-style="apple-light"] [class*="border-red-800"] { border-color: #fecaca !important; }
+
+html[data-style="apple-light"] [class*="bg-rose-950"] { background-color: #fff1f2 !important; }
+html[data-style="apple-light"] [class*="text-rose-300"] { color: #9f1239 !important; }
+html[data-style="apple-light"] [class*="border-rose-800"] { border-color: #fecdd3 !important; }
+
+html[data-style="apple-light"] [class*="bg-purple-950"] { background-color: #faf5ff !important; }
+html[data-style="apple-light"] [class*="text-purple-200"], html[data-style="apple-light"] [class*="text-purple-300"] { color: #6b21a8 !important; }
+html[data-style="apple-light"] [class*="border-purple-800"] { border-color: #e9d5ff !important; }
+
+html[data-style="apple-light"] [class*="bg-violet-950"] { background-color: #f5f3ff !important; }
+html[data-style="apple-light"] [class*="text-violet-300"] { color: #5b21b6 !important; }
+html[data-style="apple-light"] [class*="border-violet-800"] { border-color: #ddd6fe !important; }
