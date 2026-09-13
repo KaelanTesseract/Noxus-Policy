@@ -120,6 +120,23 @@ done
 
 if [ "$GIT_FETCH_OK" = "1" ]; then
   git -c credential.helper= reset --hard origin/main >/dev/null 2>&1 || git -c credential.helper= pull origin main >/dev/null 2>&1 || true
+
+  # This script may have just overwritten itself via the reset above. Bash
+  # keeps reading the *old* file content for the rest of this run (the old
+  # inode stays open even after git replaces the file on disk), so anything
+  # newly added below this point in a future version would silently never
+  # run on the update that introduces it - exactly what happened when the
+  # SECRET_KEY requirement below shipped: this process still finished
+  # against the old script and never generated it, while the freshly
+  # pulled docker-compose.yml already required it, breaking that one run.
+  # Restart into the just-pulled script once so the rest of this update
+  # always uses current code. Restore the temporary DNS override first -
+  # `exec` would skip the EXIT trap that normally does this.
+  if [ -z "$NOXUS_UPDATE_REEXECED" ]; then
+    restore_resolv_conf
+    NOXUS_UPDATE_REEXECED=1 bash "$INSTALL_DIR/update.sh"
+    exit $?
+  fi
 else
   echo -e "\n\n${YELLOW}⚠ Konnte GitHub nach mehreren Versuchen nicht erreichen (Netzwerk-/DNS-Problem). Fahre mit der aktuell installierten Version fort, es wird also NICHTS aktualisiert.${NC}"
 fi

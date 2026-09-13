@@ -66,6 +66,16 @@ if [ -d "$INSTALL_DIR/.git" ]; then
   # never let this block on an unexpected credential prompt (repo is public).
   git remote set-url origin https://github.com/KaelanTesseract/Noxus-Policy.git >/dev/null 2>&1 || true
   GIT_TERMINAL_PROMPT=0 git -c credential.helper= pull origin main || true
+
+  # The pull above may have just changed install.sh itself. This process keeps
+  # executing the version it already had in memory, so anything newly added
+  # further down would never run on the update that introduces it. Restart
+  # into the freshly pulled script once so the rest of this run always uses
+  # current code (see the same fix in update.sh for the incident this covers).
+  if [ -z "$NOXUS_INSTALL_REEXECED" ]; then
+    NOXUS_INSTALL_REEXECED=1 bash "$INSTALL_DIR/install.sh"
+    exit $?
+  fi
 else
   mkdir -p "$INSTALL_DIR"
   cd "$INSTALL_DIR"
