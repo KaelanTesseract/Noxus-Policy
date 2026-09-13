@@ -108,6 +108,10 @@ pct exec $CTID -- bash -c "
   chmod +x install.sh update.sh 2>/dev/null || true
   ln -sf /opt/versicherungsmanager/update.sh /usr/local/bin/update
   ln -sf /opt/versicherungsmanager/update.sh /usr/local/bin/policy-update
+  if [ ! -f .env ] || ! grep -q '^SECRET_KEY=' .env 2>/dev/null; then
+    NEW_SECRET=\$(openssl rand -hex 32 2>/dev/null || head -c 48 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 64)
+    echo \"SECRET_KEY=\$NEW_SECRET\" >> .env
+  fi
   docker compose up -d --build
 "
 

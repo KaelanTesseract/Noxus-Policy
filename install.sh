@@ -81,12 +81,20 @@ chmod +x install.sh update.sh 2>/dev/null || true
 ln -sf /opt/versicherungsmanager/update.sh /usr/local/bin/update
 ln -sf /opt/versicherungsmanager/update.sh /usr/local/bin/policy-update
 
-# 7. Build and Start Docker Containers
+# 7. Generate a random SECRET_KEY on first install (never overwrite an existing
+# one - that would invalidate every logged-in user's session on every re-run).
+if [ ! -f "$INSTALL_DIR/.env" ] || ! grep -q '^SECRET_KEY=' "$INSTALL_DIR/.env" 2>/dev/null; then
+  echo -e "${GREEN}🔑 Erzeuge zufälligen SECRET_KEY zur Token-Signierung...${NC}"
+  NEW_SECRET=$(openssl rand -hex 32 2>/dev/null || head -c 48 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 64)
+  echo "SECRET_KEY=${NEW_SECRET}" >> "$INSTALL_DIR/.env"
+fi
+
+# 8. Build and Start Docker Containers
 echo -e "${GREEN}🚀 Baue und starte Docker-Container (Frontend + Backend + KI-Engine)...${NC}"
 docker compose down --remove-orphans || true
 docker compose up -d --build
 
-# 8. Get Container IP Address
+# 9. Get Container IP Address
 IP_ADDR=$(hostname -I | awk '{print $1}')
 
 echo -e "\n${GREEN}========================================================================${NC}"

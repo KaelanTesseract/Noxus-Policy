@@ -10,22 +10,30 @@ import os
 
 import models, schemas, auth
 from database import get_db
+from rate_limit import rate_limiter
+from secrets_crypto import encrypt_secret, decrypt_secret
 
 router = APIRouter(prefix="/api/users", tags=["users"])
+
+_ENCRYPTED_SETTING_KEYS = {"smtp_password"}
 
 def get_smtp_setting(db: Session, key: str, default_val: str = "") -> str:
     setting = db.query(models.SystemSetting).filter(models.SystemSetting.key == key).first()
     if setting and setting.value is not None:
-        return setting.value
+        value = setting.value
+        if key in _ENCRYPTED_SETTING_KEYS:
+            value = decrypt_secret(value)
+        return value
     return os.getenv(key.upper(), default_val)
 
 def set_smtp_setting(db: Session, key: str, value: str):
+    stored_value = encrypt_secret(value) if key in _ENCRYPTED_SETTING_KEYS else value
     setting = db.query(models.SystemSetting).filter(models.SystemSetting.key == key).first()
     if not setting:
-        setting = models.SystemSetting(key=key, value=value)
+        setting = models.SystemSetting(key=key, value=stored_value)
         db.add(setting)
     else:
-        setting.value = value
+        setting.value = stored_value
 
 def send_email_message(to_email: str, subject: str, content: str, db: Session):
     smtp_server = get_smtp_setting(db, "smtp_server", "")
@@ -79,7 +87,7 @@ def send_reset_email(email_to: str, token: str, db: Session, request: Request = 
     except Exception as e:
         print(f"Failed to send reset email to {email_to}: {e}")
 
-@router.post("/login")
+@router.post("/login", dependencies=[Depends(rate_limiter(max_calls=5, period_seconds=60))])
 def login(login_data: schemas.UserLogin, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email.ilike(login_data.username)).first()
 
@@ -106,11 +114,12 @@ def login(login_data: schemas.UserLogin, db: Session = Depends(get_db)):
         }
     }
 
-@router.post("/register", response_model=schemas.UserResponse)
+@router.post("/register", response_model=schemas.UserResponse, dependencies=[Depends(rate_limiter(max_calls=3, period_seconds=300))])
 def register_user(payload: schemas.UserCreate, db: Session = Depends(get_db)):
     email_clean = payload.email.strip()
-    if not email_clean or not payload.password or len(payload.password) < 4:
-        raise HTTPException(status_code=400, detail="Ungültige E-Mail-Adresse oder Passwort zu kurz (mindestens 4 Zeichen).")
+    if not email_clean:
+        raise HTTPException(status_code=400, detail="Ungültige E-Mail-Adresse.")
+    auth.validate_password_strength(payload.password)
 
     existing_user = db.query(models.User).filter(models.User.email.ilike(email_clean)).first()
     if existing_user:
@@ -152,6 +161,7 @@ def update_profile(
         current_user.email = new_email
 
     if payload.new_password and payload.new_password.strip() != "":
+        auth.validate_password_strength(payload.new_password.strip())
         current_user.hashed_password = auth.get_password_hash(payload.new_password.strip())
         current_user.must_change_password = False
 
@@ -226,7 +236,7 @@ def test_smtp_config(payload: dict, db: Session = Depends(get_db), current_user:
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Fehler beim Senden der Test-E-Mail: {str(e)}")
 
-@router.post("/forgot-password")
+@router.post("/forgot-password", dependencies=[Depends(rate_limiter(max_calls=3, period_seconds=300))])
 def forgot_password(payload: schemas.ForgotPasswordPayload, request: Request, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email.ilike(payload.email.strip())).first()
     if user:
@@ -236,7 +246,7 @@ def forgot_password(payload: schemas.ForgotPasswordPayload, request: Request, db
     # Always return success message for security reasons
     return {"msg": "Falls diese E-Mail-Adresse registriert ist, wurde eine E-Mail zum Zurücksetzen gesendet."}
 
-@router.post("/reset-password")
+@router.post("/reset-password", dependencies=[Depends(rate_limiter(max_calls=5, period_seconds=300))])
 def reset_password(payload: schemas.ResetPasswordPayload, db: Session = Depends(get_db)):
     try:
         token_payload = auth.jwt.decode(payload.token, auth.SECRET_KEY, algorithms=[auth.ALGORITHM])
@@ -245,6 +255,8 @@ def reset_password(payload: schemas.ResetPasswordPayload, db: Session = Depends(
             raise HTTPException(status_code=400, detail="Ungültiger oder abgelaufener Link.")
     except Exception:
         raise HTTPException(status_code=400, detail="Ungültiger oder abgelaufener Link.")
+
+    auth.validate_password_strength(payload.new_password)
 
     user = db.query(models.User).filter(models.User.email.ilike(email)).first()
     if not user:
@@ -285,6 +297,8 @@ def admin_initial_setup(
     existing_user = db.query(models.User).filter(models.User.email.ilike(payload.new_email), models.User.id != current_user.id).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Diese E-Mail-Adresse wird bereits verwendet.")
+
+    auth.validate_password_strength(payload.new_password)
 
     try:
         current_user.email = payload.new_email

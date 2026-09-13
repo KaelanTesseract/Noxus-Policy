@@ -10,7 +10,13 @@ services:
       - ./backend/models:/app/models_data
     environment:
       - DATABASE_URL=sqlite:////app/data/versicherungsmanager.db
-      - SECRET_KEY=changeme123
+      # No insecure fallback here on purpose: every login token is signed with
+      # this value, so a shared/guessable key lets anyone forge a valid login
+      # for any account on any instance that uses it. install.sh/update.sh
+      # generate a random one into a local .env file (gitignored) next to this
+      # compose file automatically - see README "Sicherheit" section if you're
+      # running `docker compose up` directly instead.
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is not set - run install.sh/update.sh, or create a .env file with SECRET_KEY=<random long value> next to docker-compose.yml}
     restart: always
 
   frontend:

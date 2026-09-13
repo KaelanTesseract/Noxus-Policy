@@ -128,6 +128,14 @@ chmod +x update.sh install.sh 2>/dev/null || true
 ln -sf "$INSTALL_DIR/update.sh" /usr/local/bin/update 2>/dev/null || true
 ln -sf "$INSTALL_DIR/update.sh" /usr/local/bin/policy-update 2>/dev/null || true
 
+# Ensure a SECRET_KEY exists (older installs predate this) without ever
+# overwriting one that's already there - that would sign out every user.
+if [ ! -f "$INSTALL_DIR/.env" ] || ! grep -q '^SECRET_KEY=' "$INSTALL_DIR/.env" 2>/dev/null; then
+  echo -e "\n${YELLOW}🔑 Erzeuge zufälligen SECRET_KEY zur Token-Signierung (bisher nicht gesetzt)...${NC}"
+  NEW_SECRET=$(openssl rand -hex 32 2>/dev/null || head -c 48 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 64)
+  echo "SECRET_KEY=${NEW_SECRET}" >> "$INSTALL_DIR/.env"
+fi
+
 # Step 4: Docker Container Rebuild without cache (80%)
 render_progress 80 100 "4/5: Baue und aktualisiere Docker-Container (Frontend + Backend)..."
 

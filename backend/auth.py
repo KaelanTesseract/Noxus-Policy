@@ -13,11 +13,33 @@ import os
 from database import get_db
 import models, schemas
 
-SECRET_KEY = os.getenv("SECRET_KEY", "changeme123")
+_KNOWN_INSECURE_SECRETS = {"changeme123", "changeme", "secret", "your-secret-key", ""}
+
+SECRET_KEY = os.getenv("SECRET_KEY", "")
+if SECRET_KEY.lower() in _KNOWN_INSECURE_SECRETS or len(SECRET_KEY) < 16:
+    raise RuntimeError(
+        "SECRET_KEY is not set (or is a known-insecure/too-short default). "
+        "Every JWT is signed with this value, so a shared/guessable key lets "
+        "anyone forge a valid login token for any account. Set SECRET_KEY to a "
+        "long random value (install.sh/update.sh now generate one automatically "
+        "into a local .env file) before starting the backend."
+    )
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7 # 7 days
+MIN_PASSWORD_LENGTH = 8
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/users/login")
+
+def validate_password_strength(password: Optional[str]):
+    """Raises HTTPException(400) if the password doesn't meet the minimum bar.
+    Applied everywhere a password is set (register, reset, admin setup, profile
+    change) - previously only registration checked length, and only >= 4 chars."""
+    if not password or len(password) < MIN_PASSWORD_LENGTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Passwort zu kurz (mindestens {MIN_PASSWORD_LENGTH} Zeichen)."
+        )
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     try:
