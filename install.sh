@@ -30,11 +30,31 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
-# 2. Fix DNS if needed (prevents Docker DNS timeouts in Proxmox LXC)
-if ! ping -c 1 -W 2 registry-1.docker.io >/dev/null 2>&1; then
-  echo -e "${YELLOW}⚙️  Passe DNS-Konfiguration (/etc/resolv.conf) für zuverlässige Docker-Downloads an...${NC}"
-  echo "nameserver 1.1.1.1" > /etc/resolv.conf
-  echo "nameserver 192.168.1.1" >> /etc/resolv.conf
+# 2. Use Google's public resolvers for this script's own network access (apt,
+# Docker install, Git clone/pull), but only for the duration of this run: back
+# up the existing /etc/resolv.conf and restore it on exit no matter how the
+# script ends (success, failure, or being interrupted). An earlier version of
+# this check overwrote /etc/resolv.conf permanently based on a single ICMP
+# ping - ICMP is commonly blocked even when DNS/HTTPS work fine, and a
+# permanent overwrite can clobber a working, admin-configured resolver with
+# public ones that turn out to be less reliable on that particular network.
+# update.sh already got this fix (see its own comment for the incident that
+# prompted it); this backports the same approach here.
+RESOLV_BACKUP=""
+if [ -f /etc/resolv.conf ]; then
+  RESOLV_BACKUP="$(mktemp /tmp/noxus-resolv-backup.XXXXXX)"
+  cp /etc/resolv.conf "$RESOLV_BACKUP" 2>/dev/null || RESOLV_BACKUP=""
+fi
+restore_resolv_conf() {
+  if [ -n "$RESOLV_BACKUP" ] && [ -f "$RESOLV_BACKUP" ]; then
+    cp "$RESOLV_BACKUP" /etc/resolv.conf 2>/dev/null || true
+    rm -f "$RESOLV_BACKUP" 2>/dev/null || true
+  fi
+}
+trap restore_resolv_conf EXIT
+if ! getent hosts registry-1.docker.io >/dev/null 2>&1; then
+  echo -e "${YELLOW}⚙️  Passe DNS-Konfiguration (/etc/resolv.conf) vorübergehend für diesen Lauf an...${NC}"
+  { echo "nameserver 8.8.8.8"; echo "nameserver 8.8.4.4"; } > /etc/resolv.conf 2>/dev/null || true
 fi
 
 # 3. Update Package Manager & Install Dependencies
