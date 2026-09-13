@@ -364,7 +364,7 @@ export default function Dashboard() {
             <div className="relative w-full sm:w-64">
               <Input
                 type="text"
-                placeholder="🔍 Suche nach Name, Anzieher..."
+                placeholder="🔍 Suche nach Name, Anbieter..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="bg-zinc-900/60 border-zinc-800 text-xs pl-8 placeholder:text-zinc-500 rounded-xl"
