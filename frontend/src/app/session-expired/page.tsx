@@ -15,20 +15,16 @@ export default function SessionExpiredPage() {
   useEffect(() => {
     // Clear any leftover auth token
     localStorage.removeItem("token");
+  }, []);
 
-    const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          router.push("/login");
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [router]);
+  useEffect(() => {
+    if (countdown === 0) {
+      router.push("/login");
+      return;
+    }
+    const timer = setTimeout(() => setCountdown((prev) => prev - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [countdown, router]);
 
   return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
