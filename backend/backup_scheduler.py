@@ -8,6 +8,7 @@ import zipfile
 import json
 import tempfile
 import threading
+import secrets
 from sqlalchemy.orm import Session
 from database import SessionLocal
 import models
@@ -15,19 +16,27 @@ from routers.backup import DB_FILE_PATH, DOCUMENTS_DIR, encrypt_archive
 
 BACKUPS_STORE_DIR = os.path.join("data", "backups")
 
+_ENCRYPTED_SETTING_KEYS = {"auto_backup_password"}
+
 def get_backup_setting(db: Session, key: str, default_val: str = "") -> str:
+    from secrets_crypto import decrypt_secret
     setting = db.query(models.SystemSetting).filter(models.SystemSetting.key == key).first()
     if setting and setting.value is not None:
-        return setting.value
+        value = setting.value
+        if key in _ENCRYPTED_SETTING_KEYS:
+            value = decrypt_secret(value)
+        return value
     return default_val
 
 def set_backup_setting(db: Session, key: str, value: str):
+    from secrets_crypto import encrypt_secret
+    stored_value = encrypt_secret(value) if key in _ENCRYPTED_SETTING_KEYS else value
     setting = db.query(models.SystemSetting).filter(models.SystemSetting.key == key).first()
     if not setting:
-        setting = models.SystemSetting(key=key, value=value)
+        setting = models.SystemSetting(key=key, value=stored_value)
         db.add(setting)
     else:
-        setting.value = value
+        setting.value = stored_value
     db.commit()
 
 def run_backup_cleanup(retention_days: int, retention_count: int):
@@ -80,7 +89,18 @@ def create_automated_backup(db: Session, is_manual_trigger: bool = False) -> str
 
     password = get_backup_setting(db, "auto_backup_password", "")
     if not password:
-        password = "NoxusDefaultBackupSecretPassword123!"
+        # No hardcoded fallback here: a fixed, source-visible password would make
+        # every unconfigured install's automated backups (full DB + all documents)
+        # effectively unencrypted. Generate a real random one once, and persist it
+        # so it's still decryptable later - it shows up in the admin's backup
+        # settings (GET /api/backup/config) so they can see/change/copy it down.
+        password = secrets.token_urlsafe(24)
+        set_backup_setting(db, "auto_backup_password", password)
+        print(
+            "[Backup-Scheduler] No auto-backup password was configured - generated "
+            "a random one automatically. Check Einstellungen -> Systemeinstellungen "
+            "-> automatische Backups to view or change it."
+        )
 
     users_count = db.query(models.User).count()
     insurances_count = db.query(models.Insurance).count()

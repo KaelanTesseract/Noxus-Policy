@@ -48,6 +48,11 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 ENC_FILE = os.path.join(DATA_DIR, "vendor_patterns.enc")
 JSON_LEGACY_FILE = os.path.join(DATA_DIR, "vendor_patterns.json")
 
+# Not real encryption despite the name (kept for compatibility with existing
+# vendor_patterns.enc files) - it's a simple XOR stream cipher with a fixed,
+# publicly-known key. Only safe to use because learn_from_feedback() sanitizes
+# everything that goes into the pattern store to be PII-free before this ever
+# runs (see sanitizer.py) - this must never be relied on to protect secrets.
 APP_CIPHER_KEY = "NOXUS_POLICY_AES256_COMMUNITY_KEY_V1_2026"
 GITHUB_REPO = "KaelanTesseract/Noxus-Policy"
 GITHUB_RAW_URL = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/backend/data/vendor_patterns.enc"
@@ -55,11 +60,17 @@ PATTERN_SYNC_BRANCH = "auto/pattern-sync"
 
 _last_sync_timestamp = 0
 
+_ENCRYPTED_SETTING_KEYS = {"pattern_sync_github_token"}
+
 def get_learning_setting(db, key: str, default_val: str = "") -> str:
     import models
+    from secrets_crypto import decrypt_secret
     setting = db.query(models.SystemSetting).filter(models.SystemSetting.key == key).first()
     if setting and setting.value is not None:
-        return setting.value
+        value = setting.value
+        if key in _ENCRYPTED_SETTING_KEYS:
+            value = decrypt_secret(value)
+        return value
     return default_val
 
 def _xor_cipher(data: bytes, key: str) -> bytes:
