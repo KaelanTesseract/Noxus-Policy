@@ -13,6 +13,8 @@ frontend/node_modules/
 # Databases & Media uploads
 backend/*.db
 backend/insurance.db
+backend/documents/
+backend/models/
 backups/
 *.db
 

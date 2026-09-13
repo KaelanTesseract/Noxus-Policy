@@ -29,6 +29,7 @@
 - [🔑 Standard Admin-Zugangsdaten](#-standard-admin-zugangsdaten-erst-login)
 - [🚀 Installation (Proxmox VE & Linux)](#-proxmox-ve--linux-1-klick-installation)
 - [🔄 Auto-Update](#-1-klick-auto-update-mit-live-ladebalken--auto-backup)
+- [🔒 Sicherheit & HTTPS (Reverse Proxy)](#-sicherheit--https-reverse-proxy)
 - [✨ Hauptfunktionen](#-hauptfunktionen)
   - [🔐 Sicherheit, Benutzer- & Zugriffsverwaltung](#-sicherheit-benutzer---zugriffsverwaltung)
   - [🤖 KI-gestützte Dokumentenanalyse & Lernsystem](#-ki-gestützte-dokumentenanalyse--lernsystem)
@@ -89,6 +90,68 @@ Das Skript erstellt **automatisch ein Vorab-Sicherheitsbackup** der Datenbank, f
 ```text
 [██████████████████████████████] 100% | 5/5: Update erfolgreich abgeschlossen!
 ```
+
+---
+
+## 🔒 Sicherheit & HTTPS (Reverse Proxy)
+
+Noxus Policy verarbeitet sensible personenbezogene Daten (Versicherungsverträge, Beiträge, Dokumente). Ein paar Punkte solltest du bei jeder Installation beachten:
+
+### HTTPS ist Pflicht, sobald der Server erreichbar ist
+
+`docker-compose.yml` liefert Frontend und Backend standardmäßig nur über **reines HTTP** aus (Port 3000/8000). Das ist für einen Test auf `localhost` unproblematisch, aber sobald der Server im LAN oder gar aus dem Internet erreichbar ist, gehen Login-Zugangsdaten und das Sitzungs-Token bei jeder Anfrage unverschlüsselt über die Leitung – für jeden mitlesbar, der Zugriff auf den Netzwerkpfad hat.
+
+**Richte deshalb immer einen Reverse Proxy mit echtem TLS-Zertifikat vor die App**, z. B. mit Nginx + [Certbot](https://certbot.eff.org/) (Let's Encrypt):
+
+```nginx
+# /etc/nginx/sites-available/noxus-policy
+server {
+    listen 443 ssl http2;
+    server_name deine-domain.de;
+
+    ssl_certificate     /etc/letsencrypt/live/deine-domain.de/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/deine-domain.de/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+server {
+    listen 80;
+    server_name deine-domain.de;
+    return 301 https://$host$request_uri;
+}
+```
+
+Zertifikat besorgen (einmalig) und automatische Erneuerung einrichten:
+
+```bash
+sudo apt install certbot python3-certbot-nginx
+sudo certbot --nginx -d deine-domain.de
+```
+
+Der Frontend-Container selbst muss dafür nicht verändert werden – Nginx läuft als eigener Dienst auf dem Host (oder in einem eigenen Container) und leitet Anfragen intern an `127.0.0.1:3000` weiter. Alternativen mit ähnlich wenig Aufwand: [Caddy](https://caddyserver.com/) (holt Let's-Encrypt-Zertifikate automatisch, ganz ohne Certbot) oder ein [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/), falls der Server keine öffentliche IP hat.
+
+### SECRET_KEY
+
+Jedes Login-Token wird mit dem Wert der Umgebungsvariable `SECRET_KEY` signiert. `install.sh`, `proxmox-install.sh` und `update.sh` erzeugen dafür automatisch einen zufälligen, 64-stelligen Schlüssel in einer lokalen `.env`-Datei neben `docker-compose.yml` (diese Datei ist in `.gitignore` und wird nie ins Repository übernommen). Startest du den Stack manuell per `docker compose up` ohne eines dieser Skripte, musst du diese `.env`-Datei selbst anlegen:
+
+```bash
+echo "SECRET_KEY=$(openssl rand -hex 32)" > .env
+```
+
+Das Backend verweigert absichtlich den Start, wenn `SECRET_KEY` fehlt oder einer der bekannten unsicheren Standardwerte ist.
+
+### Weitere Empfehlungen
+
+- **Automatische Backups verschlüsseln**: Lege unter *Einstellungen → Systemeinstellungen → Automatische Backups* ein eigenes Passwort fest, statt das beim ersten Lauf automatisch generierte zu verwenden – notiere es dir an einem sicheren Ort, ohne dieses Passwort ist ein Backup nicht wiederherstellbar.
+- **API-Dokumentation (`/docs`, `/redoc`) bleibt standardmäßig deaktiviert.** Nur falls du sie lokal zur Entwicklung brauchst, aktiviere sie gezielt über `ENABLE_API_DOCS=true` in der `.env`-Datei – nicht auf einem von außen erreichbaren Server.
+- **Starke Passwörter verwenden**: Das System verlangt mindestens 8 Zeichen, echte Sicherheit hängt aber weiterhin von der Qualität des gewählten Passworts ab.
 
 ---
 
