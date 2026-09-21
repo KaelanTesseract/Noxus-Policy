@@ -46,14 +46,23 @@
 
 ## 🔑 Standard Admin-Zugangsdaten (Erst-Login)
 
-Nach der Installation ist das System mit folgenden Standard-Zugangsdaten erreichbar:
+Es gibt bewusst **kein festes Standard-Passwort** mehr: Beim ersten Start legt das Backend das Konto `Admin` mit einem zufälligen Einmal-Passwort an und gibt es im Log aus. Das Installations-Skript zeigt es dir am Ende direkt an. Später findest du es so:
 
-| Parameter | Standard-Wert |
+```bash
+cd /opt/versicherungsmanager && docker compose logs backend | grep INITIAL_ADMIN_PASSWORD
+```
+
+| Parameter | Wert |
 | :--- | :--- |
-| **Benutzername / E-Mail** | `admin` *(oder `Admin`)* |
-| **Passwort** | `admin` |
+| **Benutzername** | `Admin` |
+| **Passwort** | zufälliges Einmal-Passwort aus dem Log (siehe oben) |
 
-> 🔒 **Sicherheitshinweis:** Beim allerersten Anmelden wirst du aus Sicherheitsgründen automatisch auf die Einrichtungsseite geleitet, um dein persönliches Administrator-Passwort festzulegen.
+> 🔒 **Sicherheitshinweis:** Beim allerersten Anmelden wirst du automatisch auf die Einrichtungsseite geleitet, um deine eigene E-Mail und dein persönliches Administrator-Passwort festzulegen.
+>
+> **Passwort vergessen / Log nicht mehr auffindbar?** Auf dem Server ein neues Einmal-Passwort erzeugen (funktioniert nur mit Zugriff auf den Container, es gibt keinen Netzwerk-Zugang dafür):
+> ```bash
+> cd /opt/versicherungsmanager && docker compose exec backend python reset_admin.py
+> ```
 
 ---
 
@@ -99,7 +108,7 @@ Noxus Policy verarbeitet sensible personenbezogene Daten (Versicherungsverträge
 
 ### HTTPS ist Pflicht, sobald der Server erreichbar ist
 
-`docker-compose.yml` liefert Frontend und Backend standardmäßig nur über **reines HTTP** aus (Port 3000/8000). Das ist für einen Test auf `localhost` unproblematisch, aber sobald der Server im LAN oder gar aus dem Internet erreichbar ist, gehen Login-Zugangsdaten und das Sitzungs-Token bei jeder Anfrage unverschlüsselt über die Leitung – für jeden mitlesbar, der Zugriff auf den Netzwerkpfad hat.
+`docker-compose.yml` liefert die App standardmäßig nur über **reines HTTP** aus. Nach außen ist ausschließlich das Frontend auf **Port 3000** erreichbar; das Backend (Port 8000) hört nur auf `127.0.0.1` und wird vom Frontend intern angesprochen. Das ist für einen Test auf `localhost` unproblematisch, aber sobald der Server im LAN oder gar aus dem Internet erreichbar ist, gehen Login-Zugangsdaten und das Sitzungs-Token bei jeder Anfrage unverschlüsselt über die Leitung – für jeden mitlesbar, der Zugriff auf den Netzwerkpfad hat.
 
 **Richte deshalb immer einen Reverse Proxy mit echtem TLS-Zertifikat vor die App**, z. B. mit Nginx + [Certbot](https://certbot.eff.org/) (Let's Encrypt):
 
@@ -137,6 +146,20 @@ sudo certbot --nginx -d deine-domain.de
 
 Der Frontend-Container selbst muss dafür nicht verändert werden – Nginx läuft als eigener Dienst auf dem Host (oder in einem eigenen Container) und leitet Anfragen intern an `127.0.0.1:3000` weiter. Alternativen mit ähnlich wenig Aufwand: [Caddy](https://caddyserver.com/) (holt Let's-Encrypt-Zertifikate automatisch, ganz ohne Certbot) oder ein [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/), falls der Server keine öffentliche IP hat.
 
+### Reverse Proxy und Anmelde-Begrenzung (`TRUSTED_PROXY_HOPS`)
+
+Das Backend begrenzt fehlgeschlagene Anmeldungen pro Konto und pro Client-IP. Steht ein Reverse Proxy davor, sieht das Backend sonst nur dessen Adresse. Trage deshalb in der `.env`-Datei neben `docker-compose.yml` ein, wie viele Proxys vor der App laufen (ein Nginx Proxy Manager = `1`) und starte neu:
+
+```bash
+echo "TRUSTED_PROXY_HOPS=1" >> .env && docker compose up -d
+```
+
+Ohne Proxy (direkter Zugriff auf Port 3000) den Wert bei `0` lassen. Ein falscher Wert schwächt nur das IP-Limit ab, das Limit pro Konto bleibt in jedem Fall aktiv.
+
+### Registrierung abschalten
+
+Ist die Instanz aus dem Internet erreichbar, kann sich zunächst jeder registrieren. Als Administrator kannst du die Selbstregistrierung unter *Einstellungen → Systemeinstellungen* ausschalten. Bestehende Konten bleiben unberührt; für weitere Konten schaltest du sie kurz wieder ein.
+
 ### SECRET_KEY
 
 Jedes Login-Token wird mit dem Wert der Umgebungsvariable `SECRET_KEY` signiert. `install.sh`, `proxmox-install.sh` und `update.sh` erzeugen dafür automatisch einen zufälligen, 64-stelligen Schlüssel in einer lokalen `.env`-Datei neben `docker-compose.yml` (diese Datei ist in `.gitignore` und wird nie ins Repository übernommen). Startest du den Stack manuell per `docker compose up` ohne eines dieser Skripte, musst du diese `.env`-Datei selbst anlegen:
@@ -147,18 +170,37 @@ echo "SECRET_KEY=$(openssl rand -hex 32)" > .env
 
 Das Backend verweigert absichtlich den Start, wenn `SECRET_KEY` fehlt oder einer der bekannten unsicheren Standardwerte ist.
 
+**Sichere die `.env`-Datei getrennt von den Backups.** Aus dem `SECRET_KEY` wird auch der Schlüssel abgeleitet, mit dem gespeicherte Passwörter (SMTP, automatisches Backup, GitHub-Token) in der Datenbank verschlüsselt sind. Geht der Schlüssel verloren oder ändert er sich, sind diese Passwörter nicht mehr lesbar (das Backend meldet das beim Start im Log und beim Wiederherstellen eines Backups einer anderen Instanz) und müssen neu eingegeben werden; außerdem müssen sich alle Benutzer neu anmelden. Die Dokumente und Verträge selbst sind davon nicht betroffen.
+
+### Sitzungsdauer
+
+Eine Anmeldung gilt `ACCESS_TOKEN_EXPIRE_MINUTES` Minuten (Standard **15**) ab der letzten Aktivität und verlängert sich automatisch, solange du die Seite benutzt. Nach spätestens `SESSION_MAX_HOURS` Stunden (Standard **12**) seit der Anmeldung musst du dich unabhängig davon neu anmelden. Beide Werte lassen sich in der `.env`-Datei ändern.
+
+### Uploads, Nginx und Größenlimits
+
+Ein Dokument darf höchstens 15 MB groß sein, Backup-Dateien beim Wiederherstellen höchstens 512 MB (entpackt höchstens 2 GB), alle anderen Anfragen höchstens 2 MB. Größere Anfragen werden schon vor der Verarbeitung abgewiesen. Steht ein Nginx davor, muss er Uploads dieser Größe durchlassen – bei Fehler 413 beim Hochladen trage im Nginx (bzw. im Nginx Proxy Manager unter *Advanced*) `client_max_body_size 600m;` ein.
+
 ### Weitere Empfehlungen
 
 - **Automatische Backups verschlüsseln**: Lege unter *Einstellungen → Systemeinstellungen → Automatische Backups* ein eigenes Passwort fest, statt das beim ersten Lauf automatisch generierte zu verwenden – notiere es dir an einem sicheren Ort, ohne dieses Passwort ist ein Backup nicht wiederherstellbar.
 - **API-Dokumentation (`/docs`, `/redoc`) bleibt standardmäßig deaktiviert.** Nur falls du sie lokal zur Entwicklung brauchst, aktiviere sie gezielt über `ENABLE_API_DOCS=true` in der `.env`-Datei – nicht auf einem von außen erreichbaren Server.
-- **Starke Passwörter verwenden**: Das System verlangt mindestens 8 Zeichen, echte Sicherheit hängt aber weiterhin von der Qualität des gewählten Passworts ab.
+- **2-Faktor-Authentifizierung einschalten**: Unter *Einstellungen → 2-Faktor-Authentifizierung* kann jeder Benutzer einen Authenticator-App-Code (TOTP, z. B. Aegis, 2FAS, Google Authenticator) als zweiten Faktor verlangen. Besonders für Administratoren empfohlen: Ein gestohlenes Passwort reicht dann nicht mehr. Die Wiederherstellungscodes werden nur einmal angezeigt – bewahre sie getrennt auf. Hat jemand Handy *und* Codes verloren, kann ein Administrator die 2FA in der Benutzerverwaltung zurücksetzen; für den Admin-Zugang selbst setzt `reset_admin.py` (siehe oben) auch die 2FA zurück.
+- **Sicherheitsprotokoll prüfen**: Administratoren sehen unter *Systemeinstellungen → Sicherheitsprotokoll* Anmeldungen, Fehlversuche (samt Adresse) und Änderungen an Konten/Einstellungen der letzten 12 Monate. Viele Fehlversuche von einer Adresse deuten auf einen Angriff hin.
+- **Starke Passwörter verwenden**: Das System verlangt mindestens 8 (höchstens 72 Bytes) Zeichen und weist bekannte Allerwelts-Passwörter („Passwort123“, „qwertz“ …) sowie Passwörter aus der eigenen E-Mail-Adresse ab. Backup-Passwörter brauchen mindestens 12 Zeichen. Echte Sicherheit hängt weiterhin von der Qualität des gewählten Passworts ab.
+- **Festplatte verschlüsseln**: Verträge und Dokumente liegen unverschlüsselt im Dateisystem des Servers (nur Backups und gespeicherte Passwörter sind verschlüsselt). Wer physischen Zugriff auf den Server, den Proxmox-Host oder dessen Snapshots hat, kommt an alles heran – setze deshalb auf Datenträgerverschlüsselung (LUKS/ZFS-Verschlüsselung) und schütze Proxmox-Backups.
+- **Kalender-Abo-Link vertraulich behandeln**: Die WebCal-Adresse enthält ein geheimes Token (Kalender-Apps können keine Anmeldung senden). Wer den Link kennt, sieht deine Kündigungsfristen. Bei Verdacht erneuerst du ihn unter *Einstellungen → Kalender* (der alte Link wird ungültig).
+- **Versicherer-Logos**: Die Logos lädt der Server (nicht dein Browser) über den Google-Favicon-Dienst; Google erfährt dabei nur die Domain des Versicherers und die Adresse des Servers, nie die Adresse der Benutzer. Wer keinerlei externe Anfrage möchte, setzt `DISABLE_LOGO_LOOKUP=true` im Frontend-Container – es erscheinen dann Initialen.
+- **Löschen von Konten**: Benutzer können ihr Konto unter *Einstellungen → Konto löschen* selbst entfernen (Administratoren löscht ein anderer Administrator). Dabei werden Verträge, Schadensfälle, Dokumente und Posteingang samt Dateien gelöscht. Bereits erstellte Server-Backups enthalten die Daten weiterhin, bis sie gelöscht werden.
+- **Container laufen ohne Root-Rechte.** Das Frontend läuft als Benutzer `node`. Das Backend startet kurz als Root, übergibt die Datenordner (`backend/data`, `backend/documents`, `backend/models`) an den Benutzer `app` und läuft danach unprivilegiert; alle unnötigen Linux-Capabilities sind entzogen. Sollte das auf einem ungewöhnlichen Speicher-Setup Probleme machen, fällt der Start mit einer Warnung im Log auf Root zurück; erzwingen lässt sich das mit `RUN_AS_ROOT=1` in der `environment`-Liste des Backends.
+- **Die KI-Modelldatei wird geprüft.** Das Sprachmodell wird von einem festen Hugging-Face-Stand geladen und gegen eine SHA-256-Prüfsumme verglichen; eine abweichende Datei wird verworfen und die KI fällt auf die klassische Erkennung zurück.
 
 ---
 
 ## ✨ Hauptfunktionen
 
 ### 🔐 Sicherheit, Benutzer- & Zugriffsverwaltung
-* **Sicherer Erst-Login (`/admin-setup`):** Erzwungene Passwort-Änderung für den ersten Administrator, danach reguläre JWT-Authentifizierung (7 Tage Gültigkeit, bcrypt-Passwort-Hashing).
+* **Sicherer Erst-Login (`/admin-setup`):** Erzwungene Passwort-Änderung für den ersten Administrator, danach reguläre JWT-Authentifizierung im httpOnly-Cookie (15 Minuten Inaktivitäts-Timeout mit gleitender Verlängerung, bcrypt-Passwort-Hashing).
+* **2-Faktor-Authentifizierung (TOTP) & Sicherheitsprotokoll:** Optionaler zweiter Faktor mit Wiederherstellungscodes; ein Protokoll für Anmeldungen, Fehlversuche und Admin-Aktionen; Konto-Selbstlöschung inkl. aller Dateien.
 * **Rollen- & Benutzerverwaltung:** Admins legen Benutzer an, setzen Passwörter zurück und verwalten Systemeinstellungen zentral im Admin-Panel.
 * **Konsequente Zugriffskontrolle:** Jeder Dokumenten- und Versicherungs-Endpunkt prüft die Eigentümerschaft (`owner_id`) — kein Zugriff auf fremde Unterlagen, auch nicht über direkt aufgerufene Links.
 * **Automatische Session-Abmeldung (`/session-expired`):** Läuft eine Sitzung ab (401 Unauthorized), wird der Nutzer automatisch zum Login zurückgeführt.

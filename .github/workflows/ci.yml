@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Frontend (Typecheck, Audit, Build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-fund
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Known vulnerabilities (high and above)
+        run: npm audit --audit-level=high
+      - name: Production build
+        run: npm run build
+
+  backend:
+    name: Backend (Compile, Dependency audit, Tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Byte-compile
+        run: python -m compileall -q backend/*.py backend/routers
+      - name: Install audit tool
+        run: pip install --quiet pip-audit
+      - name: Audit the resolved dependency tree (incl. transitive packages)
+        run: |
+          # Resolve the real tree in a throwaway venv and audit exactly that
+          # (not the tool's own dependencies). llama-cpp-python compiles native
+          # code and is audited on its own pin below.
+          python -m venv .audit-venv
+          grep -v '^llama-cpp-python' backend/requirements.txt > /tmp/requirements-audit.txt
+          .audit-venv/bin/pip install --quiet -r /tmp/requirements-audit.txt
+          pip-audit --strict --path .audit-venv/lib/python3.11/site-packages
+      - name: Security regression tests
+        run: |
+          .audit-venv/bin/pip install --quiet pytest
+          cd backend && ../.audit-venv/bin/python -m pytest -q
+      - name: Audit llama-cpp-python pin
+        run: |
+          grep '^llama-cpp-python' backend/requirements.txt > /tmp/requirements-llama.txt
+          pip-audit -r /tmp/requirements-llama.txt --no-deps --disable-pip

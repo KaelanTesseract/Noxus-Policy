@@ -32,3 +32,4 @@ test_*.py
 create_test_*.py
 Test_*.pdf
 
+.pytest_cache/
