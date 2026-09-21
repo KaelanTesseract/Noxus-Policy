@@ -12,7 +12,7 @@ import secrets
 from sqlalchemy.orm import Session
 from database import SessionLocal
 import models
-from routers.backup import DB_FILE_PATH, DOCUMENTS_DIR, encrypt_archive
+from routers.backup import DB_FILE_PATH, DOCUMENTS_DIR, encrypt_archive, secret_key_fingerprint
 
 BACKUPS_STORE_DIR = os.path.join("data", "backups")
 
@@ -124,6 +124,7 @@ def create_automated_backup(db: Session, is_manual_trigger: bool = False) -> str
                 "version": "1.0",
                 "created_at": datetime.datetime.utcnow().isoformat(),
                 "type": "manual" if is_manual_trigger else "auto",
+                "secret_key_fingerprint": secret_key_fingerprint(),
                 "users_count": users_count,
                 "insurances_count": insurances_count,
                 "documents_count": documents_count

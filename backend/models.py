@@ -15,6 +15,14 @@ class User(Base):
     must_change_password = Column(Boolean, default=False)
     email_notifications_enabled = Column(Boolean, default=True)
     calendar_token = Column(String, unique=True, index=True, nullable=True)
+    token_version = Column(Integer, default=0)
+    # Second login factor (TOTP). The secret is stored encrypted (secrets_crypto);
+    # totp_last_step blocks replay of an already-used code; recovery_codes is a
+    # JSON list of hashes of the single-use fallback codes.
+    totp_secret = Column(String, nullable=True)
+    totp_enabled = Column(Boolean, default=False)
+    totp_last_step = Column(Integer, default=0)
+    recovery_codes = Column(String, nullable=True)
 
     insurances = relationship("Insurance", back_populates="owner")
     inbox_documents = relationship("Document", back_populates="owner")
@@ -110,3 +118,16 @@ class SystemSetting(Base):
     __tablename__ = "system_settings"
     key = Column(String, primary_key=True, index=True)
     value = Column(String, nullable=True)
+
+class AuditLog(Base):
+    """Security-relevant events (logins, credential changes, admin actions).
+    user_id is deliberately not a foreign key and actor keeps the email as it
+    was at the time, so the trail survives the deletion of the account."""
+    __tablename__ = "audit_log"
+    id = Column(Integer, primary_key=True, index=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+    action = Column(String, index=True)
+    user_id = Column(Integer, nullable=True)
+    actor = Column(String, nullable=True)
+    ip = Column(String, nullable=True)
+    detail = Column(String, nullable=True)

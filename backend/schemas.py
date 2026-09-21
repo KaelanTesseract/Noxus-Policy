@@ -15,6 +15,18 @@ class UserCreate(UserBase):
 class UserLogin(BaseModel):
     username: str
     password: str
+    # Second factor (authenticator code or recovery code), only for accounts that enabled it.
+    otp: Optional[str] = None
+
+class PasswordConfirmPayload(BaseModel):
+    password: str
+
+class TwoFactorEnablePayload(BaseModel):
+    code: str
+
+class TwoFactorDisablePayload(BaseModel):
+    password: str
+    code: str
 
 class AdminInitialSetupPayload(BaseModel):
     new_email: str
@@ -38,8 +50,30 @@ class UserResponse(UserBase):
     must_change_password: bool
     email_notifications_enabled: Optional[bool] = True
     calendar_token: Optional[str] = None
+    totp_enabled: Optional[bool] = False
     class Config:
         from_attributes = True
+
+class UserListItem(UserBase):
+    """What the admin user list shows - deliberately without the calendar feed
+    token, which would let an admin read another user's private calendar."""
+    id: int
+    is_admin: bool
+    must_change_password: bool
+    email_notifications_enabled: Optional[bool] = True
+    totp_enabled: Optional[bool] = False
+    class Config:
+        from_attributes = True
+
+class AuditLogEntry(BaseModel):
+    id: int
+    created_at: datetime
+    action: str
+    action_label: str
+    user_id: Optional[int] = None
+    actor: Optional[str] = None
+    ip: Optional[str] = None
+    detail: Optional[str] = None
 
 # Premium History / Price Adjustments
 class PremiumHistoryBase(BaseModel):

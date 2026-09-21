@@ -15,7 +15,8 @@ def resolve_sqlite_path(database_url: str) -> str:
     if database_url.startswith("sqlite:////"):
         return "/" + database_url[11:]
     if database_url.startswith("sqlite:///"):
-        return database_url[9:]
+        # sqlite:///relative.db and sqlite:///C:/windows/path.db - the path starts after the third slash
+        return database_url[10:]
     return "data/versicherungsmanager.db"
 
 if "sqlite" in DATABASE_URL:

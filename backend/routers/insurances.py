@@ -11,6 +11,7 @@ import json
 import datetime
 
 import models, schemas, auth
+from http_utils import ics_text
 from database import get_db
 
 router = APIRouter(prefix="/api/insurances", tags=["insurances"])
@@ -259,7 +260,7 @@ def delete_insurance(insurance_id: int, db: Session = Depends(get_db), current_u
     except Exception as e:
         print(f"Delete insurance exception: {e}")
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Fehler beim Löschen: {str(e)}")
+        raise HTTPException(status_code=500, detail="Fehler beim Löschen der Versicherung.")
 
 class NotesUpdatePayload(BaseModel):
     notes: Optional[str] = None
@@ -394,7 +395,7 @@ def download_single_insurance_ics(
     created_str = datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
     uid = f"noxus-policy-ins-{ins.id}-{date_str}@noxus-policy"
 
-    title = f"⏰ Kündigungsfrist: {ins.name} ({ins.company or 'Unbekannt'})"
+    title = ics_text(f"⏰ Kündigungsfrist: {ins.name} ({ins.company or 'Unbekannt'})")
     desc_parts = [
         f"Versicherung: {ins.name}",
         f"Gesellschaft: {ins.company or 'Nicht angegeben'}",
@@ -405,7 +406,7 @@ def download_single_insurance_ics(
     if ins.is_suspended:
         desc_parts.append(f"Status: ⏸️ Vertrag ruht ({ins.suspension_reason or 'Beitragsfrei'})")
 
-    description = "\\n".join(desc_parts)
+    description = "\\n".join(ics_text(part) for part in desc_parts)
 
     ics_lines = [
         "BEGIN:VCALENDAR",

@@ -1,7 +1,7 @@
 # Copyright (c) 2026 Dennis Guse. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in project root.
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Response
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request, Response
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 import os
@@ -11,20 +11,68 @@ import json
 import base64
 import datetime
 import tempfile
+import uuid
 
 from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-import models, auth
-from database import get_db, engine
-from upload_validation import sanitize_filename
+import models, auth, audit
+from database import get_db, engine, SessionLocal
+from http_utils import content_disposition
+from rate_limit import rate_limiter
+from upload_validation import ALLOWED_EXTENSIONS, matches_signature, sanitize_filename
+from safe_archive import ArchiveRejected, safe_extract_zip, copy_tree_files
+from request_limits import MAX_BACKUP_BODY_BYTES
 
 router = APIRouter(prefix="/api/backup", tags=["backup"])
 
+# Archives contain every user's data, and the password is the only thing protecting
+# them once the file leaves the server (PBKDF2 makes guessing slow, not impossible).
+MIN_BACKUP_PASSWORD_LENGTH = 12
 MAGIC_HEADER = b"NOXUSBK1"
 DB_FILE_PATH = os.path.join("data", "versicherungsmanager.db")
 DOCUMENTS_DIR = "documents"
+
+def audit_restore(request: Request, actor: str, detail: str) -> None:
+    # The database file was just replaced under the request's session, so log through a fresh one.
+    with SessionLocal() as audit_db:
+        audit.log_event(audit_db, "backup_restored", request, actor=actor, detail=detail)
+
+def require_strong_backup_password(password) -> str:
+    cleaned = (password or "").strip()
+    if len(cleaned) < MIN_BACKUP_PASSWORD_LENGTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Bitte gib ein Passwort mit mindestens {MIN_BACKUP_PASSWORD_LENGTH} Zeichen für die Backup-Verschlüsselung an."
+        )
+    return cleaned
+
+def secret_key_fingerprint() -> str:
+    """Short, non-reversible fingerprint of this instance's SECRET_KEY. Stored in the
+    backup's manifest so a restore can tell that the stored passwords (SMTP, backup,
+    GitHub token) were encrypted with a different key and can no longer be read."""
+    import hashlib
+    return hashlib.sha256(f"noxus-backup-fingerprint:{auth.SECRET_KEY}".encode()).hexdigest()[:12]
+
+def restore_warnings(manifest_info: dict) -> list:
+    fingerprint = manifest_info.get("secret_key_fingerprint") if isinstance(manifest_info, dict) else None
+    if fingerprint and fingerprint != secret_key_fingerprint():
+        return [
+            "Dieses Backup stammt von einer Instanz mit anderem SECRET_KEY. Gespeicherte Passwörter "
+            "(SMTP, automatisches Backup, GitHub-Token) können nicht gelesen werden und müssen neu "
+            "eingegeben werden. Alle Benutzer müssen sich neu anmelden."
+        ]
+    return []
+
+def read_backup_upload(file: UploadFile) -> bytes:
+    """Reads an uploaded archive, refusing anything above the accepted size
+    (the request-size middleware already stops oversized bodies; this keeps the
+    endpoint safe on its own)."""
+    contents = file.file.read(MAX_BACKUP_BODY_BYTES + 1)
+    if len(contents) > MAX_BACKUP_BODY_BYTES:
+        raise HTTPException(status_code=413, detail="Die Backup-Datei ist zu groß.")
+    return contents
 
 def derive_fernet_key(password: str, salt: bytes) -> bytes:
     kdf = PBKDF2HMAC(
@@ -63,15 +111,14 @@ def decrypt_archive(encrypted_payload: bytes, password: str) -> bytes:
 @router.post("/export")
 def export_system_backup(
     payload: dict,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Nur Administratoren können System-Backups erstellen.")
         
-    password = payload.get("password")
-    if not password or len(password.strip()) < 4:
-        raise HTTPException(status_code=400, detail="Bitte gib ein mindestens 4-stelliges Passwort für die Backup-Verschlüsselung an.")
+    password = require_strong_backup_password(payload.get("password"))
 
     try:
         # Check counts
@@ -101,6 +148,7 @@ def export_system_backup(
                     "version": "1.0",
                     "created_at": datetime.datetime.utcnow().isoformat(),
                     "created_by": current_user.email,
+                    "secret_key_fingerprint": secret_key_fingerprint(),
                     "users_count": users_count,
                     "insurances_count": insurances_count,
                     "documents_count": documents_count
@@ -112,15 +160,16 @@ def export_system_backup(
                 raw_zip_bytes = f.read()
 
             # Encrypt raw ZIP bytes
-            encrypted_bytes = encrypt_archive(raw_zip_bytes, password.strip())
+            encrypted_bytes = encrypt_archive(raw_zip_bytes, password)
 
             filename = f"noxus_policy_backup_{datetime.date.today().strftime('%Y-%m-%d')}.noxusbackup"
             
+            audit.log_event(db, "backup_exported", request, user=current_user)
             return Response(
                 content=encrypted_bytes,
                 media_type="application/octet-stream",
                 headers={
-                    "Content-Disposition": f"attachment; filename=\"{filename}\""
+                    "Content-Disposition": content_disposition("attachment", filename)
                 }
             )
 
@@ -128,11 +177,12 @@ def export_system_backup(
         raise he
     except Exception as e:
         print(f"Error generating backup: {e}")
-        raise HTTPException(status_code=500, detail=f"Fehler beim Erstellen des Backups: {str(e)}")
+        raise HTTPException(status_code=500, detail="Fehler beim Erstellen des Backups.")
 
 
 @router.post("/import")
 def import_system_backup(
+    request: Request,
     file: UploadFile = File(...),
     password: str = Form(...),
     db: Session = Depends(get_db),
@@ -145,7 +195,7 @@ def import_system_backup(
         raise HTTPException(status_code=400, detail="Bitte gib das Entschlüsselungspasswort an.")
 
     try:
-        encrypted_contents = file.file.read()
+        encrypted_contents = read_backup_upload(file)
         
         # 1. Decrypt Archive
         try:
@@ -163,10 +213,9 @@ def import_system_backup(
             os.makedirs(extract_dir, exist_ok=True)
 
             try:
-                with zipfile.ZipFile(zip_path, "r") as zf:
-                    zf.extractall(extract_dir)
-            except Exception:
-                raise HTTPException(status_code=400, detail="Entschlüsselte Datei ist kein gültiges ZIP-Archiv.")
+                safe_extract_zip(zip_path, extract_dir)
+            except ArchiveRejected as ae:
+                raise HTTPException(status_code=400, detail=str(ae))
 
             # Validate manifest
             manifest_path = os.path.join(extract_dir, "manifest.json")
@@ -191,24 +240,20 @@ def import_system_backup(
             imported_docs = os.path.join(extract_dir, "documents")
             if os.path.exists(imported_docs):
                 os.makedirs(DOCUMENTS_DIR, exist_ok=True)
-                for root, _, files in os.walk(imported_docs):
-                    for f in files:
-                        src_f = os.path.join(root, f)
-                        rel_f = os.path.relpath(src_f, start=imported_docs)
-                        dst_f = os.path.join(DOCUMENTS_DIR, rel_f)
-                        os.makedirs(os.path.dirname(dst_f), exist_ok=True)
-                        shutil.copy2(src_f, dst_f)
+                copy_tree_files(imported_docs, DOCUMENTS_DIR)
 
+            audit_restore(request, current_user.email, "Upload")
             return {
                 "msg": "System-Backup erfolgreich wiederhergestellt! Sämtliche Benutzer, Polizzen und Dokumente wurden synchronisiert.",
-                "manifest": manifest_info
+                "manifest": manifest_info,
+                "warnings": restore_warnings(manifest_info)
             }
 
     except HTTPException as he:
         raise he
     except Exception as e:
         print(f"Error restoring backup: {e}")
-        raise HTTPException(status_code=500, detail=f"Fehler beim Wiederherstellen des Backups: {str(e)}")
+        raise HTTPException(status_code=500, detail="Fehler beim Wiederherstellen des Backups.")
 
 # Automated Backup Configuration & Management Endpoints
 from backup_scheduler import get_backup_setting, set_backup_setting, create_automated_backup, run_backup_cleanup, BACKUPS_STORE_DIR
@@ -225,7 +270,8 @@ def get_auto_backup_config(
         "enabled": get_backup_setting(db, "auto_backup_enabled", "false").lower() in ["true", "1", "yes"],
         "interval": get_backup_setting(db, "auto_backup_interval", "daily"),
         "time": get_backup_setting(db, "auto_backup_time", "03:00"),
-        "password": get_backup_setting(db, "auto_backup_password", ""),
+        # Not sent to the browser; see POST /config/reveal-password for a re-authenticated look.
+        "password_set": bool(get_backup_setting(db, "auto_backup_password", "")),
         "retention_days": int(get_backup_setting(db, "auto_backup_retention_days", "14")),
         "retention_count": int(get_backup_setting(db, "auto_backup_retention_count", "10")),
         "last_run": get_backup_setting(db, "auto_backup_last_run", "")
@@ -234,6 +280,7 @@ def get_auto_backup_config(
 @router.post("/config")
 def save_auto_backup_config(
     payload: dict,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
@@ -246,8 +293,9 @@ def save_auto_backup_config(
         set_backup_setting(db, "auto_backup_interval", str(payload["interval"]).strip())
     if "time" in payload:
         set_backup_setting(db, "auto_backup_time", str(payload["time"]).strip())
-    if "password" in payload:
-        set_backup_setting(db, "auto_backup_password", str(payload["password"]))
+    # Empty means "keep the current one" - the form is never pre-filled with the secret.
+    if payload.get("password"):
+        set_backup_setting(db, "auto_backup_password", require_strong_backup_password(payload["password"]))
     if "retention_days" in payload:
         set_backup_setting(db, "auto_backup_retention_days", str(payload["retention_days"]).strip())
     if "retention_count" in payload:
@@ -257,8 +305,28 @@ def save_auto_backup_config(
     r_days = int(get_backup_setting(db, "auto_backup_retention_days", "14"))
     r_count = int(get_backup_setting(db, "auto_backup_retention_count", "10"))
     run_backup_cleanup(r_days, r_count)
+    audit.log_event(db, "backup_config_changed", request, user=current_user)
 
     return {"msg": "Automatische Backup-Einstellungen erfolgreich gespeichert!"}
+
+@router.post("/config/reveal-password", dependencies=[Depends(rate_limiter(max_calls=5, period_seconds=300))])
+def reveal_auto_backup_password(
+    payload: dict,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    """Shows the automatic-backup password, but only after the admin re-enters their
+    own account password. Without the backup password the stored archives are useless
+    on a fresh server, so it has to be retrievable - just not by anyone who happens to
+    hold (or steal) an open admin session."""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Nur Administratoren dürfen Backup-Einstellungen verwalten.")
+    if not auth.verify_password(str(payload.get("account_password") or ""), current_user.hashed_password):
+        audit.log_event(db, "login_failed", request, user=current_user, detail="Backup-Passwort anzeigen: falsches Passwort")
+        raise HTTPException(status_code=403, detail="Das Passwort ist nicht korrekt.")
+    audit.log_event(db, "backup_password_revealed", request, user=current_user)
+    return {"password": get_backup_setting(db, "auto_backup_password", "")}
 
 @router.get("/list")
 def list_stored_backups(
@@ -312,13 +380,15 @@ def download_stored_backup(
 def restore_stored_backup(
     filename: str,
     payload: dict,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Nur Administratoren dürfen Backups wiederherstellen.")
 
-    password = payload.get("password")
+    # Without a typed password, use the one this server encrypts its automatic backups with.
+    password = payload.get("password") or get_backup_setting(db, "auto_backup_password", "")
     if not password:
         raise HTTPException(status_code=400, detail="Bitte gib das Entschlüsselungs-Passwort an.")
 
@@ -343,10 +413,9 @@ def restore_stored_backup(
         os.makedirs(extract_dir, exist_ok=True)
 
         try:
-            with zipfile.ZipFile(zip_path, "r") as zf:
-                zf.extractall(extract_dir)
-        except Exception:
-            raise HTTPException(status_code=400, detail="Entschlüsselte Datei ist kein gültiges ZIP-Archiv.")
+            safe_extract_zip(zip_path, extract_dir)
+        except ArchiveRejected as ae:
+            raise HTTPException(status_code=400, detail=str(ae))
 
         db.close()
 
@@ -360,15 +429,17 @@ def restore_stored_backup(
         imported_docs = os.path.join(extract_dir, "documents")
         if os.path.exists(imported_docs):
             os.makedirs(DOCUMENTS_DIR, exist_ok=True)
-            for root, _, files in os.walk(imported_docs):
-                for f in files:
-                    src_f = os.path.join(root, f)
-                    rel_f = os.path.relpath(src_f, start=imported_docs)
-                    dst_f = os.path.join(DOCUMENTS_DIR, rel_f)
-                    os.makedirs(os.path.dirname(dst_f), exist_ok=True)
-                    shutil.copy2(src_f, dst_f)
+            copy_tree_files(imported_docs, DOCUMENTS_DIR)
 
-    return {"msg": f"Backup '{filename}' wurde erfolgreich wiederhergestellt!"}
+        manifest_info = {}
+        try:
+            with open(os.path.join(extract_dir, "manifest.json"), "r", encoding="utf-8") as mf:
+                manifest_info = json.load(mf)
+        except Exception:
+            pass
+
+    audit_restore(request, current_user.email, filename[:120])
+    return {"msg": f"Backup '{filename}' wurde erfolgreich wiederhergestellt!", "warnings": restore_warnings(manifest_info)}
 
 @router.delete("/delete-stored/{filename}")
 def delete_stored_backup(
@@ -409,15 +480,14 @@ def trigger_backup_now(
 def export_user_backup(
     user_id: int,
     payload: dict,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     if not current_user.is_admin and current_user.id != user_id:
         raise HTTPException(status_code=403, detail="Keine Berechtigung zum Exportieren dieses Benutzers.")
 
-    password = payload.get("password")
-    if not password or len(password.strip()) < 4:
-        raise HTTPException(status_code=400, detail="Bitte gib ein mindestens 4-stelliges Passwort für den Benutzer-Export an.")
+    password = require_strong_backup_password(payload.get("password"))
 
     target_user = db.query(models.User).filter(models.User.id == user_id).first()
     if not target_user:
@@ -503,16 +573,17 @@ def export_user_backup(
             with open(zip_path, "rb") as f:
                 raw_zip_bytes = f.read()
 
-            encrypted_bytes = encrypt_archive(raw_zip_bytes, password.strip())
+            encrypted_bytes = encrypt_archive(raw_zip_bytes, password)
 
             clean_email = target_user.email.replace("@", "_at_").replace(".", "_")
             filename = f"noxus_user_backup_{clean_email}_{datetime.date.today().strftime('%Y-%m-%d')}.noxususer"
 
+            audit.log_event(db, "user_exported", request, user=current_user, detail=f"Konto: {target_user.email}")
             return Response(
                 content=encrypted_bytes,
                 media_type="application/octet-stream",
                 headers={
-                    "Content-Disposition": f"attachment; filename=\"{filename}\""
+                    "Content-Disposition": content_disposition("attachment", filename)
                 }
             )
 
@@ -520,11 +591,12 @@ def export_user_backup(
         raise he
     except Exception as e:
         print(f"Error exporting user backup: {e}")
-        raise HTTPException(status_code=500, detail=f"Fehler beim Exportieren des Benutzers: {str(e)}")
+        raise HTTPException(status_code=500, detail="Fehler beim Exportieren des Benutzers.")
 
 
 @router.post("/import-user")
 def import_user_backup(
+    request: Request,
     file: UploadFile = File(...),
     password: str = Form(...),
     target_user_id: int = Form(None),
@@ -538,7 +610,7 @@ def import_user_backup(
         raise HTTPException(status_code=400, detail="Bitte gib das Entschlüsselungs-Passwort an.")
 
     try:
-        encrypted_contents = file.file.read()
+        encrypted_contents = read_backup_upload(file)
 
         try:
             raw_zip_bytes = decrypt_archive(encrypted_contents, password.strip())
@@ -554,10 +626,9 @@ def import_user_backup(
             os.makedirs(extract_dir, exist_ok=True)
 
             try:
-                with zipfile.ZipFile(zip_path, "r") as zf:
-                    zf.extractall(extract_dir)
-            except Exception:
-                raise HTTPException(status_code=400, detail="Entschlüsselte Datei ist kein gültiges ZIP-Archiv.")
+                safe_extract_zip(zip_path, extract_dir)
+            except ArchiveRejected as ae:
+                raise HTTPException(status_code=400, detail=str(ae))
 
             # Load user.json
             user_json_path = os.path.join(extract_dir, "user.json")
@@ -573,7 +644,7 @@ def import_user_backup(
                 dest_user = db.query(models.User).filter(models.User.id == target_user_id).first()
             elif current_user.is_admin:
                 # Find or create user by email
-                dest_user = db.query(models.User).filter(models.User.email.ilike(user_data["email"])).first()
+                dest_user = auth.get_user_by_email(db, user_data["email"])
                 if not dest_user:
                     dest_user = models.User(
                         email=user_data["email"],
@@ -641,19 +712,26 @@ def import_user_backup(
                     if not new_ins_id:
                         continue
 
-                    old_filename = doc_dict.get("filename", "document.pdf")
+                    # The archive is user-controlled: never let its filenames pick
+                    # a path, and hold imported files to the same rules as uploads.
+                    old_filename = os.path.basename(str(doc_dict.get("filename") or ""))
+                    ext = os.path.splitext(old_filename)[1].lower()
                     extracted_file = os.path.join(extract_dir, "files", old_filename)
+                    if (not old_filename or ext not in ALLOWED_EXTENSIONS
+                            or not os.path.isfile(extracted_file) or os.path.islink(extracted_file)):
+                        continue
+                    with open(extracted_file, "rb") as probe:
+                        if not matches_signature(ext, probe.read(16)):
+                            continue
 
-                    new_filename = f"{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}_{old_filename}"
-                    new_file_path = os.path.join(DOCUMENTS_DIR, new_filename)
+                    new_filename = f"imp_{uuid.uuid4().hex}{ext}"
+                    shutil.copy2(extracted_file, os.path.join(DOCUMENTS_DIR, new_filename))
 
-                    if os.path.exists(extracted_file):
-                        shutil.copy2(extracted_file, new_file_path)
-
+                    original_name = os.path.basename(str(doc_dict.get("original_filename") or "")) or old_filename
                     new_doc = models.Document(
                         insurance_id=new_ins_id,
                         filename=new_filename,
-                        original_filename=doc_dict.get("original_filename", old_filename),
+                        original_filename=original_name,
                         custom_name=doc_dict.get("custom_name", ""),
                         doc_type=doc_dict.get("doc_type", "")
                     )
@@ -662,6 +740,7 @@ def import_user_backup(
 
                 db.commit()
 
+            audit.log_event(db, "user_imported", request, user=current_user, detail=f"Konto: {dest_user.email}")
             return {
                 "msg": f"Benutzer '{dest_user.email}' mit {ins_count} Polizzen und {doc_count} Dokumenten erfolgreich importiert!",
                 "user_email": dest_user.email,
@@ -673,6 +752,6 @@ def import_user_backup(
         raise he
     except Exception as e:
         print(f"Error importing user backup: {e}")
-        raise HTTPException(status_code=500, detail=f"Fehler beim Importieren des Benutzers: {str(e)}")
+        raise HTTPException(status_code=500, detail="Fehler beim Importieren des Benutzers.")
 
 

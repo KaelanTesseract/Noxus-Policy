@@ -38,4 +38,18 @@ def decrypt_secret(value: str) -> str:
     try:
         return _fernet().decrypt(value[len(_ENC_PREFIX):].encode()).decode()
     except InvalidToken:
+        # Written under a different SECRET_KEY (lost or changed .env, restore from
+        # another instance): unrecoverable, treated as "not set". check_secrets()
+        # reports this loudly at startup.
         return ""
+
+
+def find_unreadable_secrets(db) -> list:
+    """Names of stored settings that are encrypted but can't be decrypted with the
+    current SECRET_KEY."""
+    import models
+    broken = []
+    for setting in db.query(models.SystemSetting).all():
+        if setting.value and setting.value.startswith(_ENC_PREFIX) and not decrypt_secret(setting.value):
+            broken.append(setting.key)
+    return broken

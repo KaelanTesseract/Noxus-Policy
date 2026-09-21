@@ -8,9 +8,11 @@ import models
 from routers import users, insurances, documents, backup, inbox
 import auth
 import os
+import secrets
 import sqlite3
 
 from backup_scheduler import start_scheduler_thread
+from request_limits import RequestSizeLimitMiddleware
 
 # The frontend never calls this API directly from the browser (its Next.js
 # server proxies every request, see frontend/src/app/api/[...path]/route.ts),
@@ -52,6 +54,10 @@ async def add_security_headers(request, call_next):
     # proxy terminates TLS in front of this app.
     response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
     return response
+
+# Added last so it is the outermost layer: oversized bodies are refused before
+# anything (multipart parsing, auth, routing) spends resources on them.
+app.add_middleware(RequestSizeLimitMiddleware)
 
 app.include_router(users.router)
 app.include_router(insurances.router)
@@ -126,6 +132,16 @@ def auto_migrate_sqlite():
                         cursor.execute("ALTER TABLE users ADD COLUMN email_notifications_enabled BOOLEAN DEFAULT 1")
                     if "calendar_token" not in usr_cols:
                         cursor.execute("ALTER TABLE users ADD COLUMN calendar_token VARCHAR")
+                    if "token_version" not in usr_cols:
+                        cursor.execute("ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 0")
+                    if "totp_secret" not in usr_cols:
+                        cursor.execute("ALTER TABLE users ADD COLUMN totp_secret VARCHAR")
+                    if "totp_enabled" not in usr_cols:
+                        cursor.execute("ALTER TABLE users ADD COLUMN totp_enabled BOOLEAN DEFAULT 0")
+                    if "totp_last_step" not in usr_cols:
+                        cursor.execute("ALTER TABLE users ADD COLUMN totp_last_step INTEGER DEFAULT 0")
+                    if "recovery_codes" not in usr_cols:
+                        cursor.execute("ALTER TABLE users ADD COLUMN recovery_codes VARCHAR")
                 except Exception as e:
                     print(f"[Auto-Migrate users] {e}")
 
@@ -161,16 +177,37 @@ def startup_db_init():
         db = SessionLocal()
         any_admin = db.query(models.User).filter(models.User.is_admin == True).first()
         if not any_admin:
-            hashed_password = auth.get_password_hash("admin")
+            # A fixed "admin"/"admin" default meant whoever reached the login page
+            # first on a fresh, internet-reachable instance could take it over.
+            # Generate a one-time random password instead and print it to the log;
+            # the first login forces choosing a real email + password.
+            initial_password = secrets.token_urlsafe(12)
             admin_user = models.User(
                 email="Admin",
-                hashed_password=hashed_password,
+                hashed_password=auth.get_password_hash(initial_password),
                 is_admin=True,
                 must_change_password=True
             )
             db.add(admin_user)
             db.commit()
-            print("Default 'Admin' user created since no admin account existed.")
+            print("=" * 68, flush=True)
+            print("ERSTEINRICHTUNG: Admin-Konto wurde angelegt.", flush=True)
+            print("Benutzername: Admin", flush=True)
+            print(f"INITIAL_ADMIN_PASSWORD={initial_password}", flush=True)
+            print("Beim ersten Login wirst du aufgefordert, E-Mail und Passwort festzulegen.", flush=True)
+            print("=" * 68, flush=True)
+        try:
+            from secrets_crypto import find_unreadable_secrets
+            unreadable = find_unreadable_secrets(db)
+            if unreadable:
+                print("=" * 68, flush=True)
+                print("WARNUNG: Gespeicherte Passwörter sind mit dem aktuellen SECRET_KEY nicht lesbar:", flush=True)
+                print("  " + ", ".join(unreadable), flush=True)
+                print("Der SECRET_KEY hat sich geändert (.env verloren/ersetzt?). Den alten Wert wieder", flush=True)
+                print("eintragen oder die Passwörter unter Einstellungen neu eingeben.", flush=True)
+                print("=" * 68, flush=True)
+        except Exception as ke:
+            print(f"Secret check skipped: {ke}")
         db.close()
         print("Database initialized successfully!")
     except Exception as e:

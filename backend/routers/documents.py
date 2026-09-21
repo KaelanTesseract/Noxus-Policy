@@ -12,6 +12,8 @@ import json
 import models, schemas, auth, ocr
 from database import get_db
 from upload_validation import sanitize_filename, validate_upload
+from http_utils import content_disposition
+import audit
 from secrets_crypto import encrypt_secret, decrypt_secret
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
@@ -30,7 +32,7 @@ def _check_document_access(doc: "models.Document", current_user: "models.User"):
         raise HTTPException(status_code=403, detail="Forbidden")
 
 @router.get("/ai-config")
-def get_ai_config(db: Session = Depends(get_db)):
+def get_ai_config(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_active_user)):
     setting = db.query(models.SystemSetting).filter(models.SystemSetting.key == "use_ai_ocr").first()
     use_ai = True
     if setting and setting.value is not None:
@@ -40,6 +42,7 @@ def get_ai_config(db: Session = Depends(get_db)):
 @router.post("/ai-config")
 def set_ai_config(
     payload: dict,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
@@ -54,6 +57,7 @@ def set_ai_config(
     else:
         setting.value = "true" if use_ai else "false"
     db.commit()
+    audit.log_event(db, "ai_config_changed", request, user=current_user, detail=f"aktiv={use_ai}")
 
     return {"msg": f"KI-Dokumentenanalyse wurde {'aktiviert' if use_ai else 'deaktiviert (nur klassische OCR)'}!", "use_ai": use_ai}
 
@@ -92,6 +96,7 @@ def get_pattern_sync_config(
 @router.post("/pattern-sync-config")
 def set_pattern_sync_config(
     payload: dict,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
@@ -104,6 +109,7 @@ def set_pattern_sync_config(
         _set_system_setting(db, "pattern_sync_github_token", str(payload["github_token"]).strip())
 
     db.commit()
+    audit.log_event(db, "pattern_sync_changed", request, user=current_user)
     return {"msg": "Einstellungen für den Muster-Sync per Pull Request gespeichert."}
 
 @router.post("/extract", response_model=schemas.ExtractionResult)
@@ -339,7 +345,7 @@ def view_document(
     return FileResponse(
         filepath,
         media_type=media_type,
-        headers={"Content-Disposition": f"inline; filename=\"{doc.original_filename}\""}
+        headers={"Content-Disposition": content_disposition("inline", doc.original_filename)}
     )
 
 @router.get("/{document_id}/download")
@@ -360,8 +366,7 @@ def download_document(
 
     return FileResponse(
         filepath,
-        filename=doc.original_filename,
-        headers={"Content-Disposition": f"attachment; filename=\"{doc.original_filename}\""}
+        headers={"Content-Disposition": content_disposition("attachment", doc.original_filename)}
     )
 
 @router.delete("/{document_id}")

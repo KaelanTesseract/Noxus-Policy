@@ -41,8 +41,10 @@ import time
 
 try:
     from sanitizer import sanitize_text_for_learning, extract_safe_anchor_pattern
+    from pattern_safety import sanitize_pattern_db
 except ImportError:
     from backend.sanitizer import sanitize_text_for_learning, extract_safe_anchor_pattern
+    from backend.pattern_safety import sanitize_pattern_db
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 ENC_FILE = os.path.join(DATA_DIR, "vendor_patterns.enc")
@@ -86,7 +88,9 @@ def decrypt_patterns(enc_str: str) -> dict:
     try:
         enc_bytes = base64.b64decode(enc_str.strip().encode('utf-8'))
         raw_bytes = _xor_cipher(enc_bytes, APP_CIPHER_KEY)
-        return json.loads(raw_bytes.decode('utf-8'))
+        # The file may come from the community repo: keep only well-formed entries
+        # with safe patterns (see pattern_safety.py) before anything uses or re-saves it.
+        return sanitize_pattern_db(json.loads(raw_bytes.decode('utf-8')))
     except Exception as e:
         print(f"[LearningEngine] Cipher decryption error: {e}")
         return {"_meta": {"version": "0.2.0-beta"}, "vendors": {}}
@@ -257,11 +261,19 @@ def _open_or_update_pattern_pr(repo_root: str, github_token: str):
             print("[LearningEngine] Outbound Sync: no new pattern changes to publish.")
             return
 
-        # Token is passed only as a one-off header for this command, never written to git config.
+        # The token goes to git through the environment (GIT_CONFIG_*), not as a
+        # command-line argument: arguments are readable by every local user in the
+        # process list, environment variables are not. Never written to git config.
+        push_env = dict(os.environ)
+        push_env.update({
+            "GIT_CONFIG_COUNT": "1",
+            "GIT_CONFIG_KEY_0": "http.extraheader",
+            "GIT_CONFIG_VALUE_0": f"AUTHORIZATION: bearer {github_token}",
+            "GIT_TERMINAL_PROMPT": "0",
+        })
         push_res = subprocess.run(
-            ["git", "-c", f"http.extraheader=AUTHORIZATION: bearer {github_token}",
-             "push", "origin", PATTERN_SYNC_BRANCH, "--force"],
-            cwd=worktree_dir, capture_output=True, text=True
+            ["git", "push", "origin", PATTERN_SYNC_BRANCH, "--force"],
+            cwd=worktree_dir, capture_output=True, text=True, env=push_env
         )
         if push_res.returncode != 0:
             print(f"[LearningEngine] Outbound Sync: push to sync branch failed: {push_res.stderr}")
@@ -352,8 +364,8 @@ def sync_patterns_with_github(force_push: bool = False):
     try:
         repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         if os.path.exists(os.path.join(repo_root, ".git")):
-            cmd_check = "git status --porcelain backend/data/vendor_patterns.enc"
-            res = subprocess.run(cmd_check, cwd=repo_root, shell=True, capture_output=True, text=True)
+            res = subprocess.run(["git", "status", "--porcelain", "backend/data/vendor_patterns.enc"],
+                                 cwd=repo_root, capture_output=True, text=True)
             if force_push or (res.returncode == 0 and "vendor_patterns.enc" in res.stdout):
                 _open_or_update_pattern_pr(repo_root, github_token)
     except Exception as e:

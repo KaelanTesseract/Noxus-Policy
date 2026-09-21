@@ -2,11 +2,13 @@
 # Licensed under the MIT License. See LICENSE file in project root.
 
 import pytesseract
+from pattern_safety import apply_patterns
 from PIL import Image
 from pdf2image import convert_from_path
 import re
 import os
 import json
+import hashlib
 import httpx
 from datetime import datetime
 try:
@@ -15,6 +17,40 @@ except ImportError:
     from backend.learning import get_learned_patterns_for_company, learn_from_feedback
 
 _llm_instance = None
+
+# The model is pinned to one exact Hugging Face commit and one SHA-256. llama.cpp
+# parses the GGUF file (including an embedded chat template), and past bugs in that
+# parsing have allowed code execution from a crafted model file - so a file that was
+# swapped upstream or on disk must never reach the loader.
+MODEL_REPO = "Qwen/Qwen2.5-1.5B-Instruct-GGUF"
+MODEL_FILENAME = "qwen2.5-1.5b-instruct-q4_k_m.gguf"
+MODEL_REVISION = "91cad51170dc346986eccefdc2dd33a9da36ead9"
+MODEL_SHA256 = "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e"
+
+def _model_is_trusted(path: str) -> bool:
+    """True if the file matches MODEL_SHA256. A marker file remembers a successful
+    check so the ~1 GB file is only re-hashed when it changed."""
+    marker = path + ".sha256-verified"
+    try:
+        if (os.path.exists(marker)
+                and os.path.getmtime(marker) >= os.path.getmtime(path)
+                and open(marker).read().strip() == MODEL_SHA256):
+            return True
+    except OSError:
+        pass
+
+    digest = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            digest.update(chunk)
+    if digest.hexdigest() != MODEL_SHA256:
+        return False
+    try:
+        with open(marker, "w") as f:
+            f.write(MODEL_SHA256)
+    except OSError:
+        pass
+    return True
 
 def get_llm():
     global _llm_instance
@@ -29,16 +65,24 @@ def get_llm():
         if not os.path.exists(model_dir):
             model_dir = os.path.join(os.path.dirname(__file__), "models")
         os.makedirs(model_dir, exist_ok=True)
-        model_path = os.path.join(model_dir, "qwen2.5-1.5b-instruct-q4_k_m.gguf")
+        model_path = os.path.join(model_dir, MODEL_FILENAME)
+
+        if os.path.exists(model_path) and not _model_is_trusted(model_path):
+            print("[Mini-AI] Local model file does not match the pinned checksum - removing it and downloading the pinned version again.")
+            os.remove(model_path)
 
         if not os.path.exists(model_path):
-            print("[Mini-AI] Model not found locally. Auto-downloading Qwen2.5-1.5B-Instruct GGUF (~980 MB)...")
+            print("[Mini-AI] Model not found locally. Auto-downloading Qwen2.5-1.5B-Instruct GGUF (~1.1 GB)...")
             downloaded = hf_hub_download(
-                repo_id="Qwen/Qwen2.5-1.5B-Instruct-GGUF",
-                filename="qwen2.5-1.5b-instruct-q4_k_m.gguf",
+                repo_id=MODEL_REPO,
+                filename=MODEL_FILENAME,
+                revision=MODEL_REVISION,
                 local_dir=model_dir
             )
             print(f"[Mini-AI] Model successfully downloaded to: {downloaded}")
+            if not _model_is_trusted(model_path):
+                os.remove(model_path)
+                raise ValueError("downloaded model failed the SHA-256 check and was discarded")
 
         print("[Mini-AI] Initializing embedded Llama-cpp engine (4 CPU threads)...")
         _llm_instance = Llama(
@@ -51,6 +95,19 @@ def get_llm():
     except Exception as e:
         print(f"[Mini-AI] Notice: Could not initialize embedded Llama model ({e}). Using regex fallback.")
         return None
+
+# Bounds for untrusted uploads: a PDF page or image can declare absurd dimensions
+# (a few KB that expand to gigabytes of pixels) and Tesseract can be made to churn
+# on adversarial images, so rendering, decoding and recognition are all capped.
+OCR_MAX_PAGES = 5
+OCR_MAX_PAGE_SIDE_PX = 2400          # longest side a PDF page is rendered at (~200 dpi on A4)
+OCR_MAX_IMAGE_SIDE_PX = 3600
+OCR_MAX_IMAGE_PIXELS = 50_000_000    # decoded pixels above this are refused outright
+OCR_PDF_RENDER_TIMEOUT_S = 60
+OCR_TESSERACT_TIMEOUT_S = 60
+MAX_EXTRACTED_TEXT_CHARS = 200_000   # what the (regex-heavy) extractors ever get to see
+
+Image.MAX_IMAGE_PIXELS = OCR_MAX_IMAGE_PIXELS
 
 def extract_text_from_file(filepath: str) -> str:
     text = ""
@@ -74,15 +131,20 @@ def extract_text_from_file(filepath: str) -> str:
                 print(f"pypdf extraction notice: {pe}")
 
             if not text.strip():
-                images = convert_from_path(filepath, first_page=1, last_page=5)
+                images = convert_from_path(
+                    filepath, first_page=1, last_page=OCR_MAX_PAGES,
+                    size=OCR_MAX_PAGE_SIDE_PX, timeout=OCR_PDF_RENDER_TIMEOUT_S,
+                )
                 for img in images:
-                    text += pytesseract.image_to_string(img, lang='deu') + "\n"
+                    text += pytesseract.image_to_string(img, lang='deu', timeout=OCR_TESSERACT_TIMEOUT_S) + "\n"
         else:
-            img = Image.open(filepath)
-            text = pytesseract.image_to_string(img, lang='deu')
+            with Image.open(filepath) as img:
+                img.draft("RGB", (OCR_MAX_IMAGE_SIDE_PX, OCR_MAX_IMAGE_SIDE_PX))  # cheap JPEG downscale while decoding
+                img.thumbnail((OCR_MAX_IMAGE_SIDE_PX, OCR_MAX_IMAGE_SIDE_PX))
+                text = pytesseract.image_to_string(img, lang='deu', timeout=OCR_TESSERACT_TIMEOUT_S)
     except Exception as e:
         print(f"Error during OCR/text extraction: {e}")
-    return text
+    return text[:MAX_EXTRACTED_TEXT_CHARS]
 
 def parse_date(date_str: str):
     if not date_str:
@@ -709,21 +771,17 @@ def extract_insurance_data(text: str, db=None) -> dict:
         data = extract_insurance_data_regex(text)
         data["ai_used"] = False
 
-    # Apply learned vendor patterns if company is detected
+    # Apply learned vendor patterns if company is detected. They are untrusted
+    # input (partly community-sourced), so they only run through pattern_safety.
     company = data.get("company")
     if company:
         l_patterns = get_learned_patterns_for_company(company)
         if l_patterns:
-            for field, pat_list in l_patterns.items():
-                if not data.get(field):
-                    for pat in pat_list:
-                        m = re.search(pat, text)
-                        if m:
-                            val = m.group(1).strip()
-                            if field == "regional_class" and not val.upper().startswith("R"):
-                                val = f"R{val}"
-                            data[field] = val
-                            break
+            missing = {field: pats for field, pats in l_patterns.items() if not data.get(field)}
+            for field, val in apply_patterns(text, missing).items():
+                if field == "regional_class" and not val.upper().startswith("R"):
+                    val = f"R{val}"
+                data[field] = val
 
     # Trigger automatic learning loop (100% anonymized, ZERO PII)
     if company and (data.get("regional_class") or data.get("type_class") or data.get("sf_class")):

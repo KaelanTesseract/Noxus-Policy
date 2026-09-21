@@ -70,9 +70,16 @@ def extract_safe_anchor_pattern(raw_text: str, target_val: str, label_keywords: 
                 if re.search(r'(?i)\b' + re.escape(kw) + r'\b', line):
                     # Sanitize line first to prevent leaks
                     clean_line = sanitize_text_for_learning(line)
-                    # Replace target_val with regex capture group token
-                    esc_target = re.escape(str_val)
-                    pattern_line = re.sub(esc_target, r'([A-Za-z0-9\\-/]+)', clean_line)
+                    # Replace target_val with a capture group and escape everything
+                    # else, so the stored line is literal text plus one group - never
+                    # a regex built from document content (which could be invalid
+                    # or, in the community pattern store, hostile).
+                    if str_val not in clean_line:
+                        continue
+                    pieces = clean_line.split(str_val)
+                    pattern_line = r'([A-Za-z0-9\-/]+)'.join(re.escape(piece) for piece in pieces)
+                    if len(pattern_line) > 300:
+                        continue
                     return pattern_line
 
     return None
