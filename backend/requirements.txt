@@ -15,4 +15,4 @@ pypdf==6.19.0
 cryptography==50.0.1
 httpx==0.28.1
 huggingface_hub==1.32.0
-llama-cpp-python==0.2.90
+llama-cpp-python==0.3.35
