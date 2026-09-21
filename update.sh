@@ -84,11 +84,23 @@ render_progress 35 100 "2/5: Erstelle automatisches Sicherheits-Backup der Daten
 mkdir -p "$INSTALL_DIR/backups"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 
-if [ -f "$INSTALL_DIR/backend/insurance.db" ]; then
-  cp "$INSTALL_DIR/backend/insurance.db" "$INSTALL_DIR/backups/insurance_backup_$TIMESTAMP.db" 2>/dev/null || true
-  # Auto-Cleanup: Keep only 5 newest update backups to save disk space
-  ls -dt "$INSTALL_DIR/backups"/insurance_backup_*.db 2>/dev/null | tail -n +6 | xargs rm -f 2>/dev/null || true
-fi
+# The live database sits in backend/data/ (Docker volume). This step used to look
+# only at backend/insurance.db - a path from an early version that no longer
+# exists - so it silently backed up nothing while still announcing a backup.
+DB_BACKUP_FILE=""
+for DB_CANDIDATE in "$INSTALL_DIR/backend/data/versicherungsmanager.db" "$INSTALL_DIR/backend/insurance.db"; do
+  if [ -f "$DB_CANDIDATE" ]; then
+    DB_BACKUP_FILE="$INSTALL_DIR/backups/insurance_backup_$TIMESTAMP.db"
+    if cp "$DB_CANDIDATE" "$DB_BACKUP_FILE" 2>/dev/null; then
+      chmod 600 "$DB_BACKUP_FILE" 2>/dev/null || true
+    else
+      DB_BACKUP_FILE=""
+    fi
+    break
+  fi
+done
+# Auto-Cleanup: Keep only 5 newest update backups to save disk space
+ls -dt "$INSTALL_DIR/backups"/insurance_backup_*.db 2>/dev/null | tail -n +6 | xargs rm -f 2>/dev/null || true
 sleep 1
 
 # Step 3: Git Pull & Hard Sync with GitHub (55%)
@@ -241,8 +253,12 @@ IP_ADDR=$(hostname -I | awk '{print $1}')
 echo -e "${GREEN}========================================================================${NC}"
 echo -e "${CYAN}🎉 Update & Sicherheits-Backup erfolgreich abgeschlossen!${NC}"
 echo -e "${GREEN}========================================================================${NC}"
-echo -e "💾 **Sicherheits-Backup erstellt unter:**"
-echo -e "   👉 ${YELLOW}${INSTALL_DIR}/backups/insurance_backup_${TIMESTAMP}.db${NC}\n"
+if [ -n "$DB_BACKUP_FILE" ] && [ -f "$DB_BACKUP_FILE" ]; then
+  echo -e "💾 **Sicherheits-Backup der Datenbank erstellt unter:**"
+  echo -e "   👉 ${YELLOW}${DB_BACKUP_FILE}${NC}\n"
+else
+  echo -e "${YELLOW}⚠ Es wurde keine Datenbank zum Sichern gefunden (frische Installation?).${NC}\n"
+fi
 echo -e "🌐 **Web-Interface bereit unter:**"
 echo -e "   👉 ${YELLOW}http://${IP_ADDR}:3000${NC}"
 echo -e "${GREEN}========================================================================${NC}\n"

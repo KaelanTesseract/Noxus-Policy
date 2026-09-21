@@ -124,7 +124,18 @@ echo -e "${GREEN}🚀 Baue und starte Docker-Container (Frontend + Backend + KI-
 docker compose down --remove-orphans || true
 docker compose up -d --build
 
-# 9. Get Container IP Address
+# 9. The backend prints a one-time random admin password on its very first start
+# (there is no fixed default login any more). Wait for it and show it here.
+INITIAL_ADMIN_PW=""
+for i in $(seq 1 60); do
+  INITIAL_ADMIN_PW=$(docker compose logs backend 2>/dev/null | grep -m1 -o 'INITIAL_ADMIN_PASSWORD=.*' | cut -d= -f2- | tr -d '\r' || true)
+  [ -n "$INITIAL_ADMIN_PW" ] && break
+  # Backend already up but no such line -> an admin exists from an earlier install.
+  curl -s http://127.0.0.1:8000/api/health >/dev/null 2>&1 && break
+  sleep 2
+done
+
+# 10. Get Container IP Address
 IP_ADDR=$(hostname -I | awk '{print $1}')
 
 echo -e "\n${GREEN}========================================================================${NC}"
@@ -132,6 +143,14 @@ echo -e "${CYAN}🎉 Installation erfolgreich abgeschlossen!${NC}"
 echo -e "${GREEN}========================================================================${NC}"
 echo -e "🌐 **Web-Interface aufrufen:**"
 echo -e "   👉 ${YELLOW}http://${IP_ADDR}:3000${NC}\n"
+if [ -n "$INITIAL_ADMIN_PW" ]; then
+  echo -e "🔑 **Erst-Login (nur einmalig gültig):**"
+  echo -e "   Benutzername: ${YELLOW}Admin${NC}   Passwort: ${YELLOW}${INITIAL_ADMIN_PW}${NC}"
+  echo -e "   Beim ersten Anmelden legst du eine eigene E-Mail und ein eigenes Passwort fest.\n"
+else
+  echo -e "🔑 Ein Admin-Konto besteht bereits. Passwort vergessen? Auf dem Server:"
+  echo -e "   ${CYAN}cd ${INSTALL_DIR} && docker compose exec backend python reset_admin.py${NC}\n"
+fi
 echo -e "🔄 **Updates in Zukunft durchführen:**"
 echo -e "   Einfach im Terminal diesen Befehl eingeben:"
 echo -e "   👉 ${CYAN}update${NC}"

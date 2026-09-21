@@ -115,6 +115,15 @@ pct exec $CTID -- bash -c "
   docker compose up -d --build
 "
 
+# The backend prints a one-time random admin password on its very first start
+# (there is no fixed default login any more) - fetch it from the container log.
+INITIAL_ADMIN_PW=""
+for i in $(seq 1 60); do
+  INITIAL_ADMIN_PW=$(pct exec $CTID -- bash -c "cd /opt/versicherungsmanager && docker compose logs backend 2>/dev/null | grep -m1 -o 'INITIAL_ADMIN_PASSWORD=.*' | cut -d= -f2-" | tr -d '\r' || true)
+  [ -n "$INITIAL_ADMIN_PW" ] && break
+  sleep 3
+done
+
 CONTAINER_IP=$(pct exec $CTID -- hostname -I | awk '{print $1}')
 
 echo -e "\n${GREEN}========================================================================${NC}"
@@ -122,6 +131,14 @@ echo -e "${CYAN}🎉 Proxmox LXC Container $CTID ($HOSTNAME) wurde erfolgreich e
 echo -e "${GREEN}========================================================================${NC}"
 echo -e "🌐 **Web-Interface aufrufen:**"
 echo -e "   👉 ${YELLOW}http://${CONTAINER_IP}:3000${NC}\n"
+if [ -n "$INITIAL_ADMIN_PW" ]; then
+  echo -e "🔑 **Erst-Login (nur einmalig gültig):**"
+  echo -e "   Benutzername: ${YELLOW}Admin${NC}   Passwort: ${YELLOW}${INITIAL_ADMIN_PW}${NC}"
+  echo -e "   Beim ersten Anmelden legst du eine eigene E-Mail und ein eigenes Passwort fest.\n"
+else
+  echo -e "🔑 Das Erst-Passwort steht im Backend-Log (Suche nach INITIAL_ADMIN_PASSWORD):"
+  echo -e "   ${CYAN}pct exec $CTID -- bash -c 'cd /opt/versicherungsmanager && docker compose logs backend | grep INITIAL_ADMIN_PASSWORD'${NC}\n"
+fi
 echo -e "⚙️  **Container Details:**"
 echo -e "   • CT ID: ${CYAN}$CTID${NC}"
 echo -e "   • RAM: ${CYAN}${RAM} MB${NC} | Cores: ${CYAN}${CORES}${NC} | Disk: ${CYAN}${DISK} GB${NC}"
