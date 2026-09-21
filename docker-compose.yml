@@ -21,6 +21,15 @@ services:
       # Manager). Needed so login rate limiting sees each visitor's real IP;
       # see README "Sicherheit". Leave at 0 if nothing sits in front.
       - TRUSTED_PROXY_HOPS=${TRUSTED_PROXY_HOPS:-0}
+      # Optional settings, all read from the .env file next to this compose file
+      # (see README "Sicherheit"): session lifetime, API docs, CORS, mail link base,
+      # and the switch to keep running as root if the unprivileged start fails.
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-15}
+      - SESSION_MAX_HOURS=${SESSION_MAX_HOURS:-12}
+      - ENABLE_API_DOCS=${ENABLE_API_DOCS:-false}
+      - CORS_ORIGINS=${CORS_ORIGINS:-}
+      - APP_URL=${APP_URL:-http://localhost:3000}
+      - RUN_AS_ROOT=${RUN_AS_ROOT:-0}
     # The container starts as root only to hand the data folders to the app user
     # and then drops to it (docker-entrypoint.sh); nothing else is needed, so
     # every other capability is removed and privilege escalation is blocked.
@@ -51,6 +60,8 @@ services:
       # The backend only listens on loopback (host network), so the frontend
       # proxy is the only way in from the LAN.
       - BACKEND_URL=http://127.0.0.1:8000
+      # true = no external request for insurer logos (initials are shown instead)
+      - DISABLE_LOGO_LOOKUP=${DISABLE_LOGO_LOOKUP:-false}
     cap_drop:
       - ALL
     security_opt:
