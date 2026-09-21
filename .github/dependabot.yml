@@ -1,10 +1,19 @@
 version: 2
+
+# Major version jumps are not proposed automatically: for this app they need a
+# deliberate test (e.g. bcrypt 5 rejects passwords over 72 bytes and would lock
+# out existing accounts, llama-cpp-python is compiled and tied to the pinned
+# model, Node/TypeScript/ESLint majors change the toolchain). Security fixes
+# still arrive as minor/patch updates; a major is done by hand when wanted.
 updates:
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       minor-and-patch:
         update-types: ["minor", "patch"]
@@ -14,6 +23,11 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+      # Compiled native code paired with the pinned model file - update by hand and test.
+      - dependency-name: "llama-cpp-python"
     groups:
       minor-and-patch:
         update-types: ["minor", "patch"]
@@ -22,11 +36,17 @@ updates:
     directory: "/frontend"
     schedule:
       interval: "weekly"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "docker"
     directory: "/backend"
     schedule:
       interval: "weekly"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
