@@ -17,6 +17,29 @@ services:
       # compose file automatically - see README "Sicherheit" section if you're
       # running `docker compose up` directly instead.
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is not set - run install.sh/update.sh, or create a .env file with SECRET_KEY=<random long value> next to docker-compose.yml}
+      # Number of reverse proxies in front of this app (1 for one Nginx Proxy
+      # Manager). Needed so login rate limiting sees each visitor's real IP;
+      # see README "Sicherheit". Leave at 0 if nothing sits in front.
+      - TRUSTED_PROXY_HOPS=${TRUSTED_PROXY_HOPS:-0}
+    # The container starts as root only to hand the data folders to the app user
+    # and then drops to it (docker-entrypoint.sh); nothing else is needed, so
+    # every other capability is removed and privilege escalation is blocked.
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETUID
+      - SETGID
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
     restart: always
 
   frontend:
@@ -24,6 +47,20 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     network_mode: "host"
+    environment:
+      # The backend only listens on loopback (host network), so the frontend
+      # proxy is the only way in from the LAN.
+      - BACKEND_URL=http://127.0.0.1:8000
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/login').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
     restart: always
     depends_on:
       - backend
