@@ -44,13 +44,17 @@ jobs:
         run: pip install --quiet pip-audit
       - name: Audit the resolved dependency tree (incl. transitive packages)
         run: |
-          # Resolve the real tree in a throwaway venv and audit exactly that
-          # (not the tool's own dependencies). llama-cpp-python compiles native
-          # code and is audited on its own pin below.
-          python -m venv .audit-venv
+          # Audit the requirement list including its transitive packages.
+          # (Auditing an installed venv instead would also flag the pip/setuptools
+          # that ship with it - not part of the app - and fail on advisories we
+          # can't act on.) llama-cpp-python compiles native code and is audited
+          # on its own pin below.
           grep -v '^llama-cpp-python' backend/requirements.txt > /tmp/requirements-audit.txt
+          pip-audit --strict -r /tmp/requirements-audit.txt
+          # Same dependency set, installed for the tests below.
+          python -m venv .audit-venv
+          .audit-venv/bin/pip install --quiet --upgrade pip
           .audit-venv/bin/pip install --quiet -r /tmp/requirements-audit.txt
-          pip-audit --strict --path .audit-venv/lib/python3.11/site-packages
       - name: Security regression tests
         run: |
           .audit-venv/bin/pip install --quiet pytest
