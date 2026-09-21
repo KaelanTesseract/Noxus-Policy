@@ -1,5 +1,5 @@
 # Node 20 reached end of life in April 2026; 24 is the current LTS line.
-FROM node:24-slim
+FROM node:25-slim
 
 # Everything below - install, build and the running server - happens as the
 # unprivileged "node" user that ships with the image, never as root.
