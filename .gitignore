@@ -31,5 +31,7 @@ backups/
 test_*.py
 create_test_*.py
 Test_*.pdf
+# ...but the real test suite lives in backend/tests
+!backend/tests/test_*.py
 
 .pytest_cache/
