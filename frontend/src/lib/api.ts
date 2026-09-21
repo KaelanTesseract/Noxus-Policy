@@ -3,22 +3,24 @@
  * Licensed under the MIT License. See LICENSE file in project root.
  */
 
+import { clearSession, hasSessionHint } from "@/lib/session";
+
 const API_URL = "/api";
 
-export const getAuthHeaders = () => {
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-  return {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
-};
+// The session lives in an httpOnly cookie that the browser attaches to same-origin
+// requests by itself and the Next.js proxy turns into the Authorization header for
+// the backend - scripts never see or send the token, so there is nothing to add here.
+export const getAuthHeaders = () => ({
+  "Content-Type": "application/json",
+});
 
 function handleUnauthorizedResponse(res: Response) {
   if (res.status === 401 && typeof window !== "undefined") {
-    localStorage.removeItem("token");
+    const hadSession = hasSessionHint();
+    clearSession();
     const currentPath = window.location.pathname;
     if (!["/login", "/register", "/forgot-password", "/reset-password", "/session-expired"].includes(currentPath)) {
-      window.location.href = "/session-expired";
+      window.location.href = hadSession ? "/session-expired" : "/login";
     }
   }
 }
@@ -65,12 +67,8 @@ export const api = {
     return res.json();
   },
   postForm: async (endpoint: string, formData: FormData) => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
     const res = await fetch(`${API_URL}${endpoint}`, {
       method: "POST",
-      headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
       body: formData,
     });
     if (!res.ok) throw new Error(await parseError(res));

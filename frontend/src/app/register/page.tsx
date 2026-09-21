@@ -4,12 +4,13 @@
  * Licensed under the MIT License. See LICENSE file in project root.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { clearSession, markSignedIn } from "@/lib/session";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -19,19 +20,38 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  const [registrationOpen, setRegistrationOpen] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/users/registration-status")
+      .then((res) => (res.ok ? res.json() : { enabled: true }))
+      .then((cfg) => {
+        const open = cfg.enabled !== false;
+        setRegistrationOpen(open);
+        if (!open) {
+          setError("Die Registrierung ist auf dieser Instanz deaktiviert. Bitte wende dich an den Administrator.");
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setSuccess("");
 
+    if (!registrationOpen) {
+      setError("Die Registrierung ist auf dieser Instanz deaktiviert. Bitte wende dich an den Administrator.");
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError("Passwörter stimmen nicht überein.");
       return;
     }
 
-    if (password.length < 4) {
-      setError("Das Passwort muss mindestens 4 Zeichen lang sein.");
+    if (password.length < 8) {
+      setError("Das Passwort muss mindestens 8 Zeichen lang sein.");
       return;
     }
 
@@ -60,8 +80,9 @@ export default function RegisterPage() {
       });
 
       if (loginRes.ok) {
-        const tokenData = await loginRes.json();
-        localStorage.setItem("token", tokenData.access_token);
+        // The session cookie was already set by the login response.
+        clearSession();
+        markSignedIn();
         setTimeout(() => {
           window.location.href = "/";
         }, 1000);
@@ -133,7 +154,7 @@ export default function RegisterPage() {
                   value={password} 
                   onChange={e => setPassword(e.target.value)} 
                   required 
-                  placeholder="Mindestens 4 Zeichen"
+                  placeholder="Mindestens 8 Zeichen"
                   className="bg-zinc-950/60 border-zinc-800 focus:border-indigo-500" 
                 />
               </div>

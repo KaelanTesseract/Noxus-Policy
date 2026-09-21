@@ -41,7 +41,6 @@ export function InsuranceDetail({ insurance, onClose, onUpdate }: any) {
   };
 
   const handleDownload = async (docId: string, filename: string) => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
     try {
       const res = await fetch(`/api/documents/${docId}/download`, {
         headers: getAuthHeaders()

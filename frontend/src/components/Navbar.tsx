@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/components/ThemeProvider";
 import { api } from "@/lib/api";
+import { logout } from "@/lib/session";
 
 interface NavbarProps {
   userEmail?: string;
@@ -37,8 +38,7 @@ export function Navbar({ userEmail, onUploadClick, onTaxExportClick }: NavbarPro
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    window.location.href = "/login";
+    logout();
   };
 
   return (

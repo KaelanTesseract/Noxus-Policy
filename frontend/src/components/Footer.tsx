@@ -11,8 +11,8 @@ export function Footer() {
   const [latestVersion, setLatestVersion] = useState<string | null>(null);
 
   useEffect(() => {
-    // Quietly check GitHub API for new release
-    fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`)
+    // Quietly check for a new release (the server asks GitHub, not the visitor's browser)
+    fetch("/api/latest-release")
       .then(res => res.ok ? res.json() : null)
       .then(data => {
         if (data && data.tag_name) {

@@ -7,14 +7,15 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { clearSession } from "@/lib/session";
 
 export default function SessionExpiredPage() {
   const router = useRouter();
   const [countdown, setCountdown] = useState(5);
 
   useEffect(() => {
-    // Clear any leftover auth token
-    localStorage.removeItem("token");
+    // Clear any leftover session state and cached personal data
+    clearSession();
   }, []);
 
   useEffect(() => {

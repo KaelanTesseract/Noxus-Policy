@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { clearSession, markSignedIn } from "@/lib/session";
 
 export default function Login() {
   const router = useRouter();
@@ -17,6 +18,9 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
+  // Set once the password was accepted for an account that has a second factor enabled.
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [otp, setOtp] = useState("");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -41,7 +45,7 @@ export default function Login() {
       const res = await fetch("/api/users/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: email, password })
+        body: JSON.stringify({ username: email, password, ...(mfaRequired ? { otp: otp.trim() } : {}) })
       });
 
       if (!res.ok) {
@@ -60,7 +64,14 @@ export default function Login() {
         throw new Error(errMsg);
       }
       const data = await res.json();
-      localStorage.setItem("token", data.access_token);
+      if (data.mfa_required) {
+        setMfaRequired(true);
+        return;
+      }
+      // The token itself arrives as an httpOnly cookie (set by the proxy). Start from
+      // a clean slate so cached data from a previous account in this tab can't show up.
+      clearSession();
+      markSignedIn();
 
       const userData = data.user || { email };
       if (typeof window !== "undefined") {
@@ -73,9 +84,7 @@ export default function Login() {
         // Warm the dashboard's cache before navigating so it can render instantly
         // instead of showing a blank page while it fetches the insurance list itself.
         try {
-          const insRes = await fetch("/api/insurances", {
-            headers: { Authorization: `Bearer ${data.access_token}` }
-          });
+          const insRes = await fetch("/api/insurances");
           if (insRes.ok && typeof window !== "undefined") {
             sessionStorage.setItem("cache_insurances", JSON.stringify(await insRes.json()));
           }
@@ -165,6 +174,26 @@ export default function Login() {
                 </a>
               </div>
 
+              {mfaRequired && (
+                <div className="space-y-2">
+                  <Label htmlFor="otp" className="text-xs font-mono text-zinc-400">Bestätigungscode (2-Faktor)</Label>
+                  <Input
+                    id="otp"
+                    value={otp}
+                    onChange={e => setOtp(e.target.value)}
+                    required
+                    autoFocus
+                    autoComplete="one-time-code"
+                    inputMode="text"
+                    placeholder="6-stelliger Code oder Wiederherstellungscode"
+                    className="bg-zinc-950/60 border-zinc-800 focus:border-indigo-500 font-mono tracking-wider"
+                  />
+                  <p className="text-[11px] text-zinc-500">
+                    Öffne deine Authenticator-App und gib den aktuellen Code ein. Ohne Zugriff auf die App kannst du einen Wiederherstellungscode verwenden.
+                  </p>
+                </div>
+              )}
+
               {error && (
                 <div className="p-3 bg-red-950/50 border border-red-800/80 text-red-300 rounded-xl text-xs">
                   {error}
@@ -172,7 +201,7 @@ export default function Login() {
               )}
 
               <Button type="submit" className="w-full theme-bg-accent text-white theme-glow font-medium py-2.5 transition-all shadow-lg">
-                Anmelden →
+                {mfaRequired ? "Bestätigen →" : "Anmelden →"}
               </Button>
 
               <div className="text-center pt-3 border-t border-zinc-800/80">

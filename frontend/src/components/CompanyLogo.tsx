@@ -141,7 +141,8 @@ export function CompanyLogo({ company, className = "", size = "md" }: CompanyLog
     );
   }
 
-  const logoUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
+  // Fetched (and cached) by our own server - see app/api/logo/route.ts.
+  const logoUrl = `/api/logo?domain=${encodeURIComponent(domain)}`;
 
   return (
     <div 

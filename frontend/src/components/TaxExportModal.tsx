@@ -8,6 +8,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { escapeHtml } from "@/lib/escapeHtml";
 
 interface InsuranceItem {
   id: number;
@@ -109,21 +110,21 @@ export function TaxExportModal({ isOpen, onClose, insurances = [], userEmail }: 
 
     const rowsDeductible = deductibleList.map(ins => `
       <tr>
-        <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold;">${ins.name}</td>
-        <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0;">${ins.company || "-"}</td>
-        <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-family: monospace;">${ins.insurance_number || "k.A."}</td>
-        <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0;">${ins.category || "Vorsorge"}</td>
-        <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-size: 9pt; color: #475569;">${ins.taxLabel}</td>
+        <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold;">${escapeHtml(ins.name)}</td>
+        <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(ins.company || "-")}</td>
+        <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-family: monospace;">${escapeHtml(ins.insurance_number || "k.A.")}</td>
+        <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(ins.category || "Vorsorge")}</td>
+        <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-size: 9pt; color: #475569;">${escapeHtml(ins.taxLabel)}</td>
         <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: bold; font-family: monospace;">${ins.annualCost.toFixed(2)} €</td>
       </tr>
     `).join("");
 
     const rowsNonDeductible = nonDeductibleList.map(ins => `
       <tr style="color: #64748b;">
-        <td style="padding: 6px 10px; border-bottom: 1px solid #f1f5f9;">${ins.name}</td>
-        <td style="padding: 6px 10px; border-bottom: 1px solid #f1f5f9;">${ins.company || "-"}</td>
-        <td style="padding: 6px 10px; border-bottom: 1px solid #f1f5f9; font-family: monospace;">${ins.insurance_number || "k.A."}</td>
-        <td style="padding: 6px 10px; border-bottom: 1px solid #f1f5f9;">${ins.category || "Sachversicherung"}</td>
+        <td style="padding: 6px 10px; border-bottom: 1px solid #f1f5f9;">${escapeHtml(ins.name)}</td>
+        <td style="padding: 6px 10px; border-bottom: 1px solid #f1f5f9;">${escapeHtml(ins.company || "-")}</td>
+        <td style="padding: 6px 10px; border-bottom: 1px solid #f1f5f9; font-family: monospace;">${escapeHtml(ins.insurance_number || "k.A.")}</td>
+        <td style="padding: 6px 10px; border-bottom: 1px solid #f1f5f9;">${escapeHtml(ins.category || "Sachversicherung")}</td>
         <td style="padding: 6px 10px; border-bottom: 1px solid #f1f5f9; text-align: right; font-family: monospace;">${ins.annualCost.toFixed(2)} €</td>
       </tr>
     `).join("");
@@ -132,7 +133,7 @@ export function TaxExportModal({ isOpen, onClose, insurances = [], userEmail }: 
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Steuer-Bescheinigung & Jahresübersicht Versicherungen ${selectedYear} - ${taxPayerName}</title>
+          <title>Steuer-Bescheinigung &amp; Jahresübersicht Versicherungen ${escapeHtml(selectedYear)} - ${escapeHtml(taxPayerName)}</title>
           <style>
             @page {
               size: A4 portrait;
@@ -227,8 +228,8 @@ export function TaxExportModal({ isOpen, onClose, insurances = [], userEmail }: 
               <p class="subtitle">Zusammenstellung der Vorsorgeaufwendungen & Versicherungsbeiträge für das Finanzamt</p>
             </div>
             <div style="text-align: right; font-size: 9pt; color: #475569;">
-              <div><strong>Steuerpflichtige/r:</strong> ${taxPayerName}</div>
-              <div>Erstellt am: ${todayStr}</div>
+              <div><strong>Steuerpflichtige/r:</strong> ${escapeHtml(taxPayerName)}</div>
+              <div>Erstellt am: ${escapeHtml(todayStr)}</div>
             </div>
           </div>
 

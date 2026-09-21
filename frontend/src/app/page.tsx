@@ -14,6 +14,7 @@ import { UploadModal } from "@/components/UploadModal";
 import { TaxExportModal } from "@/components/TaxExportModal";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { useTheme } from "@/components/ThemeProvider";
+import { clearSession, hasSessionHint } from "@/lib/session";
 import { Car, MapPin, Shield } from "lucide-react";
 
 const CATEGORY_COLORS = [
@@ -44,16 +45,17 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const token = localStorage.getItem("token");
-      if (!token) {
+      // The token itself is in an httpOnly cookie scripts can't see; this hint only
+      // avoids a pointless failing request for someone who never signed in.
+      if (!hasSessionHint()) {
         window.location.href = "/login";
         return;
       }
-      checkAuthAndLoad(token);
+      checkAuthAndLoad();
     }
   }, []);
 
-  const checkAuthAndLoad = async (token: string) => {
+  const checkAuthAndLoad = async () => {
     // Instant cache rendering
     if (typeof window !== "undefined") {
       const cachedUser = sessionStorage.getItem("cache_user");
@@ -72,18 +74,14 @@ export default function Dashboard() {
 
     // Parallel network fetch (zero waterfall)
     try {
-      const authHeaders = { Authorization: `Bearer ${token}` };
       const [userRes, insRes, inboxRes] = await Promise.all([
-        fetch("/api/users/me", { headers: authHeaders }),
-        fetch("/api/insurances", { headers: authHeaders }),
-        fetch("/api/inbox", { headers: authHeaders })
+        fetch("/api/users/me"),
+        fetch("/api/insurances"),
+        fetch("/api/inbox")
       ]);
 
       if (!userRes.ok || !insRes.ok) {
-        localStorage.removeItem("token");
-        sessionStorage.removeItem("cache_user");
-        sessionStorage.removeItem("cache_insurances");
-        sessionStorage.removeItem("cache_inbox_count");
+        clearSession();
         window.location.href = "/login";
         return;
       }
@@ -114,7 +112,7 @@ export default function Dashboard() {
       }
     } catch (e) {
       console.error(e);
-      localStorage.removeItem("token");
+      clearSession();
       window.location.href = "/login";
     } finally {
       setIsCheckingAuth(false);
@@ -512,9 +510,8 @@ export default function Dashboard() {
         isOpen={isUploadModalOpen} 
         onClose={() => setIsUploadModalOpen(false)} 
         onSuccess={() => {
-          if (typeof window !== "undefined") {
-            const token = localStorage.getItem("token");
-            if (token) checkAuthAndLoad(token);
+          if (typeof window !== "undefined" && hasSessionHint()) {
+            checkAuthAndLoad();
           }
         }}
       />

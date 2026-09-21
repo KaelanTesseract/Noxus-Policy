@@ -8,6 +8,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { escapeHtml } from "@/lib/escapeHtml";
 
 interface ClaimItem {
   id?: number;
@@ -253,10 +254,13 @@ ${senderName || "[Dein Name]"} (Unterschrift)`;
       return;
     }
 
-    const mainBodyHtml = getCancellationBodyText().replace(/\n/g, "<br/>");
-    const subjectTitle = cancelMode === "ordinary"
+    // Everything user- or document-derived is escaped before it goes into the
+    // document.write() HTML below; the window shares this page's origin, so an
+    // unescaped value like an insurance name from an OCR'd PDF would be script execution here.
+    const mainBodyHtml = escapeHtml(getCancellationBodyText()).replace(/\n/g, "<br/>");
+    const subjectTitle = escapeHtml(cancelMode === "ordinary"
       ? `ORDENTLICHE KÜNDIGUNG DER VERSICHERUNG: ${insurance.name.toUpperCase()}`
-      : `SONDERKÜNDIGUNG DER VERSICHERUNG: ${insurance.name.toUpperCase()}`;
+      : `SONDERKÜNDIGUNG DER VERSICHERUNG: ${insurance.name.toUpperCase()}`);
 
     const extrasHtml: string[] = [];
     if (requestConfirmation) extrasHtml.push("Ich bitte Sie, mir den Eingang dieser Kündigung sowie das genaue Vertragsende schriftlich zu bestätigen.");
@@ -267,7 +271,7 @@ ${senderName || "[Dein Name]"} (Unterschrift)`;
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Kündigung - ${insurance.name}</title>
+          <title>Kündigung - ${escapeHtml(insurance.name)}</title>
           <style>
             @page {
               size: A4 portrait;
@@ -299,20 +303,20 @@ ${senderName || "[Dein Name]"} (Unterschrift)`;
         </head>
         <body>
           <div class="header-info">
-            <div><strong>${senderName || "[Absender Name]"}</strong></div>
-            <div>${senderAddress || "[Straße & Hausnummer]"}</div>
-            <div>${senderCity || "[PLZ Ort]"}</div>
-            <div style="text-align: right; margin-top: -30px;">Datum: ${todayStr}</div>
+            <div><strong>${escapeHtml(senderName || "[Absender Name]")}</strong></div>
+            <div>${escapeHtml(senderAddress || "[Straße & Hausnummer]")}</div>
+            <div>${escapeHtml(senderCity || "[PLZ Ort]")}</div>
+            <div style="text-align: right; margin-top: -30px;">Datum: ${escapeHtml(todayStr)}</div>
           </div>
           <br/><br/>
           <div class="recipient">
-            ${recipientCompany}<br/>
-            ${recipientAddress.replace(/\n/g, "<br/>")}
+            ${escapeHtml(recipientCompany)}<br/>
+            ${escapeHtml(recipientAddress).replace(/\n/g, "<br/>")}
           </div>
 
           <div class="subject">
             ${subjectTitle}<br/>
-            <span style="font-size: 10pt; font-weight: normal; text-transform: none;">Versicherungsscheinnummer: <strong>${insuranceNumber || "Nicht angegeben"}</strong></span>
+            <span style="font-size: 10pt; font-weight: normal; text-transform: none;">Versicherungsscheinnummer: <strong>${escapeHtml(insuranceNumber || "Nicht angegeben")}</strong></span>
           </div>
 
           <div class="content">
@@ -323,7 +327,7 @@ ${senderName || "[Dein Name]"} (Unterschrift)`;
           </div>
 
           <div class="signature">
-            Unterschrift (${senderName || "Versicherungsnehmer"})
+            Unterschrift (${escapeHtml(senderName || "Versicherungsnehmer")})
           </div>
 
           <script>

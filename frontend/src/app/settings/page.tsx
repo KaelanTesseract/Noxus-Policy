@@ -13,7 +13,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { api } from "@/lib/api";
 import { useTheme, THEMES, STYLES } from "@/components/ThemeProvider";
 import { Navbar } from "@/components/Navbar";
+import { TwoFactorCard } from "@/components/settings/TwoFactorCard";
+import { AuditLogCard } from "@/components/settings/AuditLogCard";
+import { DeleteAccountCard } from "@/components/settings/DeleteAccountCard";
 import { APP_VERSION } from "@/lib/version";
+import { clearSession } from "@/lib/session";
 import {
   RefreshCw, CheckCircle2, AlertCircle, Loader2,
   Settings, Wrench, Palette, Calendar, Cpu, Clock,
@@ -25,6 +29,7 @@ interface User {
   email: string;
   is_admin: boolean;
   must_change_password: boolean;
+  totp_enabled?: boolean;
 }
 
 interface StoredBackup {
@@ -53,11 +58,12 @@ export default function SettingsPage() {
   const [profileLoading, setProfileLoading] = useState(false);
 
   // Admin SMTP form state
-  const [appUrl, setAppUrl] = useState("http://192.168.1.251:3000");
+  const [appUrl, setAppUrl] = useState("");
   const [smtpServer, setSmtpServer] = useState("");
   const [smtpPort, setSmtpPort] = useState("587");
   const [smtpUsername, setSmtpUsername] = useState("");
   const [smtpPassword, setSmtpPassword] = useState("");
+  const [smtpPasswordSet, setSmtpPasswordSet] = useState(false);
   const [smtpFrom, setSmtpFrom] = useState("no-reply@noxus-policy.local");
   const [smtpUseTls, setSmtpUseTls] = useState(true);
   const [showSmtpPassword, setShowSmtpPassword] = useState(false);
@@ -85,6 +91,8 @@ export default function SettingsPage() {
   const [autoBackupInterval, setAutoBackupInterval] = useState("daily");
   const [autoBackupTime, setAutoBackupTime] = useState("03:00");
   const [autoBackupPassword, setAutoBackupPassword] = useState("");
+  const [autoBackupPasswordSet, setAutoBackupPasswordSet] = useState(false);
+  const [revealedBackupPassword, setRevealedBackupPassword] = useState("");
   const [autoBackupRetentionDays, setAutoBackupRetentionDays] = useState("14");
   const [autoBackupRetentionCount, setAutoBackupRetentionCount] = useState("10");
   const [autoBackupLastRun, setAutoBackupLastRun] = useState("");
@@ -136,6 +144,9 @@ export default function SettingsPage() {
   const [webcalEnabled, setWebcalEnabled] = useState(false);
   const [webcalSaving, setWebcalSaving] = useState(false);
   const [webcalMsg, setWebcalMsg] = useState("");
+  const [registrationEnabled, setRegistrationEnabled] = useState(true);
+  const [registrationSaving, setRegistrationSaving] = useState(false);
+  const [registrationMsg, setRegistrationMsg] = useState("");
 
   useEffect(() => {
     loadUserData();
@@ -161,6 +172,31 @@ export default function SettingsPage() {
     }
   };
 
+  const loadRegistrationConfig = async () => {
+    try {
+      const cfg = await api.get("/users/registration-status");
+      setRegistrationEnabled(!!cfg.enabled);
+    } catch (e) {
+      console.error("Error loading registration config:", e);
+    }
+  };
+
+  const handleSaveRegistrationConfig = async (val: boolean) => {
+    setRegistrationSaving(true);
+    setRegistrationMsg("");
+    setRegistrationEnabled(val);
+    try {
+      await api.put("/users/registration-config", { enabled: val });
+      setRegistrationMsg(val ? "Selbstregistrierung ist aktiviert." : "Selbstregistrierung ist deaktiviert.");
+      setTimeout(() => setRegistrationMsg(""), 3000);
+    } catch (e: any) {
+      setRegistrationEnabled(!val);
+      alert(e.message || "Fehler beim Speichern der Registrierungs-Einstellung.");
+    } finally {
+      setRegistrationSaving(false);
+    }
+  };
+
   const handleSaveWebCalConfig = async (val: boolean) => {
     setWebcalSaving(true);
     setWebcalMsg("");
@@ -178,10 +214,7 @@ export default function SettingsPage() {
 
   const handleDownloadManualIcs = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch("/api/users/calendar/export.ics", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await fetch("/api/users/calendar/export.ics");
       if (!res.ok) throw new Error("Fehler beim Erstellen der Kalenderdatei.");
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
@@ -221,6 +254,7 @@ export default function SettingsPage() {
       setEmailNotificationsEnabled(user.email_notifications_enabled ?? true);
       loadCalendarToken();
       loadWebCalConfig();
+      if (user.is_admin) loadRegistrationConfig();
 
       try {
         const smtpStatus = await api.get("/users/smtp-status");
@@ -253,11 +287,13 @@ export default function SettingsPage() {
         // Load SMTP Config
         try {
           const smtpConfig = await api.get("/users/smtp-config");
-          setAppUrl(smtpConfig.app_url || "http://192.168.1.251:3000");
+          setAppUrl(smtpConfig.app_url || window.location.origin);
           setSmtpServer(smtpConfig.smtp_server || "");
           setSmtpPort(smtpConfig.smtp_port || "587");
           setSmtpUsername(smtpConfig.smtp_username || "");
-          setSmtpPassword(smtpConfig.smtp_password || "");
+          // The stored password is never sent to the browser - only whether one exists.
+          setSmtpPassword("");
+          setSmtpPasswordSet(!!smtpConfig.smtp_password_set);
           setSmtpFrom(smtpConfig.smtp_from || "no-reply@noxus-policy.local");
           setSmtpUseTls(!!smtpConfig.smtp_use_tls);
         } catch (smtpErr) {
@@ -270,7 +306,8 @@ export default function SettingsPage() {
           setAutoBackupEnabled(autoConfig.enabled);
           setAutoBackupInterval(autoConfig.interval || "daily");
           setAutoBackupTime(autoConfig.time || "03:00");
-          setAutoBackupPassword(autoConfig.password || "");
+          setAutoBackupPassword("");
+          setAutoBackupPasswordSet(!!autoConfig.password_set);
           setAutoBackupRetentionDays(String(autoConfig.retention_days ?? 14));
           setAutoBackupRetentionCount(String(autoConfig.retention_count ?? 10));
           setAutoBackupLastRun(autoConfig.last_run || "");
@@ -283,7 +320,7 @@ export default function SettingsPage() {
       }
     } catch (err: any) {
       console.error(err);
-      localStorage.removeItem("token");
+      clearSession();
       router.push("/login");
     }
   };
@@ -385,6 +422,8 @@ export default function SettingsPage() {
         smtp_use_tls: smtpUseTls
       });
       setSmtpMsg(res.msg || "SMTP-Einstellungen erfolgreich gespeichert!");
+      if (smtpPassword) setSmtpPasswordSet(true);
+      setSmtpPassword("");
     } catch (err: any) {
       setSmtpErr(err.message || "Fehler beim Speichern der SMTP-Einstellungen.");
     } finally {
@@ -436,11 +475,26 @@ export default function SettingsPage() {
       });
 
       setAutoBackupMsg(res.msg || "Automatische Backup-Einstellungen erfolgreich gespeichert!");
+      if (autoBackupPassword) setAutoBackupPasswordSet(true);
+      setAutoBackupPassword("");
+      setRevealedBackupPassword("");
       loadStoredBackupsList();
     } catch (err: any) {
       setAutoBackupErr(err.message || "Fehler beim Speichern der Backup-Einstellungen.");
     } finally {
       setAutoBackupSaving(false);
+    }
+  };
+
+  const handleRevealBackupPassword = async () => {
+    const accountPassword = window.prompt("Zur Sicherheit: bitte dein Konto-Passwort eingeben, um das Backup-Passwort anzuzeigen.");
+    if (!accountPassword) return;
+    setAutoBackupErr("");
+    try {
+      const res = await api.post("/backup/config/reveal-password", { account_password: accountPassword });
+      setRevealedBackupPassword(res.password || "");
+    } catch (err: any) {
+      setAutoBackupErr(err.message || "Das Backup-Passwort konnte nicht angezeigt werden.");
     }
   };
 
@@ -465,8 +519,8 @@ export default function SettingsPage() {
     setBackupExportMsg("");
     setBackupExportErr("");
 
-    if (!backupExportPassword || backupExportPassword.length < 4) {
-      setBackupExportErr("Bitte gib ein mindestens 4-stelliges Passwort ein.");
+    if (!backupExportPassword || backupExportPassword.length < 12) {
+      setBackupExportErr("Bitte gib ein Passwort mit mindestens 12 Zeichen ein.");
       return;
     }
     if (backupExportPassword !== backupExportConfirm) {
@@ -476,12 +530,10 @@ export default function SettingsPage() {
 
     setBackupExporting(true);
     try {
-      const token = localStorage.getItem("token");
       const res = await fetch("/api/backup/export", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({ password: backupExportPassword })
       });
@@ -531,16 +583,12 @@ export default function SettingsPage() {
 
     setBackupImporting(true);
     try {
-      const token = localStorage.getItem("token");
       const fd = new FormData();
       fd.append("file", backupImportFile);
       fd.append("password", backupImportPassword);
 
       const res = await fetch("/api/backup/import", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`
-        },
         body: fd
       });
 
@@ -549,7 +597,8 @@ export default function SettingsPage() {
         throw new Error(data.detail || "Fehler beim Importieren des Backups.");
       }
 
-      setBackupImportMsg(data.msg || "System-Backup erfolgreich wiederhergestellt!");
+      const importWarnings: string[] = Array.isArray(data.warnings) ? data.warnings : [];
+      setBackupImportMsg((data.msg || "System-Backup erfolgreich wiederhergestellt!") + (importWarnings.length ? " ⚠️ " + importWarnings.join(" ") : ""));
       setBackupImportPassword("");
       setBackupImportFile(null);
       setTimeout(() => {
@@ -564,20 +613,18 @@ export default function SettingsPage() {
 
   // Export a single user's data package (.noxususer)
   const handleExportUser = async (userId: number, targetEmail: string) => {
-    const pwd = window.prompt(`Gib ein Passwort für die Verschlüsselung der Daten von "${targetEmail}" ein (mindestens 4 Zeichen):`);
-    if (!pwd || pwd.trim().length < 4) {
-      if (pwd !== null) alert("Das Passwort muss mindestens 4 Zeichen lang sein.");
+    const pwd = window.prompt(`Gib ein Passwort für die Verschlüsselung der Daten von "${targetEmail}" ein (mindestens 12 Zeichen):`);
+    if (!pwd || pwd.trim().length < 12) {
+      if (pwd !== null) alert("Das Passwort muss mindestens 12 Zeichen lang sein.");
       return;
     }
 
     setExportingUserId(userId);
     try {
-      const token = localStorage.getItem("token");
       const res = await fetch(`/api/backup/export-user/${userId}`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({ password: pwd.trim() })
       });
@@ -623,16 +670,12 @@ export default function SettingsPage() {
 
     setUserImporting(true);
     try {
-      const token = localStorage.getItem("token");
       const fd = new FormData();
       fd.append("file", userImportFile);
       fd.append("password", userImportPassword);
 
       const res = await fetch("/api/backup/import-user", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`
-        },
         body: fd
       });
 
@@ -654,12 +697,7 @@ export default function SettingsPage() {
 
   const handleDownloadStoredBackup = async (filename: string) => {
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`/api/backup/download/${filename}`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
+      const res = await fetch(`/api/backup/download/${filename}`);
       if (!res.ok) throw new Error("Fehler beim Herunterladen.");
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
@@ -676,11 +714,8 @@ export default function SettingsPage() {
   };
 
   const handleRestoreStoredBackup = async (filename: string) => {
-    const pwd = restorePasswordInput[filename] || autoBackupPassword;
-    if (!pwd) {
-      alert("Bitte gib das Entschlüsselungs-Passwort für dieses Backup ein.");
-      return;
-    }
+    // Empty is fine: the server then uses the password it encrypts its automatic backups with.
+    const pwd = restorePasswordInput[filename] || "";
 
     if (!window.confirm(`⚠️ ACHTUNG: Möchtest du das Backup "${filename}" wirklich einspielen? Der aktuelle Datenbestand auf diesem Server wird überschrieben!`)) {
       return;
@@ -689,7 +724,8 @@ export default function SettingsPage() {
     setRestoringFilename(filename);
     try {
       const res = await api.post(`/backup/restore-stored/${filename}`, { password: pwd });
-      alert(res.msg || "Backup wurde erfolgreich wiederhergestellt!");
+      const warnings: string[] = Array.isArray(res.warnings) ? res.warnings : [];
+      alert((res.msg || "Backup wurde erfolgreich wiederhergestellt!") + (warnings.length ? "\n\n⚠️ " + warnings.join("\n") : ""));
       setTimeout(() => {
         loadUserData();
       }, 1500);
@@ -713,6 +749,19 @@ export default function SettingsPage() {
       alert(err.message || "Fehler beim Löschen des Backups.");
     } finally {
       setDeletingFilename(null);
+    }
+  };
+
+  const handleResetTwoFactor = async (user: User) => {
+    if (!window.confirm(`Die 2-Faktor-Authentifizierung von "${user.email}" wirklich zurücksetzen? Der Benutzer wird überall abgemeldet und kann sich danach nur mit dem Passwort anmelden.`)) return;
+    setAdminMsg("");
+    setAdminErr("");
+    try {
+      const res = await api.post(`/users/2fa/reset/${user.id}`, {});
+      setAdminMsg(res.msg || "2-Faktor-Authentifizierung zurückgesetzt.");
+      loadUserData();
+    } catch (err: any) {
+      setAdminErr(err.message || "Zurücksetzen fehlgeschlagen.");
     }
   };
 
@@ -1045,6 +1094,12 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
+            {/* Second login factor */}
+            <TwoFactorCard enabled={!!currentUser.totp_enabled} onChanged={loadUserData} />
+
+            {/* Right to erasure (administrators are excluded) */}
+            {!currentUser.is_admin && <DeleteAccountCard />}
+
             {/* Live Calendar Subscription & Manual Export Card */}
             <Card className="border-zinc-800 bg-zinc-900/50 backdrop-blur-md shadow-xl">
               <CardHeader>
@@ -1189,6 +1244,44 @@ export default function SettingsPage() {
         {/* System Settings Tab (Admin Only) */}
         {currentUser.is_admin && activeTab === "system" && (
           <div className="space-y-8">
+            {/* Registration Admin Settings Card */}
+            <Card className="border-zinc-800 bg-zinc-900/50 backdrop-blur-md shadow-xl">
+              <CardHeader>
+                <CardTitle className="text-xl font-semibold flex items-center gap-2">
+                  <Users className="w-5 h-5 text-zinc-400" />
+                  <span>Registrierung neuer Benutzer</span>
+                </CardTitle>
+                <CardDescription className="mt-1">
+                  Ist der Server aus dem Internet erreichbar, kann sich standardmäßig jeder ein Konto anlegen. Schalte die Selbstregistrierung aus, sobald alle gewünschten Konten existieren.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between p-4 rounded-xl bg-zinc-950/60 border border-zinc-800">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="registrationEnabledToggle" className="text-sm font-semibold text-white cursor-pointer select-none">
+                      Selbstregistrierung erlauben
+                    </Label>
+                    <p className="text-xs text-zinc-400">
+                      Bestehende Konten sind nicht betroffen. Bei Bedarf kannst du die Registrierung jederzeit kurz wieder aktivieren.
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    id="registrationEnabledToggle"
+                    checked={registrationEnabled}
+                    disabled={registrationSaving}
+                    onChange={e => handleSaveRegistrationConfig(e.target.checked)}
+                    className="w-5 h-5 rounded border-zinc-700 bg-zinc-900 text-indigo-600 focus:ring-indigo-500 accent-indigo-600 cursor-pointer shrink-0 ml-4"
+                  />
+                </div>
+                {registrationMsg && (
+                  <p className="text-xs font-mono text-emerald-400 bg-emerald-950/50 border border-emerald-800 p-2.5 rounded-lg">
+                    ✓ {registrationMsg}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
             {/* WebCal Live-Sync Admin Settings Card */}
             <Card className="border-zinc-800 bg-zinc-900/50 backdrop-blur-md shadow-xl">
               <CardHeader>
@@ -1444,9 +1537,24 @@ export default function SettingsPage() {
                         type="password"
                         value={autoBackupPassword}
                         onChange={e => setAutoBackupPassword(e.target.value)}
-                        placeholder="Passwort für AES-256 Schutz"
+                        placeholder={autoBackupPasswordSet ? "gespeichert – leer lassen zum Beibehalten" : "mindestens 12 Zeichen"}
+                        autoComplete="new-password"
                         className="bg-zinc-950/60 border-zinc-800 text-xs"
                       />
+                      {autoBackupPasswordSet && (
+                        <div className="flex flex-wrap items-center gap-2 text-[11px] text-zinc-400">
+                          {revealedBackupPassword ? (
+                            <>
+                              <span className="font-mono text-zinc-100 select-all break-all">{revealedBackupPassword}</span>
+                              <button type="button" onClick={() => setRevealedBackupPassword("")} className="text-zinc-400 hover:text-white underline">verbergen</button>
+                            </>
+                          ) : (
+                            <button type="button" onClick={handleRevealBackupPassword} className="text-zinc-400 hover:text-white underline">
+                              gespeichertes Passwort anzeigen (Konto-Passwort nötig)
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1576,6 +1684,14 @@ export default function SettingsPage() {
                                     ⬇️ Download
                                   </Button>
 
+                                  <Input
+                                    type="password"
+                                    value={restorePasswordInput[b.filename] || ""}
+                                    onChange={e => setRestorePasswordInput(prev => ({ ...prev, [b.filename]: e.target.value }))}
+                                    placeholder="Passwort (optional)"
+                                    aria-label={`Entschlüsselungs-Passwort für ${b.filename}`}
+                                    className="h-7 w-36 bg-zinc-950 border-zinc-800 text-[11px]"
+                                  />
                                   <Button
                                     size="sm"
                                     variant="outline"
@@ -1762,10 +1878,10 @@ export default function SettingsPage() {
                       id="appUrl"
                       value={appUrl}
                       onChange={e => setAppUrl(e.target.value)}
-                      placeholder="http://192.168.1.251:3000"
+                      placeholder="https://policy.example.de"
                       className="bg-zinc-950/60 border-zinc-800 font-mono text-xs"
                     />
-                    <p className="text-[11px] text-zinc-500">Diese Adresse (z. B. http://192.168.1.251:3000) wird in Passwort-Reset E-Mails als Ziel-Link verwendet.</p>
+                    <p className="text-[11px] text-zinc-500">Diese Adresse (z. B. https://policy.example.de) wird in Passwort-Reset E-Mails als Ziel-Link verwendet.</p>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1829,7 +1945,8 @@ export default function SettingsPage() {
                         type={showSmtpPassword ? "text" : "password"}
                         value={smtpPassword}
                         onChange={e => setSmtpPassword(e.target.value)}
-                        placeholder="••••••••"
+                        placeholder={smtpPasswordSet ? "gespeichert – leer lassen zum Beibehalten" : "••••••••"}
+                        autoComplete="new-password"
                         className="bg-zinc-950/60 border-zinc-800 text-xs"
                       />
                     </div>
@@ -2010,6 +2127,18 @@ export default function SettingsPage() {
                                 {exportingUserId === u.id ? "Exportiert..." : "📤 Export"}
                               </Button>
 
+                              {u.totp_enabled && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleResetTwoFactor(u)}
+                                  className="border-amber-800 bg-amber-950/40 text-xs hover:bg-amber-900 text-amber-300"
+                                  title="Hebt die 2-Faktor-Authentifizierung dieses Benutzers auf (z. B. bei verlorenem Handy)"
+                                >
+                                  2FA zurücksetzen
+                                </Button>
+                              )}
+
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -2038,6 +2167,9 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Security log */}
+            <AuditLogCard />
           </div>
         )}
       </div>

@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { api } from "@/lib/api";
+import { clearSession } from "@/lib/session";
 
 export default function AdminSetup() {
   const router = useRouter();
@@ -31,7 +32,8 @@ export default function AdminSetup() {
         new_password: password
       });
       
-      localStorage.removeItem("token");
+      // The backend ends every session when the initial setup completes.
+      clearSession();
       window.location.href = "/login";
     } catch (e: any) {
       setError(e.message);
