@@ -160,6 +160,30 @@ Ohne Proxy (direkter Zugriff auf Port 3000) den Wert bei `0` lassen. Ein falsche
 
 Ist die Instanz aus dem Internet erreichbar, kann sich zunächst jeder registrieren. Als Administrator kannst du die Selbstregistrierung unter *Einstellungen → Systemeinstellungen* ausschalten. Bestehende Konten bleiben unberührt; für weitere Konten schaltest du sie kurz wieder ein.
 
+### Anmeldung mit Pocket ID (OpenID Connect)
+
+Zusätzlich zum Passwort können sich Nutzer über einen OpenID-Connect-Provider anmelden; getestet ist der Ablauf mit [Pocket ID](https://pocket-id.org) (Passkeys), er folgt aber dem Standard (Authorization Code mit PKCE).
+
+**Einrichten**
+
+1. In Pocket ID einen neuen OIDC-Client anlegen. Als Rückkehr-Adresse (Callback-URL) trägst du `https://<deine-domain>/api/auth/oidc/callback` ein; die genaue Adresse zeigt dir die App in der SSO-Karte. Notiere Client-ID und Client-Secret.
+2. Die Adresse der App muss stimmen: Sie wird aus der App-URL gebildet (*Systemeinstellungen → E-Mail & SMTP Server → App-URL* oder die Umgebungsvariable `APP_URL` in der `.env`).
+3. In der App unter *Einstellungen → Systemeinstellungen → Single Sign-On* Aussteller-URL (die Adresse deines Pocket ID, z. B. `https://id.beispiel.de`), Client-ID und Client-Secret eintragen, SSO einschalten und speichern. Auf der Anmeldeseite erscheint der Knopf „Mit Pocket ID anmelden“.
+4. Dein eigenes Admin-Konto verknüpfst du mit dem Link in der Karte („Jetzt per SSO anmelden und verknüpfen“). Die E-Mail-Adresse in Pocket ID muss dafür mit der Adresse deines Kontos in der App übereinstimmen.
+
+**Wie Konten zugeordnet werden**
+
+- Wer sich wiederholt anmeldet, wird über die Identität im Provider erkannt, nicht über die E-Mail. Ändert sich die Adresse im Provider, bleibt es dasselbe Konto.
+- Bei der ersten Anmeldung wird ein bestehendes Konto mit gleicher E-Mail-Adresse verknüpft, **aber nur, wenn der Provider die Adresse als bestätigt meldet**. Ein Admin-Konto bleibt dabei Admin. Gibt es kein solches Konto, wird (wenn aktiviert) ein normales Benutzerkonto angelegt.
+- Wer Administrator ist, bestimmt immer die App, nie der Provider.
+- Bei einer SSO-Anmeldung entfällt die 2-Faktor-Abfrage der App, weil der Passkey beim Provider der starke Faktor ist.
+
+**Passwort-Anmeldung ausschalten:** Sobald SSO läuft und dein Konto verknüpft ist, lässt sich die Anmeldung mit Passwort für alle ausschalten (nur dann, damit niemand ausgesperrt wird). Ist Pocket ID einmal nicht erreichbar, schaltet dieser Befehl auf dem Server das Passwort wieder ein und setzt zugleich ein neues Admin-Passwort:
+
+```bash
+docker compose exec backend python reset_admin.py --enable-password-login
+```
+
 ### SECRET_KEY
 
 Jedes Login-Token wird mit dem Wert der Umgebungsvariable `SECRET_KEY` signiert. `install.sh`, `proxmox-install.sh` und `update.sh` erzeugen dafür automatisch einen zufälligen, 64-stelligen Schlüssel in einer lokalen `.env`-Datei neben `docker-compose.yml` (diese Datei ist in `.gitignore` und wird nie ins Repository übernommen). Startest du den Stack manuell per `docker compose up` ohne eines dieser Skripte, musst du diese `.env`-Datei selbst anlegen:
