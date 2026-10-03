@@ -12,3 +12,7 @@ tests/
 pytest.ini
 requirements-dev.txt
 .pytest_cache
+
+# Local evaluation data (personal documents) and tooling never belong in an image
+eval/
+tools/

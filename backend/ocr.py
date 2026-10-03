@@ -3,6 +3,7 @@
 
 import pytesseract
 from pattern_safety import apply_patterns
+from document_naming import suggest_title
 from PIL import Image
 from pdf2image import convert_from_path
 import re
@@ -782,6 +783,14 @@ def extract_insurance_data(text: str, db=None) -> dict:
                 if field == "regional_class" and not val.upper().startswith("R"):
                     val = f"R{val}"
                 data[field] = val
+
+    # The name offered for the document. Built from insurer, kind of letter and date only
+    # (see document_naming.py); the old "subject" guess often picked a footer sentence.
+    # subject/document_title carry the same value because clients read either of them.
+    title = suggest_title(data.get("company"), data.get("category"), text)
+    data["suggested_title"] = title
+    data["document_title"] = title
+    data["subject"] = title
 
     # Trigger automatic learning loop (100% anonymized, ZERO PII)
     if company and (data.get("regional_class") or data.get("type_class") or data.get("sf_class")):
