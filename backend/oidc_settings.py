@@ -52,13 +52,19 @@ def auto_create_enabled(db: Session) -> bool:
     return _flag(db, "oidc_auto_create", True)
 
 
-def redirect_uri(db: Session) -> str:
-    """Built from the configured APP_URL, never from request headers: a forged Host
-    header must not be able to steer where the provider sends the browser back."""
+def app_base(db: Session) -> str:
+    """The public address of this installation (the same setting the password-reset
+    mails use): what an administrator typed, else the APP_URL environment variable."""
     base = (get_setting(db, "app_url", "") or os.getenv("APP_URL", "http://localhost:3000")).strip().rstrip("/")
     if not base.startswith(("http://", "https://")):
         base = "http://" + base
-    return base + CALLBACK_PATH
+    return base
+
+
+def redirect_uri(db: Session) -> str:
+    """Built from the configured address, never from request headers: a forged Host
+    header must not be able to steer where the provider sends the browser back."""
+    return app_base(db) + CALLBACK_PATH
 
 
 def load_config(db: Session) -> Optional[OidcConfig]:

@@ -50,6 +50,9 @@ class Flow:
     state: str
     nonce: str
     verifier: str
+    # Set when a signed-in user started the flow to link their own account; the callback
+    # then binds the provider identity to exactly this user instead of signing anyone in.
+    link_user: Optional[int] = None
 
 
 # ------------------------------------------------------------------------- HTTP helpers
@@ -124,17 +127,18 @@ def _b64url(raw: bytes) -> str:
     return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
 
 
-def new_flow() -> Flow:
-    return Flow(state=secrets.token_urlsafe(24), nonce=secrets.token_urlsafe(24), verifier=secrets.token_urlsafe(48))
+def new_flow(link_user: Optional[int] = None) -> Flow:
+    return Flow(state=secrets.token_urlsafe(24), nonce=secrets.token_urlsafe(24),
+                verifier=secrets.token_urlsafe(48), link_user=link_user)
 
 
 def pack_flow(flow: Flow) -> str:
     """The value of the short-lived cookie that binds a callback to this browser."""
-    return jwt.encode(
-        {"purpose": "oidc_flow", "st": flow.state, "no": flow.nonce, "cv": flow.verifier,
-         "exp": int(time.time()) + FLOW_LIFETIME_SECONDS},
-        auth.SECRET_KEY, algorithm="HS256",
-    )
+    payload = {"purpose": "oidc_flow", "st": flow.state, "no": flow.nonce, "cv": flow.verifier,
+               "exp": int(time.time()) + FLOW_LIFETIME_SECONDS}
+    if flow.link_user is not None:
+        payload["lu"] = flow.link_user
+    return jwt.encode(payload, auth.SECRET_KEY, algorithm="HS256")
 
 
 def unpack_flow(value: str) -> Flow:
@@ -145,7 +149,9 @@ def unpack_flow(value: str) -> Flow:
     if data.get("purpose") != "oidc_flow" or data.get("exp", 0) < time.time():
         raise OidcError("flow cookie is expired or of the wrong kind")
     try:
-        return Flow(state=data["st"], nonce=data["no"], verifier=data["cv"])
+        link_user = data.get("lu")
+        return Flow(state=data["st"], nonce=data["no"], verifier=data["cv"],
+                    link_user=link_user if isinstance(link_user, int) else None)
     except KeyError:
         raise OidcError("flow cookie is incomplete")
 

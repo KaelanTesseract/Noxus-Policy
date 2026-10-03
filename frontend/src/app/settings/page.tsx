@@ -17,6 +17,7 @@ import { TwoFactorCard } from "@/components/settings/TwoFactorCard";
 import { AuditLogCard } from "@/components/settings/AuditLogCard";
 import { DeleteAccountCard } from "@/components/settings/DeleteAccountCard";
 import { OidcCard } from "@/components/settings/OidcCard";
+import { SsoLinkCard } from "@/components/settings/SsoLinkCard";
 import { APP_VERSION } from "@/lib/version";
 import { clearSession } from "@/lib/session";
 import { RefreshCw, CheckCircle2, AlertCircle, Loader2, Settings, Wrench, Palette, Calendar, Cpu, Clock, Database, Mail, Users, ArrowLeft, GitPullRequest, Check, Info, Trash2 } from "lucide-react";
@@ -27,6 +28,7 @@ interface User {
   is_admin: boolean;
   must_change_password: boolean;
   totp_enabled?: boolean;
+  oidc_linked?: boolean;
 }
 
 interface StoredBackup {
@@ -1095,6 +1097,9 @@ export default function SettingsPage() {
 
             {/* Second login factor */}
             <TwoFactorCard enabled={!!currentUser.totp_enabled} onChanged={loadUserData} />
+
+            {/* Link this account to the single sign-on provider */}
+            <SsoLinkCard linked={!!currentUser.oidc_linked} />
 
             {/* Right to erasure (administrators are excluded) */}
             {!currentUser.is_admin && <DeleteAccountCard />}

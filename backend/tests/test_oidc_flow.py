@@ -191,3 +191,71 @@ def test_results_are_written_to_the_audit_log(client, sso, admin_headers):
     entries = client.get("/api/users/audit-log?limit=60", headers=admin_headers).json()
     actions = {e["action"] for e in entries}
     assert {"sso_created", "sso_denied"} <= actions
+
+
+# ----------------------------------------------------------------------------- explicit linking
+def begin_link(client, headers):
+    r = client.get("/api/auth/oidc/link", headers=headers, follow_redirects=False)
+    assert r.status_code == 302, r.text
+    query = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(r.headers["location"]).query))
+    cookie = r.headers["set-cookie"].split(";")[0].split("=", 1)[1]
+    client.cookies.clear()
+    return query, cookie
+
+
+def assert_link_result(response, outcome):
+    assert response.status_code == 302 and response.headers["location"] == f"/settings?sso={outcome}"
+    assert "x-refreshed-token" not in response.headers  # linking never changes the session
+
+
+def test_linking_needs_a_signed_in_user(client, sso):
+    assert client.get("/api/auth/oidc/link", follow_redirects=False).status_code == 401
+
+
+def test_signed_in_user_can_link_an_identity_with_a_different_email(client, sso, make_user):
+    email, _, headers = make_user()
+    query, cookie = begin_link(client, headers)
+    response = finish(client, sso, query, cookie, sub="sub-manual", email="ganz-andere-adresse@test.example")
+    assert_link_result(response, "linked")
+    # the account kept its own email and now signs in through the provider
+    assert user_by_email(email).oidc_sub == "sub-manual"
+    assert user_by_email("ganz-andere-adresse@test.example") is None
+    _, query, cookie = begin(client)
+    token = assert_signed_in(finish(client, sso, query, cookie, sub="sub-manual", email="ganz-andere-adresse@test.example"))
+    assert client.get("/api/users/me", headers=bearer(token)).json()["email"] == email
+
+
+def test_an_identity_that_belongs_to_another_account_cannot_be_linked(client, sso, make_user):
+    _, query, cookie = begin(client)
+    assert_signed_in(finish(client, sso, query, cookie, sub="sub-taken", email="taken@test.example"))
+    email, _, headers = make_user()
+    query, cookie = begin_link(client, headers)
+    assert_link_result(finish(client, sso, query, cookie, sub="sub-taken", email="taken@test.example"), "error")
+    assert user_by_email(email).oidc_sub is None
+
+
+def test_an_account_that_is_already_linked_is_not_sent_to_the_provider_again(client, sso, make_user):
+    email, _, headers = make_user()
+    query, cookie = begin_link(client, headers)
+    assert_link_result(finish(client, sso, query, cookie, sub="sub-first", email="x@test.example"), "linked")
+    again = client.get("/api/auth/oidc/link", headers=headers, follow_redirects=False)
+    assert again.status_code == 302 and again.headers["location"] == "/settings?sso=already"
+    assert user_by_email(email).oidc_sub == "sub-first"
+
+
+def test_link_flow_cookie_cannot_be_used_for_a_normal_login_by_someone_else(client, sso, make_user):
+    email, _, headers = make_user()
+    query, cookie = begin_link(client, headers)
+    # a link flow always ends as a link for the account that started it, never as a new session
+    response = finish(client, sso, query, cookie, sub="sub-bound", email="bound@test.example")
+    assert_link_result(response, "linked")
+    assert user_by_email("bound@test.example") is None
+
+
+def test_app_url_decides_the_redirect_address_and_must_be_a_url(client, admin_headers, sso):
+    r = client.put("/api/users/oidc-config", headers=admin_headers, json={"app_url": "https://nexus.test.example/"})
+    assert r.status_code == 200
+    assert r.json()["app_url"] == "https://nexus.test.example"
+    assert r.json()["redirect_uri"] == "https://nexus.test.example/api/auth/oidc/callback"
+    assert client.put("/api/users/oidc-config", headers=admin_headers, json={"app_url": "javascript:alert(1)"}).status_code == 400
+    assert client.put("/api/users/oidc-config", headers=admin_headers, json={"app_url": "nexus.test.example"}).status_code == 400

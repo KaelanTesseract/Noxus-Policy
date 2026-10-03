@@ -824,6 +824,7 @@ def _oidc_admin_view(db: Session, current_user: models.User) -> dict:
         "button_label": oidc_settings.get_setting(db, "oidc_button_label"),
         "auto_create": oidc_settings.auto_create_enabled(db),
         "password_login_enabled": oidc_settings.password_login_enabled(db),
+        "app_url": oidc_settings.app_base(db),
         "redirect_uri": oidc_settings.redirect_uri(db),
         "own_account_linked": current_user.oidc_linked,
     }
@@ -851,6 +852,12 @@ def update_oidc_config(
         if issuer and not issuer.startswith(("https://", "http://")):
             raise HTTPException(status_code=400, detail="Die Aussteller-URL muss mit https:// (oder http://) beginnen.")
         oidc_settings.set_setting(db, "oidc_issuer", issuer)
+    if "app_url" in payload:
+        app_url = str(payload["app_url"]).strip().rstrip("/")
+        if app_url and not app_url.startswith(("https://", "http://")):
+            raise HTTPException(status_code=400, detail="Die Adresse der App muss mit https:// (oder http://) beginnen, z. B. https://nexus.beispiel.de.")
+        # Same setting the password-reset mails use, so both always agree.
+        oidc_settings.set_setting(db, "app_url", app_url)
     if "client_id" in payload:
         oidc_settings.set_setting(db, "oidc_client_id", str(payload["client_id"]).strip())
     # Empty means "keep the stored secret" - the form is never pre-filled with it.

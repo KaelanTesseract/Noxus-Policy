@@ -29,8 +29,8 @@ FLOW_COOKIE_PATH = "/api/auth/oidc"
 _limit = rate_limiter(max_calls=20, period_seconds=300)
 
 
-def _error_redirect() -> RedirectResponse:
-    response = RedirectResponse("/login?error=sso", status_code=302)
+def _error_redirect(link_mode: bool = False) -> RedirectResponse:
+    response = RedirectResponse("/settings?sso=error" if link_mode else "/login?error=sso", status_code=302)
     response.delete_cookie(FLOW_COOKIE, path=FLOW_COOKIE_PATH)
     return response
 
@@ -88,18 +88,17 @@ def resolve_user(db: Session, claims: dict, cfg: oidc.OidcConfig) -> Tuple[Optio
         return None, "account could not be created (conflict)"
 
 
-@router.get("/login", dependencies=[Depends(_limit)])
-def oidc_login(request: Request, db: Session = Depends(get_db)):
+def _start(request: Request, db: Session, link_user: Optional[int] = None) -> RedirectResponse:
     cfg = oidc_settings.load_config(db)
     if cfg is None:
-        return _error_redirect()
+        return _error_redirect(link_mode=link_user is not None)
     try:
         discovery = oidc.get_discovery(cfg)
     except oidc.OidcError as e:
         audit.log_event(db, "sso_denied", request, detail=f"Discovery: {e}"[:250])
-        return _error_redirect()
+        return _error_redirect(link_mode=link_user is not None)
 
-    flow = oidc.new_flow()
+    flow = oidc.new_flow(link_user=link_user)
     response = RedirectResponse(oidc.authorization_url(cfg, discovery, flow), status_code=302)
     # Lax (not Strict): the callback is a top-level navigation coming from the provider.
     response.set_cookie(
@@ -107,6 +106,48 @@ def oidc_login(request: Request, db: Session = Depends(get_db)):
         samesite="lax", secure=cfg.redirect_uri.startswith("https://"), path=FLOW_COOKIE_PATH,
     )
     return response
+
+
+@router.get("/login", dependencies=[Depends(_limit)])
+def oidc_login(request: Request, db: Session = Depends(get_db)):
+    return _start(request, db)
+
+
+@router.get("/link", dependencies=[Depends(_limit)])
+def oidc_link(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user),
+):
+    """A signed-in user links their own account to a provider identity, whatever email
+    the provider has for them. The flow remembers who asked; the callback binds the
+    identity to that account and does not touch the session."""
+    if current_user.oidc_linked:
+        return RedirectResponse("/settings?sso=already", status_code=302)
+    return _start(request, db, link_user=current_user.id)
+
+
+def _complete_link(db: Session, request: Request, claims: dict, cfg: oidc.OidcConfig, user_id: int) -> Optional[str]:
+    """Binds the verified identity to the account that started the link flow. Returns
+    None on success or the reason for refusing."""
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if user is None:
+        return "the account no longer exists"
+    subject = str(claims["sub"])
+    other = db.query(models.User).filter(
+        models.User.oidc_issuer == cfg.issuer, models.User.oidc_sub == subject).first()
+    if other is not None and other.id != user.id:
+        return "this provider identity already belongs to another account"
+    if user.oidc_sub and (user.oidc_issuer, user.oidc_sub) != (cfg.issuer, subject):
+        return "the account is already linked to a different identity"
+    user.oidc_issuer, user.oidc_sub = cfg.issuer, subject
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return "the identity could not be linked (conflict)"
+    audit.log_event(db, "sso_linked", request, user=user, detail="Manuell verknüpft, Provider: " + cfg.issuer[:100])
+    return None
 
 
 @router.get("/callback", dependencies=[Depends(_limit)])
@@ -117,9 +158,11 @@ def oidc_callback(
     error: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
+    link_mode = False
+
     def refuse(reason: str, actor: Optional[str] = None) -> RedirectResponse:
         audit.log_event(db, "sso_denied", request, actor=actor, detail=reason[:250])
-        return _error_redirect()
+        return _error_redirect(link_mode)
 
     cfg = oidc_settings.load_config(db)
     if cfg is None:
@@ -128,6 +171,7 @@ def oidc_callback(
     try:
         # The Next.js proxy forwards the flow cookie in this header (it does not pass cookies on).
         flow = oidc.unpack_flow(request.headers.get("x-oidc-flow", ""))
+        link_mode = flow.link_user is not None
         if error:
             raise oidc.OidcError(f"provider reported an error: {error[:60]}")
         if not code or not oidc.states_match(flow, state or ""):
@@ -136,6 +180,14 @@ def oidc_callback(
         claims = oidc.exchange_and_verify(cfg, discovery, code, flow)
     except oidc.OidcError as e:
         return refuse(str(e))
+
+    if flow.link_user is not None:
+        problem = _complete_link(db, request, claims, cfg, flow.link_user)
+        if problem:
+            return refuse(problem)
+        done = RedirectResponse("/settings?sso=linked", status_code=302)
+        done.delete_cookie(FLOW_COOKIE, path=FLOW_COOKIE_PATH)
+        return done
 
     user, event = resolve_user(db, claims, cfg)
     if user is None:

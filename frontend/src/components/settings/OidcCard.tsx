@@ -20,8 +20,18 @@ interface OidcSettings {
   button_label: string;
   auto_create: boolean;
   password_login_enabled: boolean;
+  app_url: string;
   redirect_uri: string;
   own_account_linked: boolean;
+}
+
+function looksLikeLocalAddress(url: string): boolean {
+  try {
+    const host = new URL(url).hostname;
+    return host === "localhost" || /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
+  } catch {
+    return false;
+  }
 }
 
 export function OidcCard() {
@@ -60,6 +70,7 @@ export function OidcCard() {
     e.preventDefault();
     if (!cfg) return;
     save({
+      app_url: cfg.app_url,
       enabled: cfg.enabled,
       issuer: cfg.issuer,
       client_id: cfg.client_id,
@@ -68,6 +79,8 @@ export function OidcCard() {
       auto_create: cfg.auto_create,
     });
   };
+
+  const redirectUri = cfg ? `${cfg.app_url.trim().replace(/\/+$/, "")}/api/auth/oidc/callback` : "";
 
   if (!cfg) {
     return error ? <div className="rounded-xl border border-red-800/80 bg-red-950/50 p-3 text-xs text-red-300">{error}</div> : null;
@@ -88,10 +101,27 @@ export function OidcCard() {
         {message && <div className="rounded-xl border border-emerald-800/80 bg-emerald-950/40 p-3 text-xs text-emerald-300">{message}</div>}
         {error && <div className="rounded-xl border border-red-800/80 bg-red-950/50 p-3 text-xs text-red-300">{error}</div>}
 
-        <div className="space-y-1">
-          <Label className="text-xs font-mono text-zinc-400">Rückkehr-Adresse (im Provider eintragen)</Label>
-          <p className="break-all font-mono text-sm text-zinc-100 select-all">{cfg.redirect_uri}</p>
-          <p className="text-xs text-zinc-500">Sie wird aus der App-Adresse gebildet (Einstellung „E-Mail &amp; SMTP“, Feld App-URL). Stimmt sie nicht, zuerst dort korrigieren.</p>
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <Label htmlFor="oidcAppUrl" className="text-xs font-mono text-zinc-400">Adresse dieser App (so rufen Nutzer sie auf)</Label>
+            <Input
+              id="oidcAppUrl"
+              value={cfg.app_url}
+              onChange={e => setCfg({ ...cfg, app_url: e.target.value })}
+              placeholder="https://nexus.beispiel.de"
+              className="bg-zinc-950/60 border-zinc-800"
+            />
+          </div>
+          {looksLikeLocalAddress(cfg.app_url) && (
+            <p className="rounded-lg border border-amber-800/60 bg-amber-950/30 p-3 text-xs text-amber-200">
+              Das ist eine IP-Adresse oder „localhost“. Pocket ID kennt deine App vermutlich unter ihrer Domain; trage hier dieselbe Adresse ein, die du im Browser benutzt, z. B. https://nexus.beispiel.de.
+            </p>
+          )}
+          <div className="space-y-1">
+            <Label className="text-xs font-mono text-zinc-400">Rückkehr-Adresse (genau so im Provider eintragen)</Label>
+            <p className="break-all font-mono text-sm text-zinc-100 select-all">{redirectUri}</p>
+            <p className="text-xs text-zinc-500">Wird beim Speichern übernommen. Dieselbe Adresse verwenden auch die Links in Passwort-Reset-Mails.</p>
+          </div>
         </div>
 
         <form onSubmit={submit} className="space-y-4">
@@ -145,8 +175,8 @@ export function OidcCard() {
               </p>
               {!cfg.own_account_linked && (
                 <p className="text-sm text-zinc-400">
-                  Dein Konto ist noch nicht verknüpft. Melde dich dazu einmal mit SSO an; die E-Mail-Adresse in deinem Provider muss mit deiner Adresse hier übereinstimmen, sonst entsteht ein getrenntes Konto.{" "}
-                  {cfg.enabled && <a href="/api/auth/oidc/login" className="text-zinc-100 underline underline-offset-4">Jetzt per SSO anmelden und verknüpfen</a>}
+                  Dein Konto ist noch nicht verknüpft. Speichere zuerst die Einstellungen oben, dann melde dich einmal beim Provider an; welche E-Mail-Adresse du dort hast, spielt dabei keine Rolle.{" "}
+                  {cfg.enabled && <a href="/api/auth/oidc/link" className="text-zinc-100 underline underline-offset-4">Mein Konto jetzt verknüpfen</a>}
                 </p>
               )}
               <Button

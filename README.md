@@ -167,13 +167,14 @@ Zusätzlich zum Passwort können sich Nutzer über einen OpenID-Connect-Provider
 **Einrichten**
 
 1. In Pocket ID einen neuen OIDC-Client anlegen. Als Rückkehr-Adresse (Callback-URL) trägst du `https://<deine-domain>/api/auth/oidc/callback` ein; die genaue Adresse zeigt dir die App in der SSO-Karte. Notiere Client-ID und Client-Secret.
-2. Die Adresse der App muss stimmen: Sie wird aus der App-URL gebildet (*Systemeinstellungen → E-Mail & SMTP Server → App-URL* oder die Umgebungsvariable `APP_URL` in der `.env`).
-3. In der App unter *Einstellungen → Systemeinstellungen → Single Sign-On* Aussteller-URL (die Adresse deines Pocket ID, z. B. `https://id.beispiel.de`), Client-ID und Client-Secret eintragen, SSO einschalten und speichern. Auf der Anmeldeseite erscheint der Knopf „Mit Pocket ID anmelden“.
-4. Dein eigenes Admin-Konto verknüpfst du mit dem Link in der Karte („Jetzt per SSO anmelden und verknüpfen“). Die E-Mail-Adresse in Pocket ID muss dafür mit der Adresse deines Kontos in der App übereinstimmen.
+2. In der App unter *Einstellungen → Systemeinstellungen → Single Sign-On* trägst du ganz oben die **Adresse dieser App** ein, so wie du sie im Browser aufrufst, also mit Domain (`https://nexus.beispiel.de`), nicht mit der IP-Adresse. Daraus bildet die App die Rückkehr-Adresse, die in Pocket ID stehen muss (sie wird direkt darunter angezeigt). Stimmen beide nicht überein, meldet Pocket ID „redirect_uri is not registered“.
+3. In derselben Karte Aussteller-URL (die Adresse deines Pocket ID, z. B. `https://id.beispiel.de`), Client-ID und Client-Secret eintragen, SSO einschalten und speichern. Auf der Anmeldeseite erscheint der Knopf „Mit Pocket ID anmelden“.
+4. Verknüpfe dein eigenes Admin-Konto: *Einstellungen → Single Sign-On → Konto jetzt verknüpfen*. Das klappt auch, wenn die E-Mail-Adresse in Pocket ID eine andere ist als in der App.
 
 **Wie Konten zugeordnet werden**
 
 - Wer sich wiederholt anmeldet, wird über die Identität im Provider erkannt, nicht über die E-Mail. Ändert sich die Adresse im Provider, bleibt es dasselbe Konto.
+- **Bestehende Konten verknüpfen:** Jeder angemeldete Nutzer kann unter *Einstellungen → Single Sign-On → Konto jetzt verknüpfen* sein Konto gezielt mit seiner Identität im Provider verbinden, unabhängig von der E-Mail-Adresse. Eine Identität gehört immer zu genau einem Konto. Das ist der sichere Weg, wenn die Adressen verschieden sind; sonst legt die erste Anmeldung über die Anmeldeseite ein zweites, getrenntes Konto an.
 - Bei der ersten Anmeldung wird ein bestehendes Konto mit gleicher E-Mail-Adresse verknüpft, **aber nur, wenn der Provider die Adresse als bestätigt meldet**. Ein Admin-Konto bleibt dabei Admin. Gibt es kein solches Konto, wird (wenn aktiviert) ein normales Benutzerkonto angelegt.
 - Wer Administrator ist, bestimmt immer die App, nie der Provider.
 - Bei einer SSO-Anmeldung entfällt die 2-Faktor-Abfrage der App, weil der Passkey beim Provider der starke Faktor ist.
