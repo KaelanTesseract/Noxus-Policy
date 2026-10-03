@@ -120,7 +120,7 @@ def create_automated_backup(db: Session, is_manual_trigger: bool = False) -> str
                         zf.write(abs_file, arcname=os.path.join("documents", rel_file))
 
             manifest = {
-                "app": "Noxus Policy",
+                "app": "Zettelfrieden",
                 "version": "1.0",
                 "created_at": datetime.datetime.utcnow().isoformat(),
                 "type": "manual" if is_manual_trigger else "auto",
@@ -236,11 +236,11 @@ def check_and_send_cancellation_notifications():
                         upcoming.append((ins, delta_days))
 
             if upcoming:
-                lines = [f"Hallo {user.email},\n\nhier ist deine Fristen-Erinnerung von Noxus Policy:\n"]
+                lines = [f"Hallo {user.email},\n\nhier ist deine Fristen-Erinnerung von Zettelfrieden:\n"]
                 for ins, days in upcoming:
                     company_name = ins.company or "Gesellschaft k.A."
                     lines.append(f"• {ins.name} ({company_name}): Kündigungsfrist am {ins.cancellation_date.strftime('%d.%m.%Y')} (in {days} Tagen)")
-                lines.append("\nBitte überprüfe deine Verträge rechtzeitig in deiner Noxus Policy App.\n\nViele Grüße,\nDein Noxus Policy Team")
+                lines.append("\nBitte überprüfe deine Verträge rechtzeitig in deiner Zettelfrieden App.\n\nViele Grüße,\nDein Zettelfrieden-Team")
 
                 content = "\n".join(lines)
                 try:

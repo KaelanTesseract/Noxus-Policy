@@ -45,7 +45,7 @@ export function Navbar({ userEmail, onUploadClick, onTaxExportClick }: NavbarPro
           aria-label="Zur Übersicht"
         >
           <img src="/logo.png" alt="" className="h-8 w-auto object-contain" />
-          <span className="whitespace-nowrap font-display text-lg leading-none text-zinc-50 sm:text-2xl">Noxus Policy</span>
+          <span className="whitespace-nowrap font-display text-lg leading-none text-zinc-50 sm:text-2xl">Zettelfrieden</span>
         </button>
 
         <nav className="flex items-center gap-1 sm:gap-2" aria-label="Hauptnavigation">

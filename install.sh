@@ -3,7 +3,7 @@
 # Licensed under the MIT License. See LICENSE file in project root.
 
 # ==============================================================================
-# Noxus Policy - Proxmox LXC & Linux 1-Click Auto-Installer
+# Zettelfrieden - Proxmox LXC & Linux 1-Click Auto-Installer
 # ==============================================================================
 
 set -e
@@ -16,13 +16,12 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 echo -e "${CYAN}"
-echo '  _   _  _____  ___   _ ____    ____   ___  _     ___ ______   __'
-echo ' | \ | |/ _ \ \/ / | | / ___|  |  _ \ / _ \| |   |_ _/ ___\ \ / /'
-echo ' |  \| | | | \  /| | | \___ \  | |_) | | | | |    | | |    \ V / '
-echo ' | |\  | |_| /  \| |_| |___) | |  __/| |_| | |___ | | |___  | |  '
-echo ' |_| \_|\___/_/\_\\___/|____/  |_|    \___/|_____|___\____| |_|  '
+echo ' _______ _____ _____ ___ _    ___ ___ ___ ___ ___  ___ _  _ '
+echo '|_  / __|_   _|_   _| __| |  | __| _ \_ _| __|   \| __| \| |'
+echo ' / /| _|  | |   | | | _|| |__| _||   /| || _|| |) | _|| .` |'
+echo '/___|___| |_|   |_| |___|____|_| |_|_\___|___|___/|___|_|\_|'
 echo -e "${NC}"
-echo -e "${YELLOW}Starte automatische 1-Klick Installation von Noxus Policy...${NC}\n"
+echo -e "${YELLOW}Starte automatische 1-Klick Installation von Zettelfrieden...${NC}\n"
 
 # 1. Check Root
 if [ "$EUID" -ne 0 ]; then

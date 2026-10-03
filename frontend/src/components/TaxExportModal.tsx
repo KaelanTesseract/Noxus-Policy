@@ -288,7 +288,7 @@ export function TaxExportModal({ isOpen, onClose, insurances = [], userEmail }: 
           ` : ""}
 
           <div class="footer-note">
-            Diese Zusammenstellung wurde automatisch von <strong>Noxus Policy</strong> generiert. Alle Beiträge basieren auf den ausgelesenen Versicherungspolicen.
+            Diese Zusammenstellung wurde automatisch von <strong>Zettelfrieden</strong> generiert. Alle Beiträge basieren auf den ausgelesenen Versicherungspolicen.
           </div>
 
           <script>

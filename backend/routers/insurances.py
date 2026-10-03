@@ -411,7 +411,7 @@ def download_single_insurance_ics(
     ics_lines = [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
-        "PRODID:-//Noxus Policy//Single Insurance Calendar//DE",
+        "PRODID:-//Zettelfrieden//Single Insurance Calendar//DE",
         "CALSCALE:GREGORIAN",
         "METHOD:PUBLISH",
         "BEGIN:VEVENT",

@@ -48,7 +48,7 @@ def send_email_message(to_email: str, subject: str, content: str, db: Session):
     smtp_port = int(get_smtp_setting(db, "smtp_port", "587"))
     smtp_user = get_smtp_setting(db, "smtp_username", "")
     smtp_pw = get_smtp_setting(db, "smtp_password", "")
-    smtp_from = get_smtp_setting(db, "smtp_from", "no-reply@noxus-policy.local")
+    smtp_from = get_smtp_setting(db, "smtp_from", "no-reply@zettelfrieden.local")
     smtp_use_tls = get_smtp_setting(db, "smtp_use_tls", "true").lower() in ["true", "1", "yes"]
 
     msg = EmailMessage()
@@ -83,14 +83,14 @@ def send_reset_email(email_to: str, token: str, db: Session, request: Request = 
 
     content = (
         f"Hallo,\n\n"
-        f"Sie haben eine Anfrage zum Zurücksetzen Ihres Passworts bei Noxus Policy gestellt.\n\n"
+        f"Sie haben eine Anfrage zum Zurücksetzen Ihres Passworts bei Zettelfrieden gestellt.\n\n"
         f"Bitte klicken Sie auf folgenden Link, um Ihr Passwort zurückzusetzen:\n"
         f"{reset_url}\n\n"
         f"Falls Sie diese Anfrage nicht gestellt haben, können Sie diese E-Mail ignorieren.\n\n"
-        f"Viele Grüße,\nIhr Noxus Policy Team"
+        f"Viele Grüße,\nIhr Zettelfrieden-Team"
     )
     try:
-        send_email_message(email_to, "Passwort zurücksetzen - Noxus Policy", content, db)
+        send_email_message(email_to, "Passwort zurücksetzen - Zettelfrieden", content, db)
         print(f"Reset email successfully sent to {email_to}")
     except Exception as e:
         print(f"Failed to send reset email to {email_to}: {e}")
@@ -327,7 +327,7 @@ def get_smtp_config(db: Session = Depends(get_db), current_user: models.User = D
         # Never sent back: the admin UI (and anyone who can read its responses) doesn't
         # need the stored secret, only to know whether one is set.
         "smtp_password_set": bool(get_smtp_setting(db, "smtp_password", "")),
-        "smtp_from": get_smtp_setting(db, "smtp_from", "no-reply@noxus-policy.local"),
+        "smtp_from": get_smtp_setting(db, "smtp_from", "no-reply@zettelfrieden.local"),
         "smtp_use_tls": get_smtp_setting(db, "smtp_use_tls", "true").lower() in ["true", "1", "yes"],
     }
 
@@ -365,8 +365,8 @@ def test_smtp_config(payload: dict, db: Session = Depends(get_db), current_user:
     try:
         send_email_message(
             target_email,
-            "Noxus Policy - E-Mail Test erfolgreich!",
-            f"Hallo {current_user.email},\n\ndiese Test-E-Mail bestätigt, dass deine SMTP-Konfiguration in Noxus Policy einwandfrei funktioniert!\n\nViele Grüße,\nNoxus Policy Team",
+            "Zettelfrieden - E-Mail Test erfolgreich!",
+            f"Hallo {current_user.email},\n\ndiese Test-E-Mail bestätigt, dass deine SMTP-Konfiguration in Zettelfrieden einwandfrei funktioniert!\n\nViele Grüße,\nZettelfrieden Team",
             db
         )
         return {"msg": f"Test-E-Mail wurde erfolgreich an {target_email} versendet!"}
@@ -532,10 +532,10 @@ def build_ics_string(user_id: int, insurances: list) -> str:
     ics_lines = [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
-        "PRODID:-//Noxus Policy//Live Calendar Sync//DE",
+        "PRODID:-//Zettelfrieden//Live Calendar Sync//DE",
         "CALSCALE:GREGORIAN",
         "METHOD:PUBLISH",
-        "X-WR-CALNAME:Noxus Policy - Kündigungsfristen",
+        "X-WR-CALNAME:Zettelfrieden - Kündigungsfristen",
         "X-WR-CALDESC:Live-Synchronisation aller Kündigungsfristen deiner Versicherungspolicen.",
         "REFRESH-INTERVAL;VALUE=DURATION:PT6H",
         "X-PUBLISHED-TTL:PT6H"
@@ -629,7 +629,7 @@ def download_manual_calendar_ics(
         content=ics_content,
         media_type="text/calendar; charset=utf-8",
         headers={
-            "Content-Disposition": 'attachment; filename="noxus_policy_kuendigungsfristen.ics"',
+            "Content-Disposition": 'attachment; filename="zettelfrieden_kuendigungsfristen.ics"',
             "Cache-Control": "no-cache, no-store, must-revalidate"
         }
     )
@@ -656,7 +656,7 @@ def get_calendar_feed(
         content=ics_content,
         media_type="text/calendar; charset=utf-8",
         headers={
-            "Content-Disposition": f'inline; filename="noxus_policy_calendar_{user.id}.ics"',
+            "Content-Disposition": f'inline; filename="zettelfrieden_calendar_{user.id}.ics"',
             "Cache-Control": "no-cache, no-store, must-revalidate"
         }
     )

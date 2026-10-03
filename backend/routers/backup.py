@@ -145,7 +145,7 @@ def export_system_backup(
 
                 # 3. Add manifest
                 manifest = {
-                    "app": "Noxus Policy",
+                    "app": "Zettelfrieden",
                     "version": "1.0",
                     "created_at": datetime.datetime.utcnow().isoformat(),
                     "created_by": current_user.email,
@@ -163,7 +163,7 @@ def export_system_backup(
             # Encrypt raw ZIP bytes
             encrypted_bytes = encrypt_archive(raw_zip_bytes, password)
 
-            filename = f"noxus_policy_backup_{datetime.date.today().strftime('%Y-%m-%d')}.noxusbackup"
+            filename = f"zettelfrieden_backup_{datetime.date.today().strftime('%Y-%m-%d')}.noxusbackup"
             
             audit.log_event(db, "backup_exported", request, user=current_user)
             return Response(
@@ -562,7 +562,7 @@ def export_user_backup(
 
                 # 4. Manifest
                 manifest = {
-                    "app": "Noxus Policy",
+                    "app": "Zettelfrieden",
                     "export_type": "user",
                     "user_email": target_user.email,
                     "created_at": datetime.datetime.utcnow().isoformat(),
@@ -577,7 +577,7 @@ def export_user_backup(
             encrypted_bytes = encrypt_archive(raw_zip_bytes, password)
 
             clean_email = target_user.email.replace("@", "_at_").replace(".", "_")
-            filename = f"noxus_user_backup_{clean_email}_{datetime.date.today().strftime('%Y-%m-%d')}.noxususer"
+            filename = f"zettelfrieden_user_backup_{clean_email}_{datetime.date.today().strftime('%Y-%m-%d')}.noxususer"
 
             audit.log_event(db, "user_exported", request, user=current_user, detail=f"Konto: {target_user.email}")
             return Response(

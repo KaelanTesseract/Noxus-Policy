@@ -481,7 +481,7 @@ export default function InsuranceDetailPage() {
     const icsContent = [
       "BEGIN:VCALENDAR",
       "VERSION:2.0",
-      "PRODID:-//Noxus Policy//DE",
+      "PRODID:-//Zettelfrieden//DE",
       "CALSCALE:GREGORIAN",
       "METHOD:PUBLISH",
       "BEGIN:VEVENT",

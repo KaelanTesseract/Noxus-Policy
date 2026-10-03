@@ -44,9 +44,9 @@ export default function ForgotPassword() {
       <div className="w-full max-w-md space-y-6">
         {/* Brand Header */}
         <div className="text-center space-y-3">
-          <img src="/logo.png" alt="Noxus Policy Logo" className="w-20 h-20 mx-auto object-contain drop-shadow-xl" />
+          <img src="/logo.png" alt="Zettelfrieden Logo" className="w-20 h-20 mx-auto object-contain drop-shadow-xl" />
           <h1 className="text-2xl font-extrabold tracking-tight text-white">
-            Noxus Policy
+            Zettelfrieden
           </h1>
         </div>
 

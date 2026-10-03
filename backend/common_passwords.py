@@ -23,7 +23,7 @@ winter2022 winter2023 winter2024 winter2025 herbst2023 herbst2024 fruehling2024 
 passwort2023 passwort2024 passwort2025 password2020 password2021 password2022 password2023 password2024 password2025
 geheim geheim123 geheimnis meinpasswort meinpasswort1 mypassword mypass secret secret123 changeme changeme123 change123
 default trustno1 whatever freedom cheese pepper ginger summer winter spring autumn internet computer laptop
-versicherung versicherung1 versicherungen noxus noxuspolicy versicherungsmanager policy police
+versicherung versicherung1 versicherungen noxus noxuspolicy zettelfrieden versicherungsmanager policy police
 aaaaaa aaaaaaaa aaaa1111 zzzzzzzz xxxxxxxx qqqqqqqq 11111111 22222222 00000000 12341234 11223344 1234abcd abcd1234abcd
 """.split())
 

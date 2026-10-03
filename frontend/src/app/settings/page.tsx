@@ -63,7 +63,7 @@ export default function SettingsPage() {
   const [smtpUsername, setSmtpUsername] = useState("");
   const [smtpPassword, setSmtpPassword] = useState("");
   const [smtpPasswordSet, setSmtpPasswordSet] = useState(false);
-  const [smtpFrom, setSmtpFrom] = useState("no-reply@noxus-policy.local");
+  const [smtpFrom, setSmtpFrom] = useState("no-reply@zettelfrieden.local");
   const [smtpUseTls, setSmtpUseTls] = useState(true);
   const [showSmtpPassword, setShowSmtpPassword] = useState(false);
   const [smtpMsg, setSmtpMsg] = useState("");
@@ -213,7 +213,7 @@ export default function SettingsPage() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "noxus_policy_kuendigungsfristen.ics";
+      a.download = "zettelfrieden_kuendigungsfristen.ics";
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -279,7 +279,7 @@ export default function SettingsPage() {
           // The stored password is never sent to the browser - only whether one exists.
           setSmtpPassword("");
           setSmtpPasswordSet(!!smtpConfig.smtp_password_set);
-          setSmtpFrom(smtpConfig.smtp_from || "no-reply@noxus-policy.local");
+          setSmtpFrom(smtpConfig.smtp_from || "no-reply@zettelfrieden.local");
           setSmtpUseTls(!!smtpConfig.smtp_use_tls);
         } catch (smtpErr) {
           console.error("Error loading SMTP config:", smtpErr);
@@ -516,7 +516,7 @@ export default function SettingsPage() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `noxus_policy_backup_${new Date().toISOString().slice(0, 10)}.noxusbackup`;
+      a.download = `zettelfrieden_backup_${new Date().toISOString().slice(0, 10)}.noxusbackup`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -608,7 +608,7 @@ export default function SettingsPage() {
       const a = document.createElement("a");
       a.href = url;
       const cleanEmail = targetEmail.replace("@", "_at_").replace(".", "_");
-      a.download = `noxus_user_backup_${cleanEmail}_${new Date().toISOString().slice(0, 10)}.noxususer`;
+      a.download = `zettelfrieden_user_backup_${cleanEmail}_${new Date().toISOString().slice(0, 10)}.noxususer`;
       document.body.appendChild(a);
       a.click();
       a.remove();

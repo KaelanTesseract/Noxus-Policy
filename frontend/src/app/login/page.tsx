@@ -123,14 +123,14 @@ export default function Login() {
           <div className="relative inline-block">
             <img 
               src="/logo.png" 
-              alt="Noxus Policy Logo" 
+              alt="Zettelfrieden Logo" 
               className="relative w-28 h-28 mx-auto object-contain drop-shadow-2xl transition-transform hover:scale-105" 
             />
           </div>
           
           <div>
             <h1 className="text-3xl font-extrabold tracking-tight text-zinc-50">
-              Noxus Policy
+              Zettelfrieden
             </h1>
             <p className="text-xs text-zinc-400 font-mono mt-1 tracking-wider uppercase">
               Dein Versicherungsmanager

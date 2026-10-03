@@ -17,7 +17,7 @@ from typing import List, Optional
 
 STEP_SECONDS = 30
 DIGITS = 6
-ISSUER = "Noxus Policy"
+ISSUER = "Zettelfrieden"
 RECOVERY_CODE_COUNT = 8
 # Codes are compared after dropping separators and case, so "ABCD-EFGH" and "abcdefgh" are the same.
 _RECOVERY_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"  # no look-alikes (i, l, o, 0, 1)

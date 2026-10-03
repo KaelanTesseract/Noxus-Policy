@@ -1,8 +1,8 @@
-<h1 align="center">Noxus Policy</h1>
+<h1 align="center">Zettelfrieden</h1>
 <h3 align="center">Versicherungsmanager mit automatischer Dokumentenanalyse</h3>
 
 <p align="center">
-  <img src="https://github.com/KaelanTesseract/Noxus-Policy/blob/fcd19a9946ac18d64a184fe4778384bd5b48a888/logo.png" alt="Noxus Policy Logo" width="140" />
+  <img src="https://github.com/KaelanTesseract/Noxus-Policy/blob/fcd19a9946ac18d64a184fe4778384bd5b48a888/logo.png" alt="Zettelfrieden Logo" width="140" />
 </p>
 
 <p align="center">
@@ -68,7 +68,7 @@ cd /opt/versicherungsmanager && docker compose logs backend | grep INITIAL_ADMIN
 
 ## 🚀 Proxmox VE & Linux 1-Klick Installation
 
-Noxus Policy lässt sich in Sekunden auf jedem **Proxmox VE Server** oder **Linux LXC/Debian/Ubuntu** installieren.
+Zettelfrieden lässt sich in Sekunden auf jedem **Proxmox VE Server** oder **Linux LXC/Debian/Ubuntu** installieren.
 
 ### 🌟 Option A: Proxmox VE Host 1-Klick Erstellung (Erstellt neuen LXC Container)
 Führe diesen Befehl in der **Proxmox VE Node Shell** (Host-Ebene) aus:
@@ -107,7 +107,7 @@ Das Skript erstellt **automatisch ein Vorab-Sicherheitsbackup** der Datenbank, f
 
 ## 🔒 Sicherheit & HTTPS (Reverse Proxy)
 
-Noxus Policy verarbeitet sensible personenbezogene Daten (Versicherungsverträge, Beiträge, Dokumente). Ein paar Punkte solltest du bei jeder Installation beachten:
+Zettelfrieden verarbeitet sensible personenbezogene Daten (Versicherungsverträge, Beiträge, Dokumente). Ein paar Punkte solltest du bei jeder Installation beachten:
 
 ### HTTPS ist Pflicht, sobald der Server erreichbar ist
 
@@ -116,7 +116,7 @@ Noxus Policy verarbeitet sensible personenbezogene Daten (Versicherungsverträge
 **Richte deshalb immer einen Reverse Proxy mit echtem TLS-Zertifikat vor die App**, z. B. mit Nginx + [Certbot](https://certbot.eff.org/) (Let's Encrypt):
 
 ```nginx
-# /etc/nginx/sites-available/noxus-policy
+# /etc/nginx/sites-available/zettelfrieden
 server {
     listen 443 ssl http2;
     server_name deine-domain.de;

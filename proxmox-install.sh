@@ -3,7 +3,7 @@
 # Licensed under the MIT License. See LICENSE file in project root.
 
 # ==============================================================================
-# Noxus Policy - Proxmox VE Host LXC 1-Click Creator & Installer
+# Zettelfrieden - Proxmox VE Host LXC 1-Click Creator & Installer
 # (Runs directly in Proxmox VE Host Shell - pve node)
 # ==============================================================================
 
@@ -16,13 +16,12 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 echo -e "${CYAN}"
-echo '  _   _  _____  ___   _ ____    ____   ___  _     ___ ______   __'
-echo ' | \ | |/ _ \ \/ / | | / ___|  |  _ \ / _ \| |   |_ _/ ___\ \ / /'
-echo ' |  \| | | | \  /| | | \___ \  | |_) | | | | |    | | |    \ V / '
-echo ' | |\  | |_| /  \| |_| |___) | |  __/| |_| | |___ | | |___  | |  '
-echo ' |_| \_|\___/_/\_\\___/|____/  |_|    \___/|_____|___\____| |_|  '
+echo ' _______ _____ _____ ___ _    ___ ___ ___ ___ ___  ___ _  _ '
+echo '|_  / __|_   _|_   _| __| |  | __| _ \_ _| __|   \| __| \| |'
+echo ' / /| _|  | |   | | | _|| |__| _||   /| || _|| |) | _|| .` |'
+echo '/___|___| |_|   |_| |___|____|_| |_|_\___|___|___/|___|_|\_|'
 echo -e "${NC}"
-echo -e "${YELLOW}Proxmox VE LXC 1-Klick Container-Erstellung für Noxus Policy${NC}\n"
+echo -e "${YELLOW}Proxmox VE LXC 1-Klick Container-Erstellung für Zettelfrieden${NC}\n"
 
 # 1. Ensure running on Proxmox VE Host
 if ! command -v pveversion &> /dev/null; then
@@ -36,8 +35,8 @@ NEXTID=$(pvesh get /cluster/nextid)
 read -p "Container ID wählen [$NEXTID]: " CTID
 CTID=${CTID:-$NEXTID}
 
-read -p "Hostname wählen [noxus-policy]: " HOSTNAME
-HOSTNAME=${HOSTNAME:-noxus-policy}
+read -p "Hostname wählen [zettelfrieden]: " HOSTNAME
+HOSTNAME=${HOSTNAME:-zettelfrieden}
 
 read -p "RAM in MB wählen (empfohlen 4096 MB) [4096]: " RAM
 RAM=${RAM:-4096}

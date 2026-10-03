@@ -125,9 +125,9 @@ export default function ResetPasswordPage() {
     <div className="flex flex-col items-center justify-center min-h-[85vh] py-8">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center space-y-3">
-          <img src="/logo.png" alt="Noxus Policy Logo" className="w-20 h-20 mx-auto object-contain drop-shadow-xl" />
+          <img src="/logo.png" alt="Zettelfrieden Logo" className="w-20 h-20 mx-auto object-contain drop-shadow-xl" />
           <h1 className="text-2xl font-extrabold tracking-tight text-white">
-            Noxus Policy
+            Zettelfrieden
           </h1>
         </div>
         <Suspense fallback={<div className="text-zinc-400 text-center">Lädt...</div>}>

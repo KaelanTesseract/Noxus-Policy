@@ -3,7 +3,7 @@
 # Licensed under the MIT License. See LICENSE file in project root.
 
 # ==============================================================================
-# Noxus Policy - Auto-Updater Script mit Auto-Backup & Ladebalken
+# Zettelfrieden - Auto-Updater Script mit Auto-Backup & Ladebalken
 # ==============================================================================
 
 set -e
@@ -38,13 +38,12 @@ render_progress() {
 # (see NOXUS_UPDATE_REEXECED below), and that second run continues the same progress bar.
 if [ -z "$NOXUS_UPDATE_REEXECED" ]; then
 echo -e "${CYAN}"
-echo '  _   _  _____  ___   _ ____    ____   ___  _     ___ ______   __'
-echo ' | \ | |/ _ \ \/ / | | / ___|  |  _ \ / _ \| |   |_ _/ ___\ \ / /'
-echo ' |  \| | | | \  /| | | \___ \  | |_) | | | | |    | | |    \ V / '
-echo ' | |\  | |_| /  \| |_| |___) | |  __/| |_| | |___ | | |___  | |  '
-echo ' |_| \_|\___/_/\_\\___/|____/  |_|    \___/|_____|___\____| |_|  '
+echo ' _______ _____ _____ ___ _    ___ ___ ___ ___ ___  ___ _  _ '
+echo '|_  / __|_   _|_   _| __| |  | __| _ \_ _| __|   \| __| \| |'
+echo ' / /| _|  | |   | | | _|| |__| _||   /| || _|| |) | _|| .` |'
+echo '/___|___| |_|   |_| |___|____|_| |_|_\___|___|___/|___|_|\_|'
 echo -e "${NC}"
-echo -e "${YELLOW}Starte System-Update von Noxus Policy...${NC}\n"
+echo -e "${YELLOW}Starte System-Update von Zettelfrieden...${NC}\n"
 fi
 
 INSTALL_DIR="/opt/versicherungsmanager"
