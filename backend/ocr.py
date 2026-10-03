@@ -5,6 +5,8 @@ import pytesseract
 from pattern_safety import apply_patterns
 from document_naming import detect_kind, suggest_title
 from image_prep import prepare_for_ocr
+from llm_text import select_relevant_text
+from ai_merge import has_gaps, merge_ai_into_rules
 from document_types import CONTRACT_FIELDS, DEFAULT_DOC_TYPE, DOC_TYPE_FOR_KIND, document_type_for, is_informational
 from PIL import Image
 from pdf2image import convert_from_path
@@ -90,7 +92,7 @@ def get_llm():
         print("[Mini-AI] Initializing embedded Llama-cpp engine (4 CPU threads)...")
         _llm_instance = Llama(
             model_path=model_path,
-            n_ctx=2048,
+            n_ctx=LLM_CONTEXT_TOKENS,
             n_threads=4,
             verbose=False
         )
@@ -109,6 +111,9 @@ OCR_MAX_IMAGE_PIXELS = 50_000_000    # decoded pixels above this are refused out
 OCR_PDF_RENDER_TIMEOUT_S = 60
 OCR_TESSERACT_TIMEOUT_S = 60
 MAX_EXTRACTED_TEXT_CHARS = 200_000   # what the (regex-heavy) extractors ever get to see
+LLM_CONTEXT_TOKENS = 4096        # prompt (~1000 tokens) + document excerpt + answer
+LLM_TEXT_CHARS = 5000             # excerpt of the document the model reads, see llm_text.py
+LLM_MAX_TOKENS = 600
 OCR_TESSERACT_CONFIG = ""            # extra Tesseract options (page segmentation mode etc.), see tools/eval_ocr.py
 
 Image.MAX_IMAGE_PIXELS = OCR_MAX_IMAGE_PIXELS
@@ -173,21 +178,60 @@ def parse_date(date_str: str):
             continue
     return None
 
-def extract_with_mini_ai(text: str) -> dict:
-    """Uses embedded Mini-AI (Llama-cpp Qwen2.5-1.5B) to extract structured insurance data."""
-    if not text or len(text.strip()) < 10:
-        return None
+def _answer_schema() -> dict:
+    """The shape of the model's answer. Given to llama.cpp as a grammar, so the output is
+    always valid JSON of exactly this shape - before, one stray comma from the small model
+    threw the whole answer away."""
+    text = {"type": "string"}
+    number = {"type": ["number", "null"]}
+    return {
+        "type": "object",
+        "properties": {
+            "company": text,
+            "insurance_type": text,
+            "policy_number": text,
+            "start_date": text,
+            "end_date": text,
+            "cost": number,
+            "payment_cycle": {"enum": ["monatlich", "vierteljährlich", "halbjährlich", "jährlich"]},
+            "category": {"enum": ["Kfz", "Haftpflicht", "Hausrat", "Leben", "Gesundheit", "Rechtsschutz", "Sonstige"]},
+            "sf_class": text,
+            "regional_class": text,
+            "type_class": text,
+            "is_price_change": {"type": "boolean"},
+            "previous_cost": number,
+            "new_cost": number,
+            "coverage_details": {"type": "array", "items": {"type": "string", "maxLength": 160}, "maxItems": 8},
+        },
+        "required": ["company", "insurance_type", "policy_number", "start_date", "end_date", "cost", "payment_cycle",
+                     "category", "sf_class", "regional_class", "type_class", "is_price_change", "previous_cost",
+                     "new_cost", "coverage_details"],
+    }
 
-    llm = get_llm()
-    if not llm:
-        return None
 
-    truncated_text = text[:3000]
+_answer_grammar = None
 
+
+def _get_answer_grammar():
+    """The grammar for the answer, or None if this llama.cpp build cannot make one (the
+    answer is then parsed leniently as before)."""
+    global _answer_grammar
+    if _answer_grammar is None:
+        try:
+            from llama_cpp import LlamaGrammar
+            _answer_grammar = LlamaGrammar.from_json_schema(json.dumps(_answer_schema()), verbose=False)
+        except Exception as e:
+            print(f"[Mini-AI] Notice: no JSON grammar available ({e}).")
+            _answer_grammar = False
+    return _answer_grammar or None
+
+
+def build_ai_prompt(snippet: str, with_prefill: bool) -> str:
     prompt = (
         "<|im_start|>system\n"
         "Du bist ein präziser deutscher Versicherungs-Experte. "
         "Analysiere den folgenden Vertragstext und extrahiere alle Informationen. "
+        "Schreibe nur Werte, die wörtlich im Text stehen; was fehlt, bleibt leer (\"\") oder null. "
         "WICHTIG für 'coverage_details': Extrahiere NUR TATSÄCHLICH VERSICHERTE LEISTUNGEN (ignoriere 'Was ist nicht versichert'!). "
         "Formatiere JEDE Leistung streng in grammatikalisch perfektem Deutsch nach dem Schema: 'Name der Leistung (Prägnante Nomen-Stichpunkte zur Abdeckung in Klammern)'. "
         "Kopiere NIEMALS lange Rohsätze wie 'Leistet, wenn...' oder 'Ersetzt berechtigte...'. Nutze stattdessen grammatikalisch saubere Substantivierungen!\n"
@@ -205,7 +249,6 @@ def extract_with_mini_ai(text: str) -> dict:
         '  "company": "Name des Versicherers (z.B. HUK-COBURG, HUK24, Allianz, AXA)",\n'
         '  "insurance_type": "Art der Versicherung (z.B. Kfz-Versicherung, Privathaftpflicht)",\n'
         '  "policy_number": "Versicherungsscheinnummer",\n'
-        '  "contact_info": "Vollständige Firmenadresse mit PLZ und Ort (z.B. Bahnhofsplatz, 96444 Coburg)",\n'
         '  "start_date": "YYYY-MM-DD",\n'
         '  "end_date": "YYYY-MM-DD",\n'
         '  "cost": 123.45,\n'
@@ -219,53 +262,70 @@ def extract_with_mini_ai(text: str) -> dict:
         '  "new_cost": 120.00,\n'
         '  "coverage_details": ["Kfz-Haftpflichtversicherung (Personen- & Sachschäden an Dritten, Erstattung berechtigter Ansprüche)", "Schutzbrief (Organisatorische & finanzielle Hilfe bei Panne oder Unfall)"]\n'
         "}<|im_end|>\n"
-        f"<|im_start|>user\nVERTRAGSTEXT:\n{truncated_text}<|im_end|>\n"
-        "<|im_start|>assistant\n{"
+        f"<|im_start|>user\nVERTRAGSTEXT:\n{snippet}<|im_end|>\n"
+        "<|im_start|>assistant\n"
     )
+    return prompt + "{" if with_prefill else prompt
+
+
+def _number(value):
+    try:
+        return float(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def extract_with_mini_ai(text: str) -> dict:
+    """Uses embedded Mini-AI (Llama-cpp Qwen2.5-1.5B) to extract structured insurance data."""
+    if not text or len(text.strip()) < 10:
+        return None
+
+    llm = get_llm()
+    if not llm:
+        return None
+
+    snippet = select_relevant_text(text, LLM_TEXT_CHARS)
+    grammar = _get_answer_grammar()
+    prompt = build_ai_prompt(snippet, with_prefill=grammar is None)
 
     try:
         response = llm(
             prompt,
-            max_tokens=450,
+            max_tokens=LLM_MAX_TOKENS,
             temperature=0.1,
-            stop=["<|im_end|>"]
+            stop=["<|im_end|>"],
+            **({"grammar": grammar} if grammar is not None else {}),
         )
 
-        raw_json_str = "{" + response["choices"][0]["text"]
-        
-        if "}" in raw_json_str:
-            raw_json_str = raw_json_str[:raw_json_str.rfind("}") + 1]
+        raw_json_str = response["choices"][0]["text"]
+        if grammar is None:
+            raw_json_str = "{" + raw_json_str
+            if "}" in raw_json_str:
+                raw_json_str = raw_json_str[:raw_json_str.rfind("}") + 1]
 
         parsed = json.loads(raw_json_str)
 
-        company = str(parsed.get("company", "")).strip() or None
-        ins_num = str(parsed.get("policy_number", "")).strip() or None
-        ins_type = str(parsed.get("insurance_type", "")).strip() or "Versicherung"
-        category = str(parsed.get("category", "")).strip() or "Sonstige"
+        company = str(parsed.get("company") or "").strip() or None
+        ins_num = str(parsed.get("policy_number") or "").strip() or None
+        ins_type = str(parsed.get("insurance_type") or "").strip() or "Versicherung"
+        category = str(parsed.get("category") or "").strip() or "Sonstige"
 
-        cost = None
-        try:
-            if parsed.get("cost") is not None:
-                cost = float(parsed.get("cost"))
-        except:
-            pass
+        cost = _number(parsed.get("cost"))
+        prev_cost = _number(parsed.get("previous_cost"))
+        new_cost = _number(parsed.get("new_cost"))
 
-        payment_cycle = str(parsed.get("payment_cycle", "jährlich")).lower().strip()
+        payment_cycle = str(parsed.get("payment_cycle") or "jährlich").lower().strip()
         if payment_cycle not in ["monatlich", "vierteljährlich", "halbjährlich", "jährlich"]:
             payment_cycle = "jährlich"
-
-        s_date = parse_date(str(parsed.get("start_date", "")))
-        e_date = parse_date(str(parsed.get("end_date", "")))
 
         cov_details = parsed.get("coverage_details", [])
         if not isinstance(cov_details, list):
             cov_details = []
-
         cov_details = sanitize_coverage_details(cov_details)
 
-        raw_s = str(parsed.get("start_date", ""))
-        raw_e = str(parsed.get("end_date", ""))
-        raw_c = str(parsed.get("cancellation_date", ""))
+        raw_s = str(parsed.get("start_date") or "")
+        raw_e = str(parsed.get("end_date") or "")
+        raw_c = str(parsed.get("cancellation_date") or "")
         s_date, e_date, c_date = calculate_insurance_dates(raw_s, raw_e, raw_c, text)
         ins_num = extract_policy_number_fallback(text, ins_num)
 
@@ -274,25 +334,17 @@ def extract_with_mini_ai(text: str) -> dict:
         if exact_cost and (not final_cost or final_cost == 150.0 or final_cost == 150 or re.search(r'150[^\n]*selbstbeteiligung', text, re.I)):
             final_cost = exact_cost
 
-        sf_class = str(parsed.get("sf_class", "")).strip() or None
-        regional_class = str(parsed.get("regional_class", "")).strip() or None
+        sf_class = str(parsed.get("sf_class") or "").strip() or None
+        regional_class = str(parsed.get("regional_class") or "").strip() or None
         regional_class = extract_regionalklasse_fallback(text, regional_class)
-        type_class = str(parsed.get("type_class", "")).strip() or None
+        type_class = str(parsed.get("type_class") or "").strip() or None
         is_price_change = bool(parsed.get("is_price_change", False))
-        prev_cost = None
-        try:
-            if parsed.get("previous_cost") is not None: prev_cost = float(parsed.get("previous_cost"))
-        except: pass
-        new_cost = None
-        try:
-            if parsed.get("new_cost") is not None: new_cost = float(parsed.get("new_cost"))
-        except: pass
 
         subject = str(parsed.get("subject", "") or parsed.get("document_title", "")).strip() or None
         if not subject:
             subject = extract_subject_fallback(text)
 
-        print(f"[Mini-AI] Successfully extracted data with Qwen2.5-1.5B: Company='{company}', Policy='{ins_num}', Subject='{subject}', Start='{s_date}', End='{e_date}'")
+        print(f"[Mini-AI] Successfully extracted data with Qwen2.5-1.5B: Company='{company}', Start='{s_date}', End='{e_date}'")
         return {
             "company": company,
             "insurance_number": ins_num,
@@ -317,7 +369,7 @@ def extract_with_mini_ai(text: str) -> dict:
             "ai_model": "Qwen2.5-1.5B (Embedded)"
         }
     except Exception as e:
-        print(f"[Mini-AI] Exception during AI execution ({e}). Using regex fallback.")
+        print(f"[Mini-AI] Exception during AI execution ({type(e).__name__}: {e}). Using regex fallback.")
 
     return None
 
@@ -867,14 +919,10 @@ def extract_insurance_data(text: str, db=None) -> dict:
         except Exception as se:
             print(f"Notice checking AI setting: {se}")
 
-    if use_ai:
-        data = extract_with_mini_ai(text)
-        if not data:
-            data = extract_insurance_data_regex(text)
-            data["ai_used"] = False
-    else:
-        data = extract_insurance_data_regex(text)
-        data["ai_used"] = False
+    # The rules lead. The embedded model only fills gaps in the identification of a letter
+    # (insurer, policy number) and what it says must stand in the text (see ai_merge.py).
+    data = extract_insurance_data_regex(text)
+    data["ai_used"] = False
 
     # Apply learned vendor patterns if company is detected. They are untrusted
     # input (partly community-sourced), so they only run through pattern_safety.
@@ -887,6 +935,10 @@ def extract_insurance_data(text: str, db=None) -> dict:
                 if field == "regional_class" and not val.upper().startswith("R"):
                     val = f"R{val}"
                 data[field] = val
+
+    if use_ai and has_gaps(data) and not is_informational(document_type_for(detect_kind(text))):
+        merge_ai_into_rules(data, extract_with_mini_ai(text), text)
+        company = data.get("company")
 
     finalize_extraction(data, text)
 

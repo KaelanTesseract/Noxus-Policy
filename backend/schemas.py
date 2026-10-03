@@ -206,3 +206,4 @@ class ExtractionResult(BaseModel):
     extracted_text: str
     ai_used: Optional[bool] = False
     ai_model: Optional[str] = None
+    ai_fields: Optional[List[str]] = None  # fields the model filled (the rules found nothing)
