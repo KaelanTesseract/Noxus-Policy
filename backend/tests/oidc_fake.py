@@ -70,7 +70,7 @@ class FakeProvider:
             return httpx.Response(200, json={"keys": [public]})
         if path == "/token":
             form = dict(urllib.parse.parse_qsl(request.content.decode()))
-            claims = self.codes.get(form.get("code", ""))
+            claims = self.codes.pop(form.get("code", ""), None)   # authorization codes are single use
             if claims is None or form.get("client_id") != CLIENT_ID or form.get("client_secret") != CLIENT_SECRET \
                     or form.get("redirect_uri") != REDIRECT_URI or not form.get("code_verifier"):
                 return httpx.Response(400, json={"error": "invalid_grant"})

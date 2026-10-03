@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base, DATABASE_URL, SessionLocal, resolve_sqlite_path
 import models
-from routers import users, insurances, documents, backup, inbox
+from routers import users, insurances, documents, backup, inbox, oidc as oidc_router
 import auth
 import os
 import secrets
@@ -64,6 +64,7 @@ app.include_router(insurances.router)
 app.include_router(documents.router)
 app.include_router(backup.router)
 app.include_router(inbox.router)
+app.include_router(oidc_router.router)
 
 def auto_migrate_sqlite():
     try:
