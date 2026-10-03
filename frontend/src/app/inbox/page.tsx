@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api, getAuthHeaders } from "@/lib/api";
 import { FolderOpen, Inbox, FileText, Trash2, X } from "lucide-react";
+import { FieldChecks } from "@/components/FieldChecks";
 
 // Same list as the upload dialog (UploadModal.tsx); an older analysis may carry another value.
 const DOC_TYPES = ["Versicherungsschein / Polizze", "Beitragsrechnung", "Beitragsanpassung", "Nachtrag / Änderungsschein", "Verbraucherinformationen", "Kundeninformationen", "Beratungsprotokoll", "Schadenmeldung", "Kündigungsbestätigung", "Sonstiges"];
@@ -32,6 +33,7 @@ export default function InboxPage() {
   const [previewDocUrl, setPreviewDocUrl] = useState<string | null>(null);
   const [previewDocError, setPreviewDocError] = useState("");
   const [assignDoc, setAssignDoc] = useState<any>(null);
+  const [assignAi, setAssignAi] = useState<any>(null);  // extraction result of the document being assigned
   const [selectedInsuranceId, setSelectedInsuranceId] = useState<string>("");
   const [customName, setCustomName] = useState("");
   const [docType, setDocType] = useState("Versicherungsschein / Polizze");
@@ -197,6 +199,7 @@ export default function InboxPage() {
     const cleanFilename = (doc.original_filename || doc.filename || "").replace(/\.[^/.]+$/, "");
     const suggestedName = aiData.subject || aiData.document_title || doc.custom_name || cleanFilename;
     setCustomName(suggestedName);
+    setAssignAi(aiData);
     setDocType(DOC_TYPES.includes(aiData.doc_type) ? aiData.doc_type : DOC_TYPES[0]);
   };
 
@@ -524,6 +527,8 @@ export default function InboxPage() {
                   </select>
                 </div>
               </div>
+
+              {assignAi?.field_checks && <FieldChecks data={assignAi} checks={assignAi.field_checks} />}
 
               <div className="flex items-center justify-end gap-3 pt-3">
                 <Button variant="outline" onClick={() => setAssignDoc(null)} className="border-zinc-800 text-xs">

@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileText, Info } from "lucide-react";
+import { FieldChecks, CheckHint, type FieldCheck } from "@/components/FieldChecks";
 
 const isInformationalDocType = (type: string) => {
   if (!type) return false;
@@ -261,6 +262,15 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
     });
   };
 
+  // What the backend knows about each extracted value; a hint is only shown while the field still holds that value.
+  const fieldChecks = extractedData?.field_checks as Record<string, FieldCheck> | undefined;
+  const hintFor = (field: string, current: string): FieldCheck | undefined => {
+    const raw = extractedData?.[field];
+    if (raw === null || raw === undefined || raw === "") return undefined;
+    const untouched = String(raw) === current || (field === "cost" && parseFloat(current) === Number(raw));
+    return untouched ? fieldChecks?.[field] : undefined;
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[640px] bg-zinc-950 border-zinc-800 text-zinc-50 shadow-2xl backdrop-blur-xl max-h-[90vh] overflow-y-auto">
@@ -478,6 +488,10 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
             )}
             </div>
 
+            {extractedData && !extractedData.manual && (
+              <FieldChecks data={extractedData} checks={fieldChecks} />
+            )}
+
             <div className="space-y-2">
               <Label className="text-xs font-mono uppercase text-zinc-400">Zuordnung zur Versicherung</Label>
               <Select value={selectedInsuranceId} onValueChange={(val) => setSelectedInsuranceId(val || "new")}>
@@ -508,10 +522,12 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
                 <div className="space-y-2">
                   <Label className="text-xs font-mono text-zinc-400">Gesellschaft</Label>
                   <Input value={formData.company} onChange={e => setFormData({...formData, company: e.target.value})} className="bg-zinc-950 border-zinc-800" />
+                  <CheckHint check={hintFor("company", formData.company)} />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs font-mono text-zinc-400">Beitrag / Kosten (€)</Label>
                   <Input type="number" step="0.01" value={formData.cost} onChange={e => setFormData({...formData, cost: e.target.value})} placeholder="148.50" className="bg-zinc-950 border-zinc-800 text-emerald-400 font-mono" />
+                  <CheckHint check={hintFor("cost", formData.cost)} />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs font-mono text-zinc-400">Zahlungsrhythmus</Label>
@@ -530,18 +546,22 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
                 <div className="space-y-2 col-span-2">
                   <Label className="text-xs font-mono text-zinc-400">Versicherungsnummer</Label>
                   <Input value={formData.insurance_number} onChange={e => setFormData({...formData, insurance_number: e.target.value})} className="bg-zinc-950 border-zinc-800" />
+                  <CheckHint check={hintFor("insurance_number", formData.insurance_number)} />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs font-mono text-zinc-400">Versicherungsbeginn</Label>
                   <Input type="date" value={formData.start_date} onChange={e => setFormData({...formData, start_date: e.target.value})} className="bg-zinc-950 border-zinc-800" />
+                  <CheckHint check={hintFor("start_date", formData.start_date)} />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs font-mono text-zinc-400">Vertragsende</Label>
                   <Input type="date" value={formData.end_date} onChange={e => setFormData({...formData, end_date: e.target.value})} className="bg-zinc-950 border-zinc-800" />
+                  <CheckHint check={hintFor("end_date", formData.end_date)} />
                 </div>
                 <div className="space-y-2 col-span-2">
                   <Label className="text-xs font-mono text-amber-400">Kündigungsfrist (berechnet)</Label>
                   <Input type="date" value={formData.cancellation_date} onChange={e => setFormData({...formData, cancellation_date: e.target.value})} className="bg-zinc-950 border-amber-800/60 text-amber-400 font-mono" />
+                  <CheckHint check={hintFor("cancellation_date", formData.cancellation_date)} />
                 </div>
 
                 {/* Ruhendstellung / Beitragsfreistellung Toggle */}
