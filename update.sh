@@ -44,7 +44,7 @@ echo ' |  \| | | | \  /| | | \___ \  | |_) | | | | |    | | |    \ V / '
 echo ' | |\  | |_| /  \| |_| |___) | |  __/| |_| | |___ | | |___  | |  '
 echo ' |_| \_|\___/_/\_\\___/|____/  |_|    \___/|_____|___\____| |_|  '
 echo -e "${NC}"
-echo -e "${YELLOW}🚀 Starte System-Update von Noxus Policy...${NC}\n"
+echo -e "${YELLOW}Starte System-Update von Noxus Policy...${NC}\n"
 fi
 
 INSTALL_DIR="/opt/versicherungsmanager"
@@ -79,7 +79,7 @@ trap restore_resolv_conf EXIT
 # Step 1: DNS Check (15%)
 render_progress 15 100 "1/5: Prüfe Netzwerk- und DNS-Verbindung..."
 if ! getent hosts registry-1.docker.io >/dev/null 2>&1; then
-  echo -e "\n${YELLOW}⚠ DNS-Auflösung über 8.8.8.8/8.8.4.4 scheint gerade gestört zu sein. Fahre trotzdem fort.${NC}"
+  echo -e "\n${YELLOW}[HINWEIS] DNS-Auflösung über 8.8.8.8/8.8.4.4 scheint gerade gestört zu sein. Fahre trotzdem fort.${NC}"
 fi
 sleep 1
 
@@ -154,7 +154,7 @@ if [ "$GIT_FETCH_OK" = "1" ]; then
     exit $?
   fi
 else
-  echo -e "\n\n${YELLOW}⚠ Konnte GitHub nach mehreren Versuchen nicht erreichen (Netzwerk-/DNS-Problem). Fahre mit der aktuell installierten Version fort, es wird also NICHTS aktualisiert.${NC}"
+  echo -e "\n\n${YELLOW}[HINWEIS] Konnte GitHub nach mehreren Versuchen nicht erreichen (Netzwerk-/DNS-Problem). Fahre mit der aktuell installierten Version fort, es wird also NICHTS aktualisiert.${NC}"
 fi
 
 chmod +x update.sh install.sh 2>/dev/null || true
@@ -164,7 +164,7 @@ ln -sf "$INSTALL_DIR/update.sh" /usr/local/bin/policy-update 2>/dev/null || true
 # Ensure a SECRET_KEY exists (older installs predate this) without ever
 # overwriting one that's already there - that would sign out every user.
 if [ ! -f "$INSTALL_DIR/.env" ] || ! grep -q '^SECRET_KEY=' "$INSTALL_DIR/.env" 2>/dev/null; then
-  echo -e "\n${YELLOW}🔑 Erzeuge zufälligen SECRET_KEY zur Token-Signierung (bisher nicht gesetzt)...${NC}"
+  echo -e "\n${YELLOW}Erzeuge zufälligen SECRET_KEY zur Token-Signierung (bisher nicht gesetzt)...${NC}"
   NEW_SECRET=$(openssl rand -hex 32 2>/dev/null || head -c 48 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 64)
   echo "SECRET_KEY=${NEW_SECRET}" >> "$INSTALL_DIR/.env"
 fi
@@ -210,7 +210,7 @@ else
 fi
 
 if [ -z "$DC_CMD" ]; then
-  echo -e "\n\n${RED}❌ Fehler: Weder 'docker compose' noch 'docker-compose' wurde im Pfad gefunden.${NC}\n"
+  echo -e "\n\n${RED}[FEHLER] Weder 'docker compose' noch 'docker-compose' wurde im Pfad gefunden.${NC}\n"
   exit 1
 fi
 
@@ -227,13 +227,13 @@ for attempt in 1 2; do
   sleep 5
 done
 if [ "$BUILD_OK" != "1" ]; then
-  echo -e "\n\n${RED}❌ Fehler beim Bauen der Docker-Container:${NC}\n"
+  echo -e "\n\n${RED}[FEHLER] Beim Bauen der Docker-Container:${NC}\n"
   cat "$BUILD_LOG"
   exit 1
 fi
 
 if ! $DC_CMD up -d --remove-orphans >"$BUILD_LOG" 2>&1; then
-  echo -e "\n\n${RED}❌ Fehler beim Starten der Docker-Container:${NC}\n"
+  echo -e "\n\n${RED}[FEHLER] Beim Starten der Docker-Container:${NC}\n"
   cat "$BUILD_LOG"
   exit 1
 fi
@@ -255,14 +255,14 @@ echo -e "\n"
 IP_ADDR=$(hostname -I | awk '{print $1}')
 
 echo -e "${GREEN}========================================================================${NC}"
-echo -e "${CYAN}🎉 Update & Sicherheits-Backup erfolgreich abgeschlossen!${NC}"
+echo -e "${CYAN}[OK] Update & Sicherheits-Backup erfolgreich abgeschlossen!${NC}"
 echo -e "${GREEN}========================================================================${NC}"
 if [ -n "$DB_BACKUP_FILE" ] && [ -f "$DB_BACKUP_FILE" ]; then
-  echo -e "💾 **Sicherheits-Backup der Datenbank erstellt unter:**"
-  echo -e "   👉 ${YELLOW}${DB_BACKUP_FILE}${NC}\n"
+  echo -e "Sicherheits-Backup der Datenbank erstellt unter:"
+  echo -e "   ${YELLOW}${DB_BACKUP_FILE}${NC}\n"
 else
-  echo -e "${YELLOW}⚠ Es wurde keine Datenbank zum Sichern gefunden (frische Installation?).${NC}\n"
+  echo -e "${YELLOW}[HINWEIS] Es wurde keine Datenbank zum Sichern gefunden (frische Installation?).${NC}\n"
 fi
-echo -e "🌐 **Web-Interface bereit unter:**"
-echo -e "   👉 ${YELLOW}http://${IP_ADDR}:3000${NC}"
+echo -e "Web-Interface bereit unter:"
+echo -e "   ${YELLOW}http://${IP_ADDR}:3000${NC}"
 echo -e "${GREEN}========================================================================${NC}\n"

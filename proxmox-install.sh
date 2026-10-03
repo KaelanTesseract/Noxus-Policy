@@ -22,11 +22,11 @@ echo ' |  \| | | | \  /| | | \___ \  | |_) | | | | |    | | |    \ V / '
 echo ' | |\  | |_| /  \| |_| |___) | |  __/| |_| | |___ | | |___  | |  '
 echo ' |_| \_|\___/_/\_\\___/|____/  |_|    \___/|_____|___\____| |_|  '
 echo -e "${NC}"
-echo -e "${YELLOW}🚀 Proxmox VE LXC 1-Klick Container-Erstellung für Noxus Policy${NC}\n"
+echo -e "${YELLOW}Proxmox VE LXC 1-Klick Container-Erstellung für Noxus Policy${NC}\n"
 
 # 1. Ensure running on Proxmox VE Host
 if ! command -v pveversion &> /dev/null; then
-  echo -e "${RED}❌ Dieses Skript ist für die Proxmox VE Host Shell gedacht (Proxmox Server).${NC}"
+  echo -e "${RED}[FEHLER] Dieses Skript ist für die Proxmox VE Host Shell gedacht (Proxmox Server).${NC}"
   echo -e "Wenn du das Skript bereits innerhalb eines LXC Containers ausführst, verwende bitte install.sh!"
   exit 1
 fi
@@ -55,7 +55,7 @@ STORAGE=${SELECTED_STORAGE:-$STORAGE}
 
 BRIDGE="vmbr0"
 
-echo -e "\n${GREEN}📦 Erstelle neuen Proxmox LXC Container ID $CTID ($HOSTNAME)...${NC}"
+echo -e "\n${GREEN}Erstelle neuen Proxmox LXC Container ID $CTID ($HOSTNAME)...${NC}"
 
 # Download Debian 12 Template if needed
 TEMPLATE_STORAGE=$(pvesm status -content vztmpl | awk 'NR==2 {print $1}')
@@ -68,7 +68,7 @@ if [ -z "$TEMPLATE" ]; then
 fi
 
 if ! pveam list $TEMPLATE_STORAGE | grep -q "$TEMPLATE"; then
-  echo -e "${GREEN}📥 Lade Debian 12 CT-Template herunter...${NC}"
+  echo -e "${GREEN}Lade Debian 12 CT-Template herunter...${NC}"
   pveam download $TEMPLATE_STORAGE $TEMPLATE
 fi
 
@@ -88,15 +88,15 @@ pct create $CTID $TEMPLATE_PATH \
   -unprivileged 1 \
   -onboot 1
 
-echo -e "${GREEN}⚡ Starte neuen LXC Container CT $CTID...${NC}"
+echo -e "${GREEN}Starte neuen LXC Container CT $CTID...${NC}"
 pct start $CTID
 
 # Wait for IP address
-echo -e "${GREEN}⏳ Warte auf IP-Adresse vom Router (DHCP)...${NC}"
+echo -e "${GREEN}Warte auf IP-Adresse vom Router (DHCP)...${NC}"
 sleep 5
 
 # Execute Installation inside LXC
-echo -e "${GREEN}🚀 Führe Anwendungs-Installation im Container aus...${NC}"
+echo -e "${GREEN}Führe Anwendungs-Installation im Container aus...${NC}"
 pct exec $CTID -- bash -c "
   echo 'nameserver 1.1.1.1' > /etc/resolv.conf
   apt-get update -qq && apt-get install -y -qq curl wget git ca-certificates >/dev/null 2>&1
@@ -127,22 +127,22 @@ done
 CONTAINER_IP=$(pct exec $CTID -- hostname -I | awk '{print $1}')
 
 echo -e "\n${GREEN}========================================================================${NC}"
-echo -e "${CYAN}🎉 Proxmox LXC Container $CTID ($HOSTNAME) wurde erfolgreich erstellt!${NC}"
+echo -e "${CYAN}[OK] Proxmox LXC Container $CTID ($HOSTNAME) wurde erfolgreich erstellt!${NC}"
 echo -e "${GREEN}========================================================================${NC}"
-echo -e "🌐 **Web-Interface aufrufen:**"
-echo -e "   👉 ${YELLOW}http://${CONTAINER_IP}:3000${NC}\n"
+echo -e "Web-Interface aufrufen:"
+echo -e "   ${YELLOW}http://${CONTAINER_IP}:3000${NC}\n"
 if [ -n "$INITIAL_ADMIN_PW" ]; then
-  echo -e "🔑 **Erst-Login (nur einmalig gültig):**"
+  echo -e "Erst-Login (nur einmalig gültig):"
   echo -e "   Benutzername: ${YELLOW}Admin${NC}   Passwort: ${YELLOW}${INITIAL_ADMIN_PW}${NC}"
   echo -e "   Beim ersten Anmelden legst du eine eigene E-Mail und ein eigenes Passwort fest.\n"
 else
-  echo -e "🔑 Das Erst-Passwort steht im Backend-Log (Suche nach INITIAL_ADMIN_PASSWORD):"
+  echo -e "Das Erst-Passwort steht im Backend-Log (Suche nach INITIAL_ADMIN_PASSWORD):"
   echo -e "   ${CYAN}pct exec $CTID -- bash -c 'cd /opt/versicherungsmanager && docker compose logs backend | grep INITIAL_ADMIN_PASSWORD'${NC}\n"
 fi
-echo -e "⚙️  **Container Details:**"
-echo -e "   • CT ID: ${CYAN}$CTID${NC}"
-echo -e "   • RAM: ${CYAN}${RAM} MB${NC} | Cores: ${CYAN}${CORES}${NC} | Disk: ${CYAN}${DISK} GB${NC}"
-echo -e "   • IP-Adresse: ${CYAN}${CONTAINER_IP}${NC}"
-echo -e "🔄 **Updates in Zukunft:**"
+echo -e "Container Details:"
+echo -e "   - CT ID: ${CYAN}$CTID${NC}"
+echo -e "   - RAM: ${CYAN}${RAM} MB${NC} | Cores: ${CYAN}${CORES}${NC} | Disk: ${CYAN}${DISK} GB${NC}"
+echo -e "   - IP-Adresse: ${CYAN}${CONTAINER_IP}${NC}"
+echo -e "Updates in Zukunft:"
 echo -e "   Einfach im Container-Terminal den Befehl 'update' eingeben!"
 echo -e "${GREEN}========================================================================${NC}\n"

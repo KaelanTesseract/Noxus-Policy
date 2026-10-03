@@ -22,11 +22,11 @@ echo ' |  \| | | | \  /| | | \___ \  | |_) | | | | |    | | |    \ V / '
 echo ' | |\  | |_| /  \| |_| |___) | |  __/| |_| | |___ | | |___  | |  '
 echo ' |_| \_|\___/_/\_\\___/|____/  |_|    \___/|_____|___\____| |_|  '
 echo -e "${NC}"
-echo -e "${YELLOW}🚀 Starte automatische 1-Klick Installation von Noxus Policy...${NC}\n"
+echo -e "${YELLOW}Starte automatische 1-Klick Installation von Noxus Policy...${NC}\n"
 
 # 1. Check Root
 if [ "$EUID" -ne 0 ]; then
-  echo -e "${RED}❌ Bitte führe das Skript als root aus (z.B. im Proxmox LXC Terminal).${NC}"
+  echo -e "${RED}[FEHLER] Bitte führe das Skript als root aus (z.B. im Proxmox LXC Terminal).${NC}"
   exit 1
 fi
 
@@ -53,34 +53,34 @@ restore_resolv_conf() {
 }
 trap restore_resolv_conf EXIT
 if ! getent hosts registry-1.docker.io >/dev/null 2>&1; then
-  echo -e "${YELLOW}⚙️  Passe DNS-Konfiguration (/etc/resolv.conf) vorübergehend für diesen Lauf an...${NC}"
+  echo -e "${YELLOW}Passe DNS-Konfiguration (/etc/resolv.conf) vorübergehend für diesen Lauf an...${NC}"
   { echo "nameserver 8.8.8.8"; echo "nameserver 8.8.4.4"; } > /etc/resolv.conf 2>/dev/null || true
 fi
 
 # 3. Update Package Manager & Install Dependencies
-echo -e "${GREEN}📦 Installiere System-Abhängigkeiten (curl, wget, git, docker)...${NC}"
+echo -e "${GREEN}Installiere System-Abhängigkeiten (curl, wget, git, docker)...${NC}"
 apt-get update -qq
 apt-get install -y -qq curl wget git ca-certificates gnupg >/dev/null 2>&1
 
 # 4. Check & Install Docker
 if ! command -v docker &> /dev/null; then
-  echo -e "${GREEN}🐳 Docker ist nicht installiert. Installiere Docker CE...${NC}"
+  echo -e "${GREEN}Docker ist nicht installiert. Installiere Docker CE...${NC}"
   curl -fsSL https://get.docker.com | sh
   systemctl enable --now docker
 fi
 
 # 5. Check & Install Docker Compose
 if ! docker compose version &> /dev/null; then
-  echo -e "${GREEN}⚙️  Installiere Docker Compose Plugin...${NC}"
+  echo -e "${GREEN}Installiere Docker Compose Plugin...${NC}"
   apt-get install -y -qq docker-compose-plugin >/dev/null 2>&1
 fi
 
 # 6. Prepare App Directory
 INSTALL_DIR="/opt/versicherungsmanager"
-echo -e "${GREEN}📂 Richte Installationsverzeichnis in ${INSTALL_DIR} ein...${NC}"
+echo -e "${GREEN}Richte Installationsverzeichnis in ${INSTALL_DIR} ein...${NC}"
 
 if [ -d "$INSTALL_DIR/.git" ]; then
-  echo -e "${YELLOW}🔄 Aktualisiere bestehende Installation...${NC}"
+  echo -e "${YELLOW}Aktualisiere bestehende Installation...${NC}"
   cd "$INSTALL_DIR"
   # Re-point origin at the canonical public repo in case it ever drifted, and
   # never let this block on an unexpected credential prompt (repo is public).
@@ -100,7 +100,7 @@ else
   mkdir -p "$INSTALL_DIR"
   cd "$INSTALL_DIR"
   if [ -f "docker-compose.yml" ]; then
-    echo -e "${GREEN}✔ Lokale Projektdateien vorhanden.${NC}"
+    echo -e "${GREEN}[OK] Lokale Projektdateien vorhanden.${NC}"
   fi
   # Download latest repository
   git clone https://github.com/KaelanTesseract/Noxus-Policy.git . 2>/dev/null || true
@@ -114,13 +114,13 @@ ln -sf /opt/versicherungsmanager/update.sh /usr/local/bin/policy-update
 # 7. Generate a random SECRET_KEY on first install (never overwrite an existing
 # one - that would invalidate every logged-in user's session on every re-run).
 if [ ! -f "$INSTALL_DIR/.env" ] || ! grep -q '^SECRET_KEY=' "$INSTALL_DIR/.env" 2>/dev/null; then
-  echo -e "${GREEN}🔑 Erzeuge zufälligen SECRET_KEY zur Token-Signierung...${NC}"
+  echo -e "${GREEN}Erzeuge zufälligen SECRET_KEY zur Token-Signierung...${NC}"
   NEW_SECRET=$(openssl rand -hex 32 2>/dev/null || head -c 48 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 64)
   echo "SECRET_KEY=${NEW_SECRET}" >> "$INSTALL_DIR/.env"
 fi
 
 # 8. Build and Start Docker Containers
-echo -e "${GREEN}🚀 Baue und starte Docker-Container (Frontend + Backend)...${NC}"
+echo -e "${GREEN}Baue und starte Docker-Container (Frontend + Backend)...${NC}"
 docker compose down --remove-orphans || true
 docker compose up -d --build
 
@@ -139,19 +139,19 @@ done
 IP_ADDR=$(hostname -I | awk '{print $1}')
 
 echo -e "\n${GREEN}========================================================================${NC}"
-echo -e "${CYAN}🎉 Installation erfolgreich abgeschlossen!${NC}"
+echo -e "${CYAN}[OK] Installation erfolgreich abgeschlossen!${NC}"
 echo -e "${GREEN}========================================================================${NC}"
-echo -e "🌐 **Web-Interface aufrufen:**"
-echo -e "   👉 ${YELLOW}http://${IP_ADDR}:3000${NC}\n"
+echo -e "Web-Interface aufrufen:"
+echo -e "   ${YELLOW}http://${IP_ADDR}:3000${NC}\n"
 if [ -n "$INITIAL_ADMIN_PW" ]; then
-  echo -e "🔑 **Erst-Login (nur einmalig gültig):**"
+  echo -e "Erst-Login (nur einmalig gültig):"
   echo -e "   Benutzername: ${YELLOW}Admin${NC}   Passwort: ${YELLOW}${INITIAL_ADMIN_PW}${NC}"
   echo -e "   Beim ersten Anmelden legst du eine eigene E-Mail und ein eigenes Passwort fest.\n"
 else
-  echo -e "🔑 Ein Admin-Konto besteht bereits. Passwort vergessen? Auf dem Server:"
+  echo -e "Ein Admin-Konto besteht bereits. Passwort vergessen? Auf dem Server:"
   echo -e "   ${CYAN}cd ${INSTALL_DIR} && docker compose exec backend python reset_admin.py${NC}\n"
 fi
-echo -e "🔄 **Updates in Zukunft durchführen:**"
+echo -e "Updates in Zukunft durchführen:"
 echo -e "   Einfach im Terminal diesen Befehl eingeben:"
-echo -e "   👉 ${CYAN}update${NC}"
+echo -e "   ${CYAN}update${NC}"
 echo -e "${GREEN}========================================================================${NC}\n"
