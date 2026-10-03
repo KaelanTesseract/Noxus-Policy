@@ -27,7 +27,7 @@ except ImportError:
                     return _json.loads(txt)
             return Resp()
 
-        def get(self, url, params=None, headers=None, timeout=10.0):
+        def get(self, url, params=None, headers=None, timeout=10.0, follow_redirects=True):
             return self._request("GET", url, params=params, headers=headers, timeout=timeout)
 
         def post(self, url, headers=None, json=None, timeout=10.0):
@@ -56,8 +56,10 @@ JSON_LEGACY_FILE = os.path.join(DATA_DIR, "vendor_patterns.json")
 # everything that goes into the pattern store to be PII-free before this ever
 # runs (see sanitizer.py) - this must never be relied on to protect secrets.
 APP_CIPHER_KEY = "NOXUS_POLICY_AES256_COMMUNITY_KEY_V1_2026"
-GITHUB_REPO = "KaelanTesseract/Noxus-Policy"
-GITHUB_RAW_URL = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main/backend/data/vendor_patterns.enc"
+# The repository was renamed (Noxus-Policy -> Zettelfrieden). Both names are tried, newest first, so
+# the pattern sync works before the rename, after it, and whichever name a server still knows.
+GITHUB_REPO_CANDIDATES = ("KaelanTesseract/Zettelfrieden", "KaelanTesseract/Noxus-Policy")
+_resolved_repo = None
 PATTERN_SYNC_BRANCH = "auto/pattern-sync"
 
 _last_sync_timestamp = 0
@@ -227,6 +229,26 @@ def get_learned_patterns_for_company(company_name: str) -> dict:
     vendors = db.get("vendors", {})
     return vendors.get(v_key, {}).get("patterns", {})
 
+def github_repo() -> str:
+    """The name under which the project's repository answers right now. The GitHub API answers a
+    renamed repository with a redirect (301), which a POST does not survive - opening the Pull
+    Request would fail - so the name that answers 200 is used, not the one a redirect would lead to.
+    Offline, the last candidate is returned and not remembered."""
+    global _resolved_repo
+    if _resolved_repo:
+        return _resolved_repo
+    for name in GITHUB_REPO_CANDIDATES:
+        try:
+            response = httpx.get(f"https://api.github.com/repos/{name}", timeout=10.0, follow_redirects=False,
+                                 headers={"Accept": "application/vnd.github+json"})
+            if response.status_code == 200:
+                _resolved_repo = (response.json().get("full_name") or name)
+                return _resolved_repo
+        except Exception:
+            continue
+    return GITHUB_REPO_CANDIDATES[-1]
+
+
 def _open_or_update_pattern_pr(repo_root: str, github_token: str):
     """
     Publishes locally learned patterns on a dedicated branch (never on main) and opens
@@ -290,10 +312,11 @@ def _ensure_pull_request_open(github_token: str):
         "Authorization": f"Bearer {github_token}",
         "Accept": "application/vnd.github+json",
     }
-    owner = GITHUB_REPO.split("/")[0]
+    repo = github_repo()
+    owner = repo.split("/")[0]
     try:
         list_resp = httpx.get(
-            f"https://api.github.com/repos/{GITHUB_REPO}/pulls",
+            f"https://api.github.com/repos/{repo}/pulls",
             params={"head": f"{owner}:{PATTERN_SYNC_BRANCH}", "state": "open"},
             headers=headers, timeout=10.0
         )
@@ -302,7 +325,7 @@ def _ensure_pull_request_open(github_token: str):
             return
 
         create_resp = httpx.post(
-            f"https://api.github.com/repos/{GITHUB_REPO}/pulls",
+            f"https://api.github.com/repos/{repo}/pulls",
             headers=headers,
             json={
                 "title": "auto: Daily bi-directional pattern sync [v0.2.0-beta]",
@@ -345,7 +368,8 @@ def sync_patterns_with_github(force_push: bool = False):
 
     # Step 1: Inbound Pull (Fetch GitHub Remote Patterns)
     try:
-        resp = httpx.get(GITHUB_RAW_URL, timeout=10.0)
+        resp = httpx.get(f"https://raw.githubusercontent.com/{github_repo()}/main/backend/data/vendor_patterns.enc",
+                         timeout=10.0, follow_redirects=True)
         if resp.status_code == 200 and resp.text:
             remote_db = decrypt_patterns(resp.text)
             if remote_db and "vendors" in remote_db:

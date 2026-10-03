@@ -78,12 +78,27 @@ fi
 INSTALL_DIR="/opt/versicherungsmanager"
 echo -e "${GREEN}Richte Installationsverzeichnis in ${INSTALL_DIR} ein...${NC}"
 
+# The repository was renamed (Noxus-Policy -> Zettelfrieden). Use whichever name answers, so this
+# script works before the rename, after it, and even if GitHub's redirect from the old name stops.
+REPO_URLS="https://github.com/KaelanTesseract/Zettelfrieden.git https://github.com/KaelanTesseract/Noxus-Policy.git"
+pick_repo_url() {
+  local candidate
+  for candidate in $REPO_URLS; do
+    if GIT_TERMINAL_PROMPT=0 git -c credential.helper= ls-remote --exit-code "$candidate" HEAD >/dev/null 2>&1; then
+      echo "$candidate"
+      return 0
+    fi
+  done
+  echo "${REPO_URLS##* }"   # nothing answered (offline?): the old address, which keeps redirecting
+}
+REPO_URL="$(pick_repo_url)"
+
 if [ -d "$INSTALL_DIR/.git" ]; then
   echo -e "${YELLOW}Aktualisiere bestehende Installation...${NC}"
   cd "$INSTALL_DIR"
   # Re-point origin at the canonical public repo in case it ever drifted, and
   # never let this block on an unexpected credential prompt (repo is public).
-  git remote set-url origin https://github.com/KaelanTesseract/Noxus-Policy.git >/dev/null 2>&1 || true
+  git remote set-url origin "$REPO_URL" >/dev/null 2>&1 || true
   GIT_TERMINAL_PROMPT=0 git -c credential.helper= pull origin main || true
 
   # The pull above may have just changed install.sh itself. This process keeps
@@ -102,7 +117,7 @@ else
     echo -e "${GREEN}[OK] Lokale Projektdateien vorhanden.${NC}"
   fi
   # Download latest repository
-  git clone https://github.com/KaelanTesseract/Noxus-Policy.git . 2>/dev/null || true
+  git clone "$REPO_URL" . 2>/dev/null || true
 fi
 
 # Make scripts executable & create system-wide 'update' command shortcut

@@ -63,3 +63,26 @@ jobs:
         run: |
           .audit-venv/bin/pip install --quiet pytest
           cd backend && ../.audit-venv/bin/python -m pytest -q
+
+  docker:
+    name: Docker (Images bauen, Backend starten)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compose file is valid
+        run: SECRET_KEY=ci-only-not-a-secret docker compose config --quiet
+      - name: Build the backend image
+        run: docker build -t zettelfrieden-backend backend
+      - name: Build the frontend image
+        run: docker build -t zettelfrieden-frontend frontend
+      - name: Backend starts, answers and has its tools
+        run: |
+          docker run -d --name backend -p 8000:8000             -e SECRET_KEY=ci-only-0123456789abcdef0123456789abcdef             -e DATABASE_URL=sqlite:////app/data/ci.db             zettelfrieden-backend uvicorn main:app --host 0.0.0.0 --port 8000 --no-proxy-headers
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/ | grep -q '"status":"ok"'; then echo "backend answers"; break; fi
+            if [ "$i" = "30" ]; then docker logs backend; exit 1; fi
+            sleep 2
+          done
+          docker exec backend tesseract --list-langs | grep -qx deu
+          docker exec backend pdftotext -v
+          docker exec backend sh -c 'grep ^Uid /proc/1/status'

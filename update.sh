@@ -108,15 +108,29 @@ sleep 1
 
 # Step 3: Git Pull & Hard Sync with GitHub (55%)
 render_progress 55 100 "3/5: Lade neueste Version von GitHub herunter..."
+# The repository was renamed (Noxus-Policy -> Zettelfrieden). Use whichever name answers, so this
+# script works before the rename, after it, and even if GitHub's redirect from the old name stops.
+REPO_URLS="https://github.com/KaelanTesseract/Zettelfrieden.git https://github.com/KaelanTesseract/Noxus-Policy.git"
+pick_repo_url() {
+  local candidate
+  for candidate in $REPO_URLS; do
+    if GIT_TERMINAL_PROMPT=0 git -c credential.helper= ls-remote --exit-code "$candidate" HEAD >/dev/null 2>&1; then
+      echo "$candidate"
+      return 0
+    fi
+  done
+  echo "${REPO_URLS##* }"   # nothing answered (offline?): the old address, which keeps redirecting
+}
+REPO_URL="$(pick_repo_url)"
 if [ ! -d ".git" ]; then
   git init >/dev/null 2>&1 || true
-  git remote add origin https://github.com/KaelanTesseract/Noxus-Policy.git >/dev/null 2>&1 || true
+  git remote add origin "$REPO_URL" >/dev/null 2>&1 || true
 fi
 
 # Always re-point origin at the canonical public repo, in case it ever drifted
 # (old fork, rename, manual edit) — a stale/wrong URL is what makes Git treat
 # the remote as potentially private and prompt for credentials below.
-git remote set-url origin https://github.com/KaelanTesseract/Noxus-Policy.git >/dev/null 2>&1 || true
+git remote set-url origin "$REPO_URL" >/dev/null 2>&1 || true
 
 # The repo is public and read-only here, so no credentials should ever be
 # needed. Disabling the terminal prompt turns a silent hang on unexpected
