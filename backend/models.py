@@ -1,7 +1,7 @@
 # Copyright (c) 2026 Dennis Guse. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in project root.
 
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Date, Float
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Date, Float, Index
 from sqlalchemy.orm import relationship
 import datetime
 from database import Base
@@ -23,6 +23,15 @@ class User(Base):
     totp_enabled = Column(Boolean, default=False)
     totp_last_step = Column(Integer, default=0)
     recovery_codes = Column(String, nullable=True)
+    # Identity at an OpenID Connect provider. A returning SSO user is recognised by
+    # (issuer, sub) - never by email, which the provider side may change.
+    oidc_issuer = Column(String, nullable=True)
+    oidc_sub = Column(String, nullable=True)
+    __table_args__ = (Index("ix_users_oidc", "oidc_issuer", "oidc_sub", unique=True),)
+
+    @property
+    def oidc_linked(self) -> bool:
+        return bool(self.oidc_sub)
 
     insurances = relationship("Insurance", back_populates="owner")
     inbox_documents = relationship("Document", back_populates="owner")

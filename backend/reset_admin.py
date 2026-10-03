@@ -8,6 +8,8 @@ auffindbar ist oder das Admin-Passwort vergessen wurde).
 Aufruf auf dem Server:
     docker compose exec backend python reset_admin.py            # erster Admin
     docker compose exec backend python reset_admin.py "mail@x.de" # bestimmter Admin
+    docker compose exec backend python reset_admin.py --enable-password-login
+        # schaltet zusätzlich den Passwort-Login wieder ein (z. B. wenn SSO nicht erreichbar ist)
 
 Das Skript läuft nur mit direktem Zugriff auf den Container - es gibt keinen
 Netzwerk-Endpunkt dafür. Alle bestehenden Sitzungen dieses Kontos werden beendet
@@ -20,11 +22,14 @@ import sys
 import audit
 import auth
 import models
+import oidc_settings
 from database import SessionLocal
 
 
 def main():
-    email = sys.argv[1] if len(sys.argv) > 1 else None
+    args = [a for a in sys.argv[1:] if a != "--enable-password-login"]
+    enable_password_login = "--enable-password-login" in sys.argv[1:]
+    email = args[0] if args else None
     db = SessionLocal()
     try:
         query = db.query(models.User).filter(models.User.is_admin == True)  # noqa: E712
@@ -43,6 +48,8 @@ def main():
         admin.totp_last_step = 0
         admin.recovery_codes = None
         auth.revoke_tokens(admin)
+        if enable_password_login:
+            oidc_settings.set_setting(db, "password_login_enabled", "true")
         db.commit()
         audit.log_event(db, "password_reset_completed", user=admin, detail="reset_admin.py (Servertoolzugriff)")
 

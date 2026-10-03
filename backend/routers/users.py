@@ -9,7 +9,7 @@ from email.message import EmailMessage
 import json
 import os
 
-import models, schemas, auth, audit, totp
+import models, schemas, auth, audit, totp, oidc_settings
 from database import get_db
 from rate_limit import rate_limiter, login_failures
 from secrets_crypto import encrypt_secret, decrypt_secret
@@ -118,6 +118,8 @@ def _consume_second_factor(user: models.User, code: str) -> str:
 
 @router.post("/login")
 def login(login_data: schemas.UserLogin, request: Request, db: Session = Depends(get_db)):
+    if not oidc_settings.password_login_enabled(db):
+        raise HTTPException(status_code=403, detail="Die Anmeldung mit Passwort ist ausgeschaltet. Bitte melde dich über Single Sign-On an.")
     try:
         login_failures.check(request, login_data.username)
     except HTTPException as locked:
@@ -223,6 +225,8 @@ def logout(
 
 @router.post("/register", response_model=schemas.UserResponse, dependencies=[Depends(rate_limiter(max_calls=3, period_seconds=300))])
 def register_user(payload: schemas.UserCreate, request: Request, db: Session = Depends(get_db)):
+    if not oidc_settings.password_login_enabled(db):
+        raise HTTPException(status_code=403, detail="Konten werden über Single Sign-On angelegt, die Registrierung mit Passwort ist ausgeschaltet.")
     if not _registration_enabled(db):
         raise HTTPException(status_code=403, detail="Die Registrierung ist auf dieser Instanz deaktiviert.")
 
@@ -794,3 +798,85 @@ def get_audit_log(
         )
         for r in rows
     ]
+
+
+# --------------------------------------------------------------------------------
+# Single sign-on (OpenID Connect) settings
+# --------------------------------------------------------------------------------
+
+@router.get("/auth-config")
+def get_auth_config(db: Session = Depends(get_db)):
+    """Public: the login page needs to know which ways of signing in to offer."""
+    return {
+        "oidc_enabled": oidc_settings.load_config(db) is not None,
+        "oidc_label": oidc_settings.get_setting(db, "oidc_button_label", "").strip() or "Mit Pocket ID anmelden",
+        "password_login_enabled": oidc_settings.password_login_enabled(db),
+    }
+
+
+def _oidc_admin_view(db: Session, current_user: models.User) -> dict:
+    return {
+        "enabled": oidc_settings.oidc_enabled(db),
+        "issuer": oidc_settings.get_setting(db, "oidc_issuer"),
+        "client_id": oidc_settings.get_setting(db, "oidc_client_id"),
+        # Never sent back; only whether one is stored.
+        "client_secret_set": bool(oidc_settings.get_setting(db, "oidc_client_secret")),
+        "button_label": oidc_settings.get_setting(db, "oidc_button_label"),
+        "auto_create": oidc_settings.auto_create_enabled(db),
+        "password_login_enabled": oidc_settings.password_login_enabled(db),
+        "redirect_uri": oidc_settings.redirect_uri(db),
+        "own_account_linked": current_user.oidc_linked,
+    }
+
+
+@router.get("/oidc-config")
+def get_oidc_config(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_active_user)):
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Nur Administratoren dürfen die SSO-Einstellungen verwalten.")
+    return _oidc_admin_view(db, current_user)
+
+
+@router.put("/oidc-config")
+def update_oidc_config(
+    payload: dict,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Nur Administratoren dürfen die SSO-Einstellungen verwalten.")
+
+    if "issuer" in payload:
+        issuer = str(payload["issuer"]).strip().rstrip("/")
+        if issuer and not issuer.startswith(("https://", "http://")):
+            raise HTTPException(status_code=400, detail="Die Aussteller-URL muss mit https:// (oder http://) beginnen.")
+        oidc_settings.set_setting(db, "oidc_issuer", issuer)
+    if "client_id" in payload:
+        oidc_settings.set_setting(db, "oidc_client_id", str(payload["client_id"]).strip())
+    # Empty means "keep the stored secret" - the form is never pre-filled with it.
+    if payload.get("client_secret"):
+        oidc_settings.set_setting(db, "oidc_client_secret", str(payload["client_secret"]).strip())
+    if "button_label" in payload:
+        oidc_settings.set_setting(db, "oidc_button_label", str(payload["button_label"]).strip()[:60])
+    if "auto_create" in payload:
+        oidc_settings.set_setting(db, "oidc_auto_create", "true" if payload["auto_create"] else "false")
+    if "enabled" in payload:
+        oidc_settings.set_setting(db, "oidc_enabled", "true" if payload["enabled"] else "false")
+
+    if payload.get("password_login_enabled") is False:
+        # Only possible once the admin's own account can sign in through SSO,
+        # otherwise switching the password off would lock everyone out.
+        db.flush()
+        if oidc_settings.load_config(db) is None:
+            db.rollback()
+            raise HTTPException(status_code=400, detail="Der Passwort-Login lässt sich erst ausschalten, wenn SSO vollständig eingerichtet und eingeschaltet ist.")
+        if not current_user.oidc_linked:
+            db.rollback()
+            raise HTTPException(status_code=400, detail="Melde dich zuerst einmal selbst über SSO an, damit dein Konto verknüpft ist. Erst dann lässt sich der Passwort-Login ausschalten.")
+        oidc_settings.set_setting(db, "password_login_enabled", "false")
+    elif "password_login_enabled" in payload:
+        oidc_settings.set_setting(db, "password_login_enabled", "true")
+
+    db.commit()
+    audit.log_event(db, "oidc_config_changed", request, user=current_user)
+    return _oidc_admin_view(db, current_user)

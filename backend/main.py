@@ -142,6 +142,11 @@ def auto_migrate_sqlite():
                         cursor.execute("ALTER TABLE users ADD COLUMN totp_last_step INTEGER DEFAULT 0")
                     if "recovery_codes" not in usr_cols:
                         cursor.execute("ALTER TABLE users ADD COLUMN recovery_codes VARCHAR")
+                    if "oidc_issuer" not in usr_cols:
+                        cursor.execute("ALTER TABLE users ADD COLUMN oidc_issuer VARCHAR")
+                    if "oidc_sub" not in usr_cols:
+                        cursor.execute("ALTER TABLE users ADD COLUMN oidc_sub VARCHAR")
+                    cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_oidc ON users (oidc_issuer, oidc_sub)")
                 except Exception as e:
                     print(f"[Auto-Migrate users] {e}")
 

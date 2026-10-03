@@ -25,6 +25,11 @@ _counter_lock = threading.Lock()
 # Human-readable labels; the frontend shows these, unknown codes are shown as-is.
 ACTION_LABELS = {
     "login_success": "Anmeldung",
+    "sso_login": "Anmeldung über SSO",
+    "sso_linked": "Konto mit SSO verknüpft",
+    "sso_created": "Konto über SSO angelegt",
+    "sso_denied": "SSO-Anmeldung abgewiesen",
+    "oidc_config_changed": "SSO-Einstellungen geändert",
     "login_failed": "Fehlgeschlagene Anmeldung",
     "login_locked": "Anmeldung gesperrt (zu viele Fehlversuche)",
     "logout": "Abmeldung",

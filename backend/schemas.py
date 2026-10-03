@@ -51,6 +51,7 @@ class UserResponse(UserBase):
     email_notifications_enabled: Optional[bool] = True
     calendar_token: Optional[str] = None
     totp_enabled: Optional[bool] = False
+    oidc_linked: Optional[bool] = False
     class Config:
         from_attributes = True
 
@@ -62,6 +63,7 @@ class UserListItem(UserBase):
     must_change_password: bool
     email_notifications_enabled: Optional[bool] = True
     totp_enabled: Optional[bool] = False
+    oidc_linked: Optional[bool] = False
     class Config:
         from_attributes = True
 
