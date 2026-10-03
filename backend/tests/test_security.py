@@ -262,7 +262,7 @@ def test_user_import_sanitises_document_names_and_types(client, make_user):
         ("files/good.pdf", b"%PDF-1.4 ok"),
     ])
     r = client.post("/api/backup/import-user", headers=headers, data={"password": "pw-test-123456", "target_user_id": str(uid)},
-                    files={"file": ("u.noxususer", _encrypt(archive), "application/octet-stream")})
+                    files={"file": ("u.zfuser", _encrypt(archive), "application/octet-stream")})
     assert r.status_code == 200 and r.json()["documents_count"] == 1
     ins_id = client.get("/api/insurances", headers=headers).json()[0]["id"]
     docs = client.get(f"/api/documents/insurance/{ins_id}", headers=headers).json()
@@ -348,3 +348,19 @@ def test_secret_encryption_round_trips_and_reports_unreadable_values():
     assert stored.startswith("enc:") and "hunter2" not in stored
     assert secrets_crypto.decrypt_secret(stored) == "hunter2-hunter2"
     assert secrets_crypto.decrypt_secret("enc:not-a-valid-token") == ""
+
+
+# ----------------------------------------------------------------------------- backups from before the rename
+def test_stored_backups_with_the_old_extension_are_still_listed(client, admin_headers):
+    from backup_scheduler import BACKUPS_STORE_DIR
+    os.makedirs(BACKUPS_STORE_DIR, exist_ok=True)
+    names = ["alt_backup_20250101.noxusbackup", "neu_backup_20260101.zfbackup", "fremd.txt"]
+    for name in names:
+        with open(os.path.join(BACKUPS_STORE_DIR, name), "wb") as fh:
+            fh.write(b"x")
+    try:
+        listed = {b["filename"] for b in client.get("/api/backup/list", headers=admin_headers).json()}
+        assert listed == {"alt_backup_20250101.noxusbackup", "neu_backup_20260101.zfbackup"}
+    finally:
+        for name in names:
+            os.remove(os.path.join(BACKUPS_STORE_DIR, name))

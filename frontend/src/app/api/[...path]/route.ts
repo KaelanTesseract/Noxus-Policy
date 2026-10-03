@@ -11,8 +11,8 @@ export const maxDuration = 300; // 5 minutes max execution time for the text rec
 // the response body into an httpOnly cookie, and on every request it turns that
 // cookie back into the Authorization header the backend expects. That way an XSS
 // bug can make requests as the user but can no longer copy the token itself.
-const SESSION_COOKIE = "noxus_session";
-const OIDC_FLOW_COOKIE = "noxus_oidc";
+const SESSION_COOKIE = "zf_session";
+const OIDC_FLOW_COOKIE = "zf_oidc";
 const OIDC_CALLBACK_PATH = "/api/auth/oidc/callback";
 
 // The backend only listens on loopback (see docker-compose.yml), so it is never

@@ -35,8 +35,8 @@ render_progress() {
 }
 
 # The banner is shown once: after it has pulled the new version this script starts itself again
-# (see NOXUS_UPDATE_REEXECED below), and that second run continues the same progress bar.
-if [ -z "$NOXUS_UPDATE_REEXECED" ]; then
+# (see ZETTELFRIEDEN_UPDATE_REEXECED below), and that second run continues the same progress bar.
+if [ -z "$ZETTELFRIEDEN_UPDATE_REEXECED" ]; then
 echo -e "${CYAN}"
 echo ' _______ _____ _____ ___ _    ___ ___ ___ ___ ___  ___ _  _ '
 echo '|_  / __|_   _|_   _| __| |  | __| _ \_ _| __|   \| __| \| |'
@@ -63,7 +63,7 @@ cd "$INSTALL_DIR" || exit 1
 # this is deliberately temporary and always reverted, never left behind.
 RESOLV_BACKUP=""
 if [ -f /etc/resolv.conf ]; then
-  RESOLV_BACKUP="$(mktemp /tmp/noxus-resolv-backup.XXXXXX)"
+  RESOLV_BACKUP="$(mktemp /tmp/zettelfrieden-resolv-backup.XXXXXX)"
   cp /etc/resolv.conf "$RESOLV_BACKUP" 2>/dev/null || RESOLV_BACKUP=""
 fi
 restore_resolv_conf() {
@@ -108,20 +108,7 @@ sleep 1
 
 # Step 3: Git Pull & Hard Sync with GitHub (55%)
 render_progress 55 100 "3/5: Lade neueste Version von GitHub herunter..."
-# The repository was renamed (Noxus-Policy -> Zettelfrieden). Use whichever name answers, so this
-# script works before the rename, after it, and even if GitHub's redirect from the old name stops.
-REPO_URLS="https://github.com/KaelanTesseract/Zettelfrieden.git https://github.com/KaelanTesseract/Noxus-Policy.git"
-pick_repo_url() {
-  local candidate
-  for candidate in $REPO_URLS; do
-    if GIT_TERMINAL_PROMPT=0 git -c credential.helper= ls-remote --exit-code "$candidate" HEAD >/dev/null 2>&1; then
-      echo "$candidate"
-      return 0
-    fi
-  done
-  echo "${REPO_URLS##* }"   # nothing answered (offline?): the old address, which keeps redirecting
-}
-REPO_URL="$(pick_repo_url)"
+REPO_URL="https://github.com/KaelanTesseract/Zettelfrieden.git"
 if [ ! -d ".git" ]; then
   git init >/dev/null 2>&1 || true
   git remote add origin "$REPO_URL" >/dev/null 2>&1 || true
@@ -161,9 +148,9 @@ if [ "$GIT_FETCH_OK" = "1" ]; then
   # Restart into the just-pulled script once so the rest of this update
   # always uses current code. Restore the temporary DNS override first -
   # `exec` would skip the EXIT trap that normally does this.
-  if [ -z "$NOXUS_UPDATE_REEXECED" ]; then
+  if [ -z "$ZETTELFRIEDEN_UPDATE_REEXECED" ]; then
     restore_resolv_conf
-    NOXUS_UPDATE_REEXECED=1 bash "$INSTALL_DIR/update.sh"
+    ZETTELFRIEDEN_UPDATE_REEXECED=1 bash "$INSTALL_DIR/update.sh"
     exit $?
   fi
 else
@@ -227,7 +214,7 @@ if [ -z "$DC_CMD" ]; then
   exit 1
 fi
 
-BUILD_LOG="/tmp/noxus_build.log"
+BUILD_LOG="/tmp/zettelfrieden_build.log"
 # Image pulls hit the Docker registry over the network too, so they can hit
 # the same kind of transient DNS/network blip as the Git step above — retry
 # a couple of times before treating it as a real failure.

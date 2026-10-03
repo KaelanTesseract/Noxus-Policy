@@ -101,9 +101,7 @@ pct exec $CTID -- bash -c "
   apt-get update -qq && apt-get install -y -qq curl wget git ca-certificates >/dev/null 2>&1
   mkdir -p /opt/versicherungsmanager
   cd /opt/versicherungsmanager
-  for repo_url in https://github.com/KaelanTesseract/Zettelfrieden.git https://github.com/KaelanTesseract/Noxus-Policy.git; do
-    GIT_TERMINAL_PROMPT=0 git clone \$repo_url . 2>/dev/null && break
-  done
+  git clone https://github.com/KaelanTesseract/Zettelfrieden.git . 2>/dev/null || true
   curl -fsSL https://get.docker.com | sh
   apt-get install -y -qq docker-compose-plugin >/dev/null 2>&1
   chmod +x install.sh update.sh 2>/dev/null || true

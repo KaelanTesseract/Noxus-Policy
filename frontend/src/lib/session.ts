@@ -10,7 +10,7 @@
  * caches used for instant page rendering, which must be wiped on sign-out.
  */
 
-const SESSION_HINT_KEY = "noxus_signed_in";
+const SESSION_HINT_KEY = "zf_signed_in";
 const CACHE_PREFIX = "cache_";
 
 export function markSignedIn() {

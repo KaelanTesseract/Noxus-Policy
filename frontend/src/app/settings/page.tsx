@@ -516,7 +516,7 @@ export default function SettingsPage() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `zettelfrieden_backup_${new Date().toISOString().slice(0, 10)}.noxusbackup`;
+      a.download = `zettelfrieden_backup_${new Date().toISOString().slice(0, 10)}.zfbackup`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -538,7 +538,7 @@ export default function SettingsPage() {
     setBackupImportErr("");
 
     if (!backupImportFile) {
-      setBackupImportErr("Bitte wähle eine .noxusbackup Datei aus.");
+      setBackupImportErr("Bitte wähle eine .zfbackup Datei aus.");
       return;
     }
     if (!backupImportPassword) {
@@ -580,7 +580,7 @@ export default function SettingsPage() {
     }
   };
 
-  // Export a single user's data package (.noxususer)
+  // Export a single user's data package (.zfuser)
   const handleExportUser = async (userId: number, targetEmail: string) => {
     const pwd = window.prompt(`Gib ein Passwort für die Verschlüsselung der Daten von "${targetEmail}" ein (mindestens 12 Zeichen):`);
     if (!pwd || pwd.trim().length < 12) {
@@ -608,7 +608,7 @@ export default function SettingsPage() {
       const a = document.createElement("a");
       a.href = url;
       const cleanEmail = targetEmail.replace("@", "_at_").replace(".", "_");
-      a.download = `zettelfrieden_user_backup_${cleanEmail}_${new Date().toISOString().slice(0, 10)}.noxususer`;
+      a.download = `zettelfrieden_user_backup_${cleanEmail}_${new Date().toISOString().slice(0, 10)}.zfuser`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -622,14 +622,14 @@ export default function SettingsPage() {
     }
   };
 
-  // Import a single user's data package (.noxususer)
+  // Import a single user's data package (.zfuser)
   const handleImportUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setUserImportMsg("");
     setUserImportErr("");
 
     if (!userImportFile) {
-      setUserImportErr("Bitte wähle eine .noxususer Datei aus.");
+      setUserImportErr("Bitte wähle eine .zfuser Datei aus.");
       return;
     }
     if (!userImportPassword) {
@@ -1058,7 +1058,7 @@ export default function SettingsPage() {
                       onClick={() => handleExportUser(currentUser.id, currentUser.email)}
                       className="border-zinc-700 bg-zinc-900 text-zinc-300 text-xs hover:bg-zinc-800 w-full sm:w-auto"
                     >
-                      {exportingUserId === currentUser.id ? "Erstelle Backup..." : "Meine Daten exportieren (.noxususer)"}
+                      {exportingUserId === currentUser.id ? "Erstelle Backup..." : "Meine Daten exportieren (.zfuser)"}
                     </Button>
                   </div>
                 </form>
@@ -1648,7 +1648,7 @@ export default function SettingsPage() {
                   <span>Manuelles Vollsystem-Backup Export / Import</span>
                 </CardTitle>
                 <CardDescription className="mt-1">
-                  Exportiere manuell eine verschlüsselte `.noxusbackup` Datei auf deinen Computer oder lade eine Sicherungsdatei hoch.
+                  Exportiere manuell eine verschlüsselte `.zfbackup` Datei auf deinen Computer oder lade eine Sicherungsdatei hoch.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-8">
@@ -1705,7 +1705,7 @@ export default function SettingsPage() {
                       disabled={backupExporting}
                       className="theme-bg-accent text-white theme-glow text-xs font-medium"
                     >
-                      {backupExporting ? "Erstelle verschlüsseltes Backup..." : "Backup herunterladen (.noxusbackup)"}
+                      {backupExporting ? "Erstelle verschlüsseltes Backup..." : "Backup herunterladen (.zfbackup)"}
                     </Button>
                   </form>
                 </div>
@@ -1721,11 +1721,11 @@ export default function SettingsPage() {
 
                   <form onSubmit={handleImportBackup} className="space-y-4 max-w-lg">
                     <div className="space-y-2">
-                      <Label htmlFor="backupImportFile" className="text-xs font-mono text-zinc-400">Backup-Datei (.noxusbackup)</Label>
+                      <Label htmlFor="backupImportFile" className="text-xs font-mono text-zinc-400">Backup-Datei (.zfbackup)</Label>
                       <Input
                         id="backupImportFile"
                         type="file"
-                        accept=".noxusbackup"
+                        accept=".zfbackup,.noxusbackup"
                         onChange={e => setBackupImportFile(e.target.files?.[0] || null)}
                         required
                         className="bg-zinc-950/60 border-zinc-800 text-xs file:bg-zinc-900 file:text-zinc-300 file:border-0 file:rounded-md file:px-2 file:py-1 file:mr-3"
@@ -1920,7 +1920,7 @@ export default function SettingsPage() {
                       <span>Benutzerverwaltung & Einzel-Import</span>
                     </CardTitle>
                     <CardDescription className="mt-1">
-                      Alle registrierten Benutzer verwalten, einzeln sichern oder eine `.noxususer` Sicherung importieren.
+                      Alle registrierten Benutzer verwalten, einzeln sichern oder eine `.zfuser` Sicherung importieren.
                     </CardDescription>
                   </div>
 
@@ -1930,7 +1930,7 @@ export default function SettingsPage() {
                     onClick={() => setShowUserImportBox(!showUserImportBox)}
                     className="border-indigo-800 bg-indigo-950/50 text-indigo-300 text-xs hover:bg-indigo-900 w-full sm:w-auto shrink-0"
                   >
-                    Einzelnen Benutzer importieren (.noxususer)
+                    Einzelnen Benutzer importieren (.zfuser)
                   </Button>
                 </div>
               </CardHeader>
@@ -1938,16 +1938,16 @@ export default function SettingsPage() {
                 {/* Collapsible Single User Import Box */}
                 {showUserImportBox && (
                   <div className="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800 space-y-3">
-                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">Benutzer-Backup importieren (.noxususer)</h4>
+                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">Benutzer-Backup importieren (.zfuser)</h4>
                     <p className="text-xs text-zinc-400">Importiert den Benutzer samt allen Polizzen, Stammdaten und Dokumenten. Falls der Benutzer bereits existiert, werden die Polizzen zugeordnet.</p>
                     
                     <form onSubmit={handleImportUserSubmit} className="space-y-3 max-w-md">
                       <div className="space-y-1">
-                        <Label htmlFor="userImportFile" className="text-xs text-zinc-400">Benutzer-Sicherungsdatei (.noxususer)</Label>
+                        <Label htmlFor="userImportFile" className="text-xs text-zinc-400">Benutzer-Sicherungsdatei (.zfuser)</Label>
                         <Input
                           id="userImportFile"
                           type="file"
-                          accept=".noxususer"
+                          accept=".zfuser,.noxususer"
                           onChange={e => setUserImportFile(e.target.files?.[0] || null)}
                           required
                           className="bg-zinc-950 border-zinc-800 text-xs file:bg-zinc-900 file:text-zinc-300 file:border-0 file:rounded-md file:px-2 file:py-1 file:mr-3"

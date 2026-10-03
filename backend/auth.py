@@ -93,7 +93,7 @@ def get_password_hash(password: str) -> str:
 # Verified against when a login names an account that doesn't exist, so that
 # "unknown user" costs as much time as "wrong password" and response timing
 # can't be used to find out which email addresses are registered.
-DUMMY_PASSWORD_HASH = get_password_hash("noxus-timing-equalisation-only")
+DUMMY_PASSWORD_HASH = get_password_hash("zettelfrieden-timing-equalisation-only")
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()

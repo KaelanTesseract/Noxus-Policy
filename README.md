@@ -74,14 +74,14 @@ Zettelfrieden lässt sich in Sekunden auf jedem **Proxmox VE Server** oder **Lin
 Führe diesen Befehl in der **Proxmox VE Node Shell** (Host-Ebene) aus:
 
 ```bash
-bash -c "$(wget -qLO - https://raw.githubusercontent.com/KaelanTesseract/Noxus-Policy/main/proxmox-install.sh)"
+bash -c "$(wget -qLO - https://raw.githubusercontent.com/KaelanTesseract/Zettelfrieden/main/proxmox-install.sh)"
 ```
 
 ### ⚡ Option B: Installation in einem bestehenden Linux / LXC Container
 Führe diesen Befehl im **Terminal deines bestehenden Containers/Servers** aus:
 
 ```bash
-bash -c "$(wget -qLO - https://raw.githubusercontent.com/KaelanTesseract/Noxus-Policy/main/install.sh)"
+bash -c "$(wget -qLO - https://raw.githubusercontent.com/KaelanTesseract/Zettelfrieden/main/install.sh)"
 ```
 
 ---

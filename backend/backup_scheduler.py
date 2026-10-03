@@ -15,6 +15,12 @@ import models
 from routers.backup import DB_FILE_PATH, DOCUMENTS_DIR, encrypt_archive, secret_key_fingerprint
 
 BACKUPS_STORE_DIR = os.path.join("data", "backups")
+BACKUP_EXTENSION = ".zfbackup"
+USER_EXPORT_EXTENSION = ".zfuser"
+# Backups made before the rename carry the old extensions. They stay listed, restorable and
+# are rotated like the new ones; only new files get the new extension.
+LEGACY_BACKUP_EXTENSIONS = (".noxusbackup",)
+BACKUP_EXTENSIONS = (BACKUP_EXTENSION,) + LEGACY_BACKUP_EXTENSIONS
 
 _ENCRYPTED_SETTING_KEYS = {"auto_backup_password"}
 
@@ -46,7 +52,7 @@ def run_backup_cleanup(retention_days: int, retention_count: int):
 
     files = []
     for f in os.listdir(BACKUPS_STORE_DIR):
-        if f.endswith(".noxusbackup"):
+        if f.endswith(BACKUP_EXTENSIONS):
             full_p = os.path.join(BACKUPS_STORE_DIR, f)
             files.append({
                 "name": f,
@@ -138,7 +144,7 @@ def create_automated_backup(db: Session, is_manual_trigger: bool = False) -> str
 
         timestamp_str = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         prefix = "manual" if is_manual_trigger else "auto"
-        filename = f"{prefix}_backup_{timestamp_str}.noxusbackup"
+        filename = f"{prefix}_backup_{timestamp_str}{BACKUP_EXTENSION}"
         target_path = os.path.join(BACKUPS_STORE_DIR, filename)
 
         with open(target_path, "wb") as f:

@@ -12,7 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 // company domain - and keeps them in a small in-memory cache.
 // Set DISABLE_LOGO_LOOKUP=true to make no external request at all (initials only).
 
-const SESSION_COOKIE = "noxus_session";
+const SESSION_COOKIE = "zf_session";
 const DOMAIN_PATTERN = /^(?=.{4,100}$)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/;
 const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp", "image/x-icon", "image/vnd.microsoft.icon"];
 const MAX_BYTES = 100 * 1024;

@@ -393,7 +393,7 @@ def download_single_insurance_ics(
 
     date_str = deadline_date.strftime("%Y%m%d")
     created_str = datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
-    uid = f"noxus-policy-ins-{ins.id}-{date_str}@noxus-policy"
+    uid = f"zettelfrieden-ins-{ins.id}-{date_str}@zettelfrieden"
 
     title = ics_text(f"⏰ Kündigungsfrist: {ins.name} ({ins.company or 'Unbekannt'})")
     desc_parts = [

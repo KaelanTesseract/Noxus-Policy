@@ -485,7 +485,7 @@ export default function InsuranceDetailPage() {
       "CALSCALE:GREGORIAN",
       "METHOD:PUBLISH",
       "BEGIN:VEVENT",
-      `UID:noxus-policy-single-${insurance.id}-${formattedDate}@noxus-policy`,
+      `UID:zettelfrieden-single-${insurance.id}-${formattedDate}@zettelfrieden`,
       `SUMMARY:⏰ Kündigungsfrist: ${insurance.name} (${insurance.company || "Unbekannt"})`,
       `DESCRIPTION:Kündigungsfrist für ${insurance.name} bei ${insurance.company || "Gesellschaft k.A."}.\\nSchein-Nr: ${insurance.insurance_number || "k.A."}\\nKosten: ${insurance.cost ? insurance.cost.toFixed(2) + " €" : "k.A."}`,
       `DTSTART;VALUE=DATE:${formattedDate}`,

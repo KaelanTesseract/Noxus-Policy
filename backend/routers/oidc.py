@@ -33,7 +33,7 @@ REASON_LINKED_ELSEWHERE = "account is already linked to a different identity"
 REASON_NO_ACCOUNT = "no account for this email and automatic creation is off"
 UNLINKED_REASONS = {REASON_NO_EMAIL, REASON_UNVERIFIED, REASON_LINKED_ELSEWHERE, REASON_NO_ACCOUNT}
 
-FLOW_COOKIE = "noxus_oidc"
+FLOW_COOKIE = "zf_oidc"
 FLOW_COOKIE_PATH = "/api/auth/oidc"
 _limit = rate_limiter(max_calls=20, period_seconds=300)
 

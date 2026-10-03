@@ -163,7 +163,7 @@ def export_system_backup(
             # Encrypt raw ZIP bytes
             encrypted_bytes = encrypt_archive(raw_zip_bytes, password)
 
-            filename = f"zettelfrieden_backup_{datetime.date.today().strftime('%Y-%m-%d')}.noxusbackup"
+            filename = f"zettelfrieden_backup_{datetime.date.today().strftime('%Y-%m-%d')}{BACKUP_EXTENSION}"
             
             audit.log_event(db, "backup_exported", request, user=current_user)
             return Response(
@@ -257,7 +257,7 @@ def import_system_backup(
         raise HTTPException(status_code=500, detail="Fehler beim Wiederherstellen des Backups.")
 
 # Automated Backup Configuration & Management Endpoints
-from backup_scheduler import get_backup_setting, set_backup_setting, create_automated_backup, run_backup_cleanup, BACKUPS_STORE_DIR
+from backup_scheduler import get_backup_setting, set_backup_setting, create_automated_backup, run_backup_cleanup, BACKUPS_STORE_DIR, BACKUP_EXTENSION, BACKUP_EXTENSIONS, USER_EXPORT_EXTENSION
 
 @router.get("/config")
 def get_auto_backup_config(
@@ -340,7 +340,7 @@ def list_stored_backups(
     os.makedirs(BACKUPS_STORE_DIR, exist_ok=True)
     backups = []
     for f in os.listdir(BACKUPS_STORE_DIR):
-        if f.endswith(".noxusbackup"):
+        if f.endswith(BACKUP_EXTENSIONS):
             full_path = os.path.join(BACKUPS_STORE_DIR, f)
             stat = os.stat(full_path)
             created_at = datetime.datetime.fromtimestamp(stat.st_mtime).isoformat()
@@ -577,7 +577,7 @@ def export_user_backup(
             encrypted_bytes = encrypt_archive(raw_zip_bytes, password)
 
             clean_email = target_user.email.replace("@", "_at_").replace(".", "_")
-            filename = f"zettelfrieden_user_backup_{clean_email}_{datetime.date.today().strftime('%Y-%m-%d')}.noxususer"
+            filename = f"zettelfrieden_user_backup_{clean_email}_{datetime.date.today().strftime('%Y-%m-%d')}{USER_EXPORT_EXTENSION}"
 
             audit.log_event(db, "user_exported", request, user=current_user, detail=f"Konto: {target_user.email}")
             return Response(

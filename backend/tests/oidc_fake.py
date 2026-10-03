@@ -14,8 +14,8 @@ import jwt
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 ISSUER = "https://id.test.example"
-CLIENT_ID = "noxus-test-client"
-CLIENT_SECRET = "noxus-test-secret"
+CLIENT_ID = "zettelfrieden-test-client"
+CLIENT_SECRET = "zettelfrieden-test-secret"
 REDIRECT_URI = "https://app.test.example/api/auth/oidc/callback"
 
 

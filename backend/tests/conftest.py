@@ -12,7 +12,7 @@ import tempfile
 import pytest
 
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-_WORKDIR = tempfile.mkdtemp(prefix="noxus-tests-")
+_WORKDIR = tempfile.mkdtemp(prefix="zettelfrieden-tests-")
 
 # These must be set before the application modules are imported.
 os.environ["SECRET_KEY"] = "test-secret-key-for-the-automated-test-suite-only"

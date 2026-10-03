@@ -41,7 +41,7 @@ fi
 # prompted it); this backports the same approach here.
 RESOLV_BACKUP=""
 if [ -f /etc/resolv.conf ]; then
-  RESOLV_BACKUP="$(mktemp /tmp/noxus-resolv-backup.XXXXXX)"
+  RESOLV_BACKUP="$(mktemp /tmp/zettelfrieden-resolv-backup.XXXXXX)"
   cp /etc/resolv.conf "$RESOLV_BACKUP" 2>/dev/null || RESOLV_BACKUP=""
 fi
 restore_resolv_conf() {
@@ -78,20 +78,7 @@ fi
 INSTALL_DIR="/opt/versicherungsmanager"
 echo -e "${GREEN}Richte Installationsverzeichnis in ${INSTALL_DIR} ein...${NC}"
 
-# The repository was renamed (Noxus-Policy -> Zettelfrieden). Use whichever name answers, so this
-# script works before the rename, after it, and even if GitHub's redirect from the old name stops.
-REPO_URLS="https://github.com/KaelanTesseract/Zettelfrieden.git https://github.com/KaelanTesseract/Noxus-Policy.git"
-pick_repo_url() {
-  local candidate
-  for candidate in $REPO_URLS; do
-    if GIT_TERMINAL_PROMPT=0 git -c credential.helper= ls-remote --exit-code "$candidate" HEAD >/dev/null 2>&1; then
-      echo "$candidate"
-      return 0
-    fi
-  done
-  echo "${REPO_URLS##* }"   # nothing answered (offline?): the old address, which keeps redirecting
-}
-REPO_URL="$(pick_repo_url)"
+REPO_URL="https://github.com/KaelanTesseract/Zettelfrieden.git"
 
 if [ -d "$INSTALL_DIR/.git" ]; then
   echo -e "${YELLOW}Aktualisiere bestehende Installation...${NC}"
@@ -106,8 +93,8 @@ if [ -d "$INSTALL_DIR/.git" ]; then
   # further down would never run on the update that introduces it. Restart
   # into the freshly pulled script once so the rest of this run always uses
   # current code (see the same fix in update.sh for the incident this covers).
-  if [ -z "$NOXUS_INSTALL_REEXECED" ]; then
-    NOXUS_INSTALL_REEXECED=1 bash "$INSTALL_DIR/install.sh"
+  if [ -z "$ZETTELFRIEDEN_INSTALL_REEXECED" ]; then
+    ZETTELFRIEDEN_INSTALL_REEXECED=1 bash "$INSTALL_DIR/install.sh"
     exit $?
   fi
 else
