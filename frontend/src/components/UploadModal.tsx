@@ -28,6 +28,12 @@ const isInformationalDocType = (type: string) => {
   );
 };
 
+// Which letters may change beginning / end of an EXISTING insurance. Keep in sync with
+// may_set_start / may_set_end in backend/document_types.py: an invoice names the billing month and a
+// supplement the day the change starts - neither is a date of the contract.
+const setsContractStart = (type: string) => type === "Versicherungsschein / Polizze";
+const setsContractEnd = (type: string) => type === "Versicherungsschein / Polizze" || type === "Nachtrag / Änderungsschein";
+
 export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], preselectedInsuranceId, targetInsuranceId }: any) {
   const [file, setFile] = useState<File | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -206,9 +212,18 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
         category: formData.category || (existingTargetIns ? existingTargetIns.category : "Haftpflicht"),
         cost: formData.cost ? parseFloat(formData.cost.replace(',', '.')) : (existingTargetIns ? existingTargetIns.cost : null),
         payment_cycle: formData.payment_cycle || (existingTargetIns ? existingTargetIns.payment_cycle : "jährlich"),
-        start_date: formData.start_date || (existingTargetIns ? existingTargetIns.start_date : null),
-        end_date: formData.end_date || (existingTargetIns ? existingTargetIns.end_date : null),
-        cancellation_date: formData.cancellation_date || (existingTargetIns ? existingTargetIns.cancellation_date : null),
+        // for an existing insurance only the letters that state them may change these (see above)
+        start_date: existingTargetIns && !setsContractStart(docType)
+          ? existingTargetIns.start_date
+          : (formData.start_date || (existingTargetIns ? existingTargetIns.start_date : null)),
+        end_date: existingTargetIns && !setsContractEnd(docType)
+          ? existingTargetIns.end_date
+          : (formData.end_date || (existingTargetIns ? existingTargetIns.end_date : null)),
+        cancellation_date: existingTargetIns && !setsContractEnd(docType)
+          ? existingTargetIns.cancellation_date
+          : existingTargetIns && extractedData?.document_kind === "Nachtrag zum Vertragsende"
+            ? null  // the contract has ended: no notice date any more
+            : (formData.cancellation_date || (existingTargetIns ? existingTargetIns.cancellation_date : null)),
         is_suspended: existingTargetIns ? !!existingTargetIns.is_suspended : (formData.is_suspended || false),
         suspension_reason: existingTargetIns ? (existingTargetIns.suspension_reason || null) : (formData.suspension_reason || null),
         coverage_details: includeCoverageDetails ? (extractedData?.coverage_details || []) : []
@@ -452,6 +467,24 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
                   </Select>
                 </div>
               </div>
+
+              {selectedInsuranceId !== "new" && !isInformationalDocType(docType) && !setsContractEnd(docType) && (
+                <div className="p-3.5 rounded-xl bg-blue-950/40 border border-blue-800/60 text-xs text-blue-200 flex items-center gap-2">
+                  <Info className="size-4 shrink-0" aria-hidden />
+                  <span>
+                    <strong>{docType}:</strong> Beginn, Ende und Kündigungsfrist des Vertrags bleiben unverändert. Übernommen werden Beitrag, Zahlweise und die Klassen.
+                  </span>
+                </div>
+              )}
+
+              {selectedInsuranceId !== "new" && setsContractEnd(docType) && !setsContractStart(docType) && (
+                <div className="p-3.5 rounded-xl bg-blue-950/40 border border-blue-800/60 text-xs text-blue-200 flex items-center gap-2">
+                  <Info className="size-4 shrink-0" aria-hidden />
+                  <span>
+                    <strong>{docType}:</strong> Der Beginn des Vertrags bleibt unverändert (hier steht nur, ab wann die Änderung gilt). Ablauf und Kündigungsfrist werden übernommen.
+                  </span>
+                </div>
+              )}
 
               {selectedInsuranceId !== "new" && isInformationalDocType(docType) && (
                 <div className="p-3.5 rounded-xl bg-blue-950/40 border border-blue-800/60 text-xs text-blue-200 flex items-center gap-2">

@@ -13,7 +13,7 @@ import models, schemas, auth, ocr
 from database import get_db
 from upload_validation import sanitize_filename, validate_upload
 from http_utils import content_disposition
-from document_types import is_informational
+from document_types import is_informational, may_set_start, may_set_end
 from document_hash import find_duplicate, sha256_bytes
 import audit
 from secrets_crypto import encrypt_secret, decrypt_secret
@@ -261,12 +261,14 @@ def reanalyze_document(
             ins.cost = extracted["cost"]
         if extracted.get("payment_cycle"):
             ins.payment_cycle = extracted["payment_cycle"]
-        if extracted.get("start_date"):
+        # beginning and end only from the kinds of letter that state them (see document_types.py)
+        effective_type = doc.doc_type if doc.doc_type not in (None, "", "Vertragsschreiben", "Posteingang") else extracted.get("doc_type")
+        if extracted.get("start_date") and may_set_start(effective_type):
             ins.start_date = extracted["start_date"]
-        if extracted.get("end_date"):
+        if extracted.get("end_date") and may_set_end(effective_type):
             ins.end_date = extracted["end_date"]
-        if extracted.get("cancellation_date"):
-            ins.cancellation_date = extracted["cancellation_date"]
+        if may_set_end(effective_type) and (extracted.get("cancellation_date") or extracted.get("document_kind") == "Nachtrag zum Vertragsende"):
+            ins.cancellation_date = extracted.get("cancellation_date")
         if extracted.get("contact_info"):
             ins.contact_info = extracted["contact_info"]
 

@@ -53,3 +53,20 @@ def is_informational(doc_type: Optional[str]) -> bool:
 
 def document_type_for(kind: Optional[str]) -> Optional[str]:
     return DOC_TYPE_FOR_KIND.get(kind) if kind else None
+
+
+# What a letter may change on an EXISTING insurance. The dates in a letter are not always the
+# dates of the contract: an invoice names the billing month, a supplement ("Nachtrag") names
+# when the change starts - neither is the beginning of the contract. Types not listed here
+# (invoices, price adjustments, damage reports ...) leave beginning, end and notice date alone.
+_TYPES_SETTING_THE_START = ("Versicherungsschein / Polizze",)
+_TYPES_SETTING_THE_END = ("Versicherungsschein / Polizze", "Nachtrag / Änderungsschein")
+
+
+def may_set_start(doc_type: Optional[str]) -> bool:
+    return (doc_type or "") in _TYPES_SETTING_THE_START
+
+
+def may_set_end(doc_type: Optional[str]) -> bool:
+    """The end of the term (and with it the notice date, which is derived from it)."""
+    return (doc_type or "") in _TYPES_SETTING_THE_END

@@ -89,3 +89,11 @@ def make_user(client, admin_headers):
         return email, USER_PASSWORD, bearer(token)
 
     return _make
+
+
+@pytest.fixture(autouse=True)
+def no_language_model(monkeypatch):
+    """The tests must never load (or download, ~1 GB) the embedded language model: results would
+    depend on the machine. Tests that need a model answer put a fake in place of extract_with_mini_ai."""
+    import ocr
+    monkeypatch.setattr(ocr, "get_llm", lambda: None)

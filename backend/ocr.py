@@ -646,17 +646,20 @@ def calculate_insurance_dates(start_date_str, end_date_str, cancellation_date_st
     # 6. Calculate cancellation_date = end_date - 1 month (standard German Kündigungsfrist)
     if e_date:
         try:
-            month = e_date.month - 1
-            year = e_date.year
-            if month == 0:
-                month = 12
-                year -= 1
-            day = min(e_date.day, 28)
-            c_date = datetime.date(year, month, day)
+            c_date = one_month_before(e_date)
         except Exception:
             pass
 
     return s_date, e_date, c_date
+
+def one_month_before(end_date):
+    """The last day for a notice with a notice period of one month to the end of the term:
+    the same day of the previous month, or its last day when that month is shorter
+    (31.12. -> 30.11., 31.03. -> 28.02.). The day used to be cut at 28 - 31.12. gave 28.11."""
+    import calendar
+    import datetime
+    year, month = (end_date.year - 1, 12) if end_date.month == 1 else (end_date.year, end_date.month - 1)
+    return datetime.date(year, month, min(end_date.day, calendar.monthrange(year, month)[1]))
 
 def sanitize_coverage_details(coverage_list: list) -> list:
     cleaned = []
@@ -917,6 +920,8 @@ def finalize_extraction(data: dict, text: str) -> dict:
     if kind == "Nachtrag zum Vertragsende":
         data["cost"] = None
         data["new_cost"] = None
+        # the contract is over: there is nothing left to give notice for (the end date stays)
+        data["cancellation_date"] = None
         return data
 
     cost, certain = extract_cost_with_basis(text)
