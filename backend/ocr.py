@@ -106,7 +106,7 @@ def get_llm():
 # (a few KB that expand to gigabytes of pixels) and Tesseract can be made to churn
 # on adversarial images, so rendering, decoding and recognition are all capped.
 OCR_MAX_PAGES = 5
-OCR_MAX_PAGE_SIDE_PX = 2400          # longest side a PDF page is rendered at (~200 dpi on A4)
+OCR_MAX_PAGE_SIDE_PX = 3300          # longest side a PDF page is rendered at (~280 dpi on A4; at 2400 a policy number on a green card and a class digit were lost)
 OCR_MAX_IMAGE_SIDE_PX = 3600
 OCR_MAX_IMAGE_PIXELS = 50_000_000    # decoded pixels above this are refused outright
 OCR_PDF_RENDER_TIMEOUT_S = 60
@@ -461,12 +461,13 @@ def extract_regionalklasse_fallback(text: str, current_regio: str = None) -> str
         r'(?i)(?:regional|regio)[^\n]*?\b([0-9O]{1,2})\b'
     ]
     for pat in patterns:
-        m = re.search(pat, text)
-        if m:
+        for m in re.finditer(pat, text):
             raw = m.group(1).upper().replace(" ", "").replace("-", "").replace("O", "0")
             if not raw.startswith("R"):
                 raw = f"R{raw}"
-            if re.match(r'^R\d{1,2}$', raw):
+            # Regional classes run from 1 to 12: "R0" is a class whose last digit OCR lost ("RO 18"),
+            # not a class. Skip it and take the next mention (the comparison table repeats it).
+            if re.match(r'^R\d{1,2}$', raw) and 1 <= int(raw[1:]) <= 12:
                 return raw
 
     return current_regio if current_regio else None

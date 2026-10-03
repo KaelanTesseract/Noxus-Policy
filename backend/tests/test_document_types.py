@@ -310,3 +310,15 @@ def test_huk24_letters_name_huk24_not_huk_coburg():
     text = "HUK24 AG, HUK-COBURG-Platz 1, 96440 Coburg\nVersicherungsschein - Kraftfahrtversicherung Nr. 669/246004-Q\n"
     assert ocr.extract_insurance_data_regex(text)["company"] == "HUK24"
     assert ocr.extract_insurance_data_regex("HUK-COBURG Versicherungen\nBeitragsrechnung\n")["company"] == "HUK-COBURG"
+
+
+def test_a_region_class_whose_digit_ocr_lost_is_skipped_for_the_next_mention():
+    # "RO 18" is the current row with the 5 lost; the comparison row still says RO5
+    text = "Kfz-Haftpflicht RO 18 SF3 (65 %) 43,47 €\nBeitragsvergleich\nKfz-Haftpflicht RO5 18 SF8 (50%) 32,95 €\n"
+    assert ocr.extract_regionalklasse_fallback(text) == "R05"
+
+
+def test_regional_classes_run_from_1_to_12():
+    assert ocr.extract_regionalklasse_fallback("Regionalklasse R12") == "R12"
+    assert ocr.extract_regionalklasse_fallback("Regionalklasse R13") is None
+    assert ocr.extract_regionalklasse_fallback("Tarifgruppe R0") is None
