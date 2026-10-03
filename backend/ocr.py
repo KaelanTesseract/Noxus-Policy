@@ -10,7 +10,7 @@ from llm_text import select_relevant_text
 from ai_merge import has_gaps, merge_ai_into_rules
 from field_checks import assess_fields
 from document_types import CONTRACT_FIELDS, DEFAULT_DOC_TYPE, DOC_TYPE_FOR_KIND, document_type_for, is_informational
-from PIL import Image
+from PIL import Image, ImageOps
 from pdf2image import convert_from_path
 import re
 import os
@@ -117,20 +117,83 @@ MAX_EXTRACTED_TEXT_CHARS = 200_000   # what the (regex-heavy) extractors ever ge
 LLM_CONTEXT_TOKENS = 4096        # prompt (~1000 tokens) + document excerpt + answer
 LLM_TEXT_CHARS = 5000             # excerpt of the document the model reads, see llm_text.py
 LLM_MAX_TOKENS = 600
-OCR_TESSERACT_CONFIG = ""            # extra Tesseract options (page segmentation mode etc.), see tools/eval_ocr.py
 
 Image.MAX_IMAGE_PIXELS = OCR_MAX_IMAGE_PIXELS
+
+ORIENTATION_RETRY_BELOW = 50    # mean word confidence (0-100) below which other orientations are tried
+ORIENTATION_MIN_GAIN = 20       # ... and the other reading must be this much more confident
+
+
+def _text_and_confidence(tsv: str):
+    """(text, mean confidence) from the word table (TSV) of a Tesseract run: lines in reading
+    order, a blank line between paragraphs and blocks like the plain text output has. The
+    confidence is None when no word was found (a blank page)."""
+    lines, confidences = [], []
+    current, last_paragraph = [], None
+    for row in tsv.splitlines()[1:]:
+        cells = row.split("\t")
+        if len(cells) < 12 or cells[0] != "5" or not cells[11].strip():
+            continue
+        try:
+            value = float(cells[10])
+        except ValueError:
+            continue
+        if value >= 0:
+            confidences.append(value)
+        line_key, paragraph = tuple(cells[2:5]), tuple(cells[2:4])
+        if current and line_key != current[0]:
+            lines.append(" ".join(current[1:]))
+            current = []
+            if paragraph != last_paragraph:
+                lines.append("")
+        if not current:
+            current = [line_key]
+        current.append(cells[11].strip())
+        last_paragraph = paragraph
+    if current:
+        lines.append(" ".join(current[1:]))
+    return "\n".join(lines) + "\n", (sum(confidences) / len(confidences) if confidences else None)
+
+
+def _ocr_page(img):
+    """(text, mean confidence of the words) of one page from a single Tesseract run."""
+    tsv = pytesseract.image_to_data(img, lang="deu", timeout=OCR_TESSERACT_TIMEOUT_S)
+    return _text_and_confidence(tsv)
+
 
 def read_page_image(img) -> str:
     """Text of one page image. The page is straightened first (phone photos and hurried
     scans are tilted; see image_prep.py) - if that fails for any reason the original
-    image is read instead."""
+    image is read instead.
+
+    A page that was scanned or photographed turned by a quarter or half turn reads as
+    nonsense, and Tesseract says so itself: upright pages have a mean word confidence around 90,
+    turned ones 23-35 (measured on 14 real letters). Only such a page is read again in the other
+    three orientations, and a clearly more confident reading wins. (Tesseract's own orientation
+    detection was tried first and rejected: it took 5 of 14 upright letters for upside down and
+    turned sans-serif pages the wrong way.)"""
     try:
-        prepared = prepare_for_ocr(img)
-    except Exception as e:
-        print(f"Image preparation notice: {e}")
-        prepared = img
-    return pytesseract.image_to_string(prepared, lang='deu', config=OCR_TESSERACT_CONFIG, timeout=OCR_TESSERACT_TIMEOUT_S)
+        img = ImageOps.exif_transpose(img)  # a phone photo knows how it was held
+    except Exception:
+        pass
+
+    def prepared(image):
+        try:
+            return prepare_for_ocr(image)
+        except Exception as e:
+            print(f"Image preparation notice: {e}")
+            return image
+
+    text, confidence = _ocr_page(prepared(img))
+    if confidence is None or confidence >= ORIENTATION_RETRY_BELOW:
+        return text
+    best_text, best_confidence = text, confidence
+    for turn in (90, 180, 270):
+        turned_text, turned_confidence = _ocr_page(prepared(img.rotate(turn, expand=True)))
+        if turned_confidence is not None and turned_confidence > best_confidence:
+            best_text, best_confidence = turned_text, turned_confidence
+    return best_text if best_confidence - confidence >= ORIENTATION_MIN_GAIN else text
+
 
 PDFTOTEXT_TIMEOUT_S = 30
 MAX_LAYER_PAGES = 150               # pages of a text-layer PDF that are ever read (the rest is terms and conditions)
