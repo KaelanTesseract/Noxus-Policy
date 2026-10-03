@@ -9,7 +9,6 @@ import sys
 
 import pytest
 
-import ai_merge
 import ocr
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tools"))
@@ -48,10 +47,3 @@ def test_a_number_behind_a_label_is_read_whatever_its_layout(text, expected):
 ])
 def test_no_number_where_there_is_none(text):
     assert ocr.number_after_label(text) is None
-
-
-def test_a_number_in_groups_counts_for_the_model_only_behind_a_label():
-    behind = "Ihre Daten\nVersicherungsschein-Nr.\n00 8812 3345\n"
-    assert ai_merge.plausible("insurance_number", "00 8812 3345", behind)
-    corner = "K 500 09.17\nVerbraucherinformationen\nText ohne Bezeichnung\n"
-    assert not ai_merge.plausible("insurance_number", "K 500 09.17", corner)

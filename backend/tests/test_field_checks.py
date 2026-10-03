@@ -72,11 +72,6 @@ def test_the_sf_class_is_found_behind_its_label():
     assert fc.assess_fields({"sf_class": "SF 1"}, RECHNUNG)["sf_class"]["status"] == "gefunden"   # "SF1 (75%)"
 
 
-def test_a_value_from_the_model_is_marked_as_such():
-    checks = fc.assess_fields({"company": "Itzehoer", "ai_fields": ["company"]}, RECHNUNG)
-    assert checks["company"]["quelle"] == "ki"
-
-
 def test_fields_without_a_value_are_left_out():
     assert fc.assess_fields({"company": None, "cost": None}, RECHNUNG) == {}
 

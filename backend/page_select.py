@@ -15,7 +15,6 @@ scanned 60-page terms document costs a minute and a half for nothing. So:
 
 import re
 
-from llm_text import _score
 
 MAX_TEXT_PAGES = 8          # pages of a text-layer PDF that are kept
 KEEP_FIRST_PAGES = 3        # letterhead, subject, usually the premium
@@ -24,6 +23,23 @@ OCR_BATCH_PAGES = 3         # ... then this many more at a time
 MAX_OCR_PAGES = 15          # ... but never more than this
 
 _PREMIUM = re.compile(r"(?i)(?:beitrag|prämie)[\s\S]{0,80}?\d{1,3}(?:\.\d{3})*,\d{2}\s*(?:€|eur)")
+
+
+# Lines that carry contract data, each with the weight it adds to the line.
+_CLUES = [
+    (re.compile(r"(?i)versicherungsschein|policen?-?nr|vertragsnummer|vsnr|schein-?nummer"), 3),
+    (re.compile(r"(?i)beitrag|prämie|jahresbeitrag|zahlbeitrag|gesamtbeitrag"), 3),
+    (re.compile(r"(?i)\d[\d.]*,\d{2}\s*(?:€|eur)"), 2),
+    (re.compile(r"(?i)zahlungs(?:weise|periode)|monatlich|vierteljährlich|halbjährlich|jährlich"), 2),
+    (re.compile(r"(?i)beginn|ablauf|laufzeit|vertragsdauer|gültig|hauptfälligkeit|kündig"), 2),
+    (re.compile(r"(?i)regionalklasse|typklasse|schadenfreiheit|\bsf[-\s]?(?:klasse)?\s*\d|tarifgruppe"), 3),
+    (re.compile(r"(?i)versichert sind|versicherungsschutz|haftpflicht|teilkasko|vollkasko|schutzbrief|fahrerschutz"), 1),
+    (re.compile(r"\b\d{2}\.\d{2}\.\d{4}\b"), 1),
+]
+
+
+def _score(line: str) -> int:
+    return sum(weight for pattern, weight in _CLUES if pattern.search(line))
 
 
 def page_score(text: str) -> int:

@@ -120,7 +120,7 @@ if [ ! -f "$INSTALL_DIR/.env" ] || ! grep -q '^SECRET_KEY=' "$INSTALL_DIR/.env" 
 fi
 
 # 8. Build and Start Docker Containers
-echo -e "${GREEN}🚀 Baue und starte Docker-Container (Frontend + Backend + KI-Engine)...${NC}"
+echo -e "${GREEN}🚀 Baue und starte Docker-Container (Frontend + Backend)...${NC}"
 docker compose down --remove-orphans || true
 docker compose up -d --build
 

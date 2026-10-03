@@ -11,7 +11,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { Footer } from "@/components/Footer";
 
 export const metadata: Metadata = {
-  title: "Noxus Policy | AI Versicherungsmanager",
+  title: "Noxus Policy | Versicherungsmanager",
   description: "Dein intelligenter digitaler Versicherungsmanager",
   icons: {
     icon: "/logo.png",

@@ -33,36 +33,6 @@ def _check_document_access(doc: "models.Document", current_user: "models.User"):
     if doc.owner_id and doc.owner_id != current_user.id and not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Forbidden")
 
-@router.get("/ai-config")
-def get_ai_config(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_active_user)):
-    setting = db.query(models.SystemSetting).filter(models.SystemSetting.key == "use_ai_ocr").first()
-    use_ai = True
-    if setting and setting.value is not None:
-        use_ai = setting.value.lower() in ["true", "1", "yes"]
-    return {"use_ai": use_ai}
-
-@router.post("/ai-config")
-def set_ai_config(
-    payload: dict,
-    request: Request,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_active_user)
-):
-    if not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="Nur Administratoren dürfen die KI-Einstellungen ändern.")
-
-    use_ai = bool(payload.get("use_ai", True))
-    setting = db.query(models.SystemSetting).filter(models.SystemSetting.key == "use_ai_ocr").first()
-    if not setting:
-        setting = models.SystemSetting(key="use_ai_ocr", value="true" if use_ai else "false")
-        db.add(setting)
-    else:
-        setting.value = "true" if use_ai else "false"
-    db.commit()
-    audit.log_event(db, "ai_config_changed", request, user=current_user, detail=f"aktiv={use_ai}")
-
-    return {"msg": f"KI-Dokumentenanalyse wurde {'aktiviert' if use_ai else 'deaktiviert (nur klassische OCR)'}!", "use_ai": use_ai}
-
 _ENCRYPTED_SETTING_KEYS = {"pattern_sync_github_token"}
 
 def _get_system_setting(db: Session, key: str, default_val: str = "") -> str:
@@ -127,7 +97,7 @@ def extract_document_data(
         buffer.write(contents)
 
     text = ocr.extract_text_from_file(temp_filepath)
-    extracted_data = ocr.extract_insurance_data(text, db=db)
+    extracted_data = ocr.extract_insurance_data(text)
     extracted_data["extracted_text"] = text
     # Has this exact file been stored before? (a warning for the dialog; the user decides)
     extracted_data["duplicate"] = find_duplicate(db, current_user.id, sha256_bytes(contents))
@@ -182,7 +152,7 @@ def create_document(
         buffer.write(contents)
 
     # Reuse the extraction already performed by the "/documents/extract" preview step the
-    # frontend calls before this endpoint, instead of re-running the OCR/AI pipeline a second time.
+    # frontend calls before this endpoint, instead of reading the document a second time.
     extracted = None
     if extracted_data:
         try:
@@ -199,7 +169,7 @@ def create_document(
     try:
         if extracted is None:
             text = ocr.extract_text_from_file(filepath)
-            extracted = ocr.extract_insurance_data(text, db=db)
+            extracted = ocr.extract_insurance_data(text)
             extracted["extracted_text"] = text
         db_doc.ai_data = json.dumps(extracted, default=str)
 
@@ -245,7 +215,7 @@ def reanalyze_document(
         raise HTTPException(status_code=404, detail="Physikalische Datei nicht mehr auf dem Server vorhanden.")
 
     text = ocr.extract_text_from_file(filepath)
-    extracted = ocr.extract_insurance_data(text, db=db)
+    extracted = ocr.extract_insurance_data(text)
 
     # Update parent insurance metadata if available - but not from letters that only inform
     # (the user may also have filed this document under such a type by hand)
@@ -296,7 +266,7 @@ def reanalyze_document(
             )
             ins.cost = float(new_c)
 
-        # Update coverage details with clean formatted AI items
+        # Update the coverage details
         new_items = extracted.get("coverage_details") or []
         if new_items:
             ins.coverage_details = json.dumps(new_items)

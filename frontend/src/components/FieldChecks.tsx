@@ -12,7 +12,6 @@ export type FieldCheck = {
   seite?: number;
   stelle?: string;
   grund?: string;
-  quelle?: string;
 };
 
 const FIELD_LABELS: [string, string][] = [
@@ -90,9 +89,6 @@ export function FieldChecks({ data, checks }: { data: Record<string, unknown>; c
                 <span className="flex items-center gap-1.5 text-zinc-100">
                   <Icon className={`size-3.5 shrink-0 ${style.color}`} aria-hidden />
                   <span className="font-mono">{formatValue(field, data[field])}</span>
-                  {check.quelle === "ki" && (
-                    <span className="px-1.5 py-px rounded border border-zinc-700 text-[10px] text-zinc-400">von der KI gelesen</span>
-                  )}
                   <span className="sr-only">{style.label}</span>
                 </span>
                 <span className="block text-zinc-500 break-words">

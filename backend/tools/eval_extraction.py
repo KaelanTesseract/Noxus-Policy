@@ -8,7 +8,6 @@ The documents and the expected values are personal data and live outside git, in
 values, ``cache/`` for extracted texts). Nothing in this script uploads anything.
 
     python tools/eval_extraction.py                 # extract with the rules, print the results
-    python tools/eval_extraction.py --ai            # also run the embedded AI model
     python tools/eval_extraction.py --draft         # write eval/expected.json from the current results
 
 With an ``expected.json`` present, every field is compared and a score per method
@@ -109,7 +108,6 @@ def show(value) -> str:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--ai", action="store_true", help="also run the embedded AI model")
     parser.add_argument("--draft", action="store_true", help="write eval/expected.json from the rule results")
     parser.add_argument("--fresh", action="store_true", help="read the documents again instead of using cached texts")
     parser.add_argument("--only", help="only documents whose file name contains this text")
@@ -148,8 +146,6 @@ def main():
         return result
 
     methods = {"regex": lambda text: finished(ocr.extract_insurance_data_regex(text), text)}
-    if args.ai:
-        methods["ai"] = lambda text: finished(ocr.extract_with_mini_ai(text), text)
 
     scores = {m: {f: [0, 0] for f in FIELDS} for m in methods}
     drafts = {}

@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
-export const maxDuration = 300; // 5 minutes max execution time for AI processing
+export const maxDuration = 300; // 5 minutes max execution time for the text recognition of large scans
 
 // The login token never reaches page scripts: on login this proxy moves it out of
 // the response body into an httpOnly cookie, and on every request it turns that
@@ -205,7 +205,7 @@ async function proxy(request: NextRequest) {
 
         if (errCode === "UND_ERR_HEADERS_TIMEOUT" || err?.name === "TimeoutError" || err?.name === "AbortError") {
           return NextResponse.json({
-            detail: "Die KI-Analyse benötigt noch etwas Zeit zum Verarbeiten oder Herunterladen des Modells. Bitte versuche es in wenigen Sekunden erneut."
+            detail: "Der Server startet gerade oder verarbeitet das Dokument noch. Bitte versuche es in wenigen Sekunden erneut."
           }, { status: 504 });
         }
       }

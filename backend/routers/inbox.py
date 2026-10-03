@@ -123,7 +123,7 @@ def analyze_inbox_document(
         raise HTTPException(status_code=404, detail="Datei auf dem Server nicht gefunden.")
 
     extracted_text = ocr.extract_text_from_file(file_path)
-    extracted_data = ocr.extract_insurance_data(extracted_text, db=db)
+    extracted_data = ocr.extract_insurance_data(extracted_text)
     extracted_data["extracted_text"] = extracted_text
 
     doc.ai_data = json.dumps(extracted_data, default=str)

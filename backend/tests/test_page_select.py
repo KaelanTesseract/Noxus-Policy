@@ -7,7 +7,6 @@ import pytest
 
 import ocr
 import page_select as ps
-import llm_text
 
 
 def _pdf(pages):
@@ -156,9 +155,3 @@ def test_a_short_scan_is_not_asked_for_more_pages_than_it_has(monkeypatch):
     stub = _Pages(monkeypatch, ["Text", "Text"])
     ocr.ocr_pdf_pages("scan.pdf")
     assert stub.rendered == [(1, 2)]
-
-
-def test_wide_gaps_of_a_layout_text_do_not_cut_off_the_right_column():
-    line = "Jahresbeitrag" + " " * 150 + "29,29 €"
-    picked = llm_text.select_relevant_text(line + "\n" + "x\n" * 3000, 500)
-    assert "29,29 €" in picked

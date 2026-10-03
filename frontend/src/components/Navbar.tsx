@@ -19,14 +19,9 @@ interface NavbarProps {
 
 export function Navbar({ userEmail, onUploadClick, onTaxExportClick }: NavbarProps) {
   const router = useRouter();
-  const [useAi, setUseAi] = useState(true);
   const [inboxCount, setInboxCount] = useState(0);
 
   useEffect(() => {
-    api.get("/documents/ai-config")
-      .then((cfg: any) => setUseAi(!!cfg.use_ai))
-      .catch(() => setUseAi(true));
-
     api.get("/inbox")
       .then((docs: any) => {
         if (Array.isArray(docs)) {
@@ -51,14 +46,6 @@ export function Navbar({ userEmail, onUploadClick, onTaxExportClick }: NavbarPro
         >
           <img src="/logo.png" alt="" className="h-8 w-auto object-contain" />
           <span className="whitespace-nowrap font-display text-lg leading-none text-zinc-50 sm:text-2xl">Noxus Policy</span>
-          {useAi && (
-            <span
-              className="hidden rounded border border-zinc-700 px-1.5 py-0.5 text-[11px] leading-none text-zinc-400 sm:inline"
-              title="Dokumente werden mit der lokalen KI ausgelesen"
-            >
-              KI aktiv
-            </span>
-          )}
         </button>
 
         <nav className="flex items-center gap-1 sm:gap-2" aria-label="Hauptnavigation">

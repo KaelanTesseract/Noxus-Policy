@@ -6,104 +6,19 @@ from pattern_safety import apply_patterns
 from document_naming import detect_kind, suggest_title
 from image_prep import prepare_for_ocr
 from page_select import MAX_OCR_PAGES, FIRST_OCR_PAGES, OCR_BATCH_PAGES, choose_text_pages, has_premium, split_pdftotext
-from llm_text import select_relevant_text
-from ai_merge import has_gaps, merge_ai_into_rules
 from field_checks import assess_fields
 from document_types import CONTRACT_FIELDS, DEFAULT_DOC_TYPE, DOC_TYPE_FOR_KIND, document_type_for, is_informational
 from PIL import Image, ImageOps
 from pdf2image import convert_from_path
 import re
 import os
-import json
-import hashlib
 import shutil
 import subprocess
-import httpx
 from datetime import datetime
 try:
     from learning import get_learned_patterns_for_company, learn_from_feedback
 except ImportError:
     from backend.learning import get_learned_patterns_for_company, learn_from_feedback
-
-_llm_instance = None
-
-# The model is pinned to one exact Hugging Face commit and one SHA-256. llama.cpp
-# parses the GGUF file (including an embedded chat template), and past bugs in that
-# parsing have allowed code execution from a crafted model file - so a file that was
-# swapped upstream or on disk must never reach the loader.
-MODEL_REPO = "Qwen/Qwen2.5-1.5B-Instruct-GGUF"
-MODEL_FILENAME = "qwen2.5-1.5b-instruct-q4_k_m.gguf"
-MODEL_REVISION = "91cad51170dc346986eccefdc2dd33a9da36ead9"
-MODEL_SHA256 = "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e"
-
-def _model_is_trusted(path: str) -> bool:
-    """True if the file matches MODEL_SHA256. A marker file remembers a successful
-    check so the ~1 GB file is only re-hashed when it changed."""
-    marker = path + ".sha256-verified"
-    try:
-        if (os.path.exists(marker)
-                and os.path.getmtime(marker) >= os.path.getmtime(path)
-                and open(marker).read().strip() == MODEL_SHA256):
-            return True
-    except OSError:
-        pass
-
-    digest = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(1024 * 1024), b""):
-            digest.update(chunk)
-    if digest.hexdigest() != MODEL_SHA256:
-        return False
-    try:
-        with open(marker, "w") as f:
-            f.write(MODEL_SHA256)
-    except OSError:
-        pass
-    return True
-
-def get_llm():
-    global _llm_instance
-    if _llm_instance is not None:
-        return _llm_instance
-
-    try:
-        from huggingface_hub import hf_hub_download
-        from llama_cpp import Llama
-
-        model_dir = os.path.join(os.path.dirname(__file__), "models_data")
-        if not os.path.exists(model_dir):
-            model_dir = os.path.join(os.path.dirname(__file__), "models")
-        os.makedirs(model_dir, exist_ok=True)
-        model_path = os.path.join(model_dir, MODEL_FILENAME)
-
-        if os.path.exists(model_path) and not _model_is_trusted(model_path):
-            print("[Mini-AI] Local model file does not match the pinned checksum - removing it and downloading the pinned version again.")
-            os.remove(model_path)
-
-        if not os.path.exists(model_path):
-            print("[Mini-AI] Model not found locally. Auto-downloading Qwen2.5-1.5B-Instruct GGUF (~1.1 GB)...")
-            downloaded = hf_hub_download(
-                repo_id=MODEL_REPO,
-                filename=MODEL_FILENAME,
-                revision=MODEL_REVISION,
-                local_dir=model_dir
-            )
-            print(f"[Mini-AI] Model successfully downloaded to: {downloaded}")
-            if not _model_is_trusted(model_path):
-                os.remove(model_path)
-                raise ValueError("downloaded model failed the SHA-256 check and was discarded")
-
-        print("[Mini-AI] Initializing embedded Llama-cpp engine (4 CPU threads)...")
-        _llm_instance = Llama(
-            model_path=model_path,
-            n_ctx=LLM_CONTEXT_TOKENS,
-            n_threads=4,
-            verbose=False
-        )
-        return _llm_instance
-    except Exception as e:
-        print(f"[Mini-AI] Notice: Could not initialize embedded Llama model ({e}). Using regex fallback.")
-        return None
 
 # Bounds for untrusted uploads: a PDF page or image can declare absurd dimensions
 # (a few KB that expand to gigabytes of pixels) and Tesseract can be made to churn
@@ -114,9 +29,6 @@ OCR_MAX_IMAGE_PIXELS = 50_000_000    # decoded pixels above this are refused out
 OCR_PDF_RENDER_TIMEOUT_S = 60
 OCR_TESSERACT_TIMEOUT_S = 60
 MAX_EXTRACTED_TEXT_CHARS = 200_000   # what the (regex-heavy) extractors ever get to see
-LLM_CONTEXT_TOKENS = 3072        # short instruction (~200 tokens) + document excerpt + answer
-LLM_TEXT_CHARS = 3000             # excerpt of the document the model reads, see llm_text.py
-LLM_MAX_TOKENS = 100
 
 Image.MAX_IMAGE_PIXELS = OCR_MAX_IMAGE_PIXELS
 
@@ -282,110 +194,6 @@ def parse_date(date_str: str):
             return datetime.strptime(date_str, fmt).date()
         except:
             continue
-    return None
-
-def _answer_schema() -> dict:
-    """The shape of the model's answer. Given to llama.cpp as a grammar, so the output is
-    always valid JSON of exactly this shape."""
-    return {
-        "type": "object",
-        "properties": {
-            "company": {"type": "string", "maxLength": 60},
-            "policy_number": {"type": "string", "maxLength": 30},
-        },
-        "required": ["company", "policy_number"],
-    }
-
-
-_answer_grammar = None
-
-
-def _get_answer_grammar():
-    """The grammar for the answer, or None if this llama.cpp build cannot make one (the
-    answer is then parsed leniently)."""
-    global _answer_grammar
-    if _answer_grammar is None:
-        try:
-            from llama_cpp import LlamaGrammar
-            _answer_grammar = LlamaGrammar.from_json_schema(json.dumps(_answer_schema()), verbose=False)
-        except Exception as e:
-            print(f"[Mini-AI] Notice: no JSON grammar available ({e}).")
-            _answer_grammar = False
-    return _answer_grammar or None
-
-
-AI_INSTRUCTION = (
-    "Du liest einen Brief einer Versicherung. Trage ein: "
-    "\"company\" = der Versicherer, der den Brief verschickt (Briefkopf, Logo, Fußzeile). "
-    "NICHT der Makler oder Vermittler (erkennbar an 'Sie werden betreut von'), NICHT die Bank, NICHT der Empfänger. "
-    "\"policy_number\" = die Versicherungsschein-Nummer. "
-    "Schreibe nur, was wörtlich im Text steht. Ist ein Feld nicht zu erkennen, bleibt es leer (\"\"). "
-    "Erfinde nichts. Antworte nur mit JSON."
-)
-
-
-def ai_messages(snippet: str) -> list:
-    """The conversation for a model with a chat template of its own (used by tools/eval_models.py)."""
-    return [{"role": "system", "content": AI_INSTRUCTION}, {"role": "user", "content": f"BRIEF:\n{snippet}"}]
-
-
-def build_ai_prompt(snippet: str, with_prefill: bool) -> str:
-    """The instruction for the model, in the ChatML format of Qwen2.5. It asks only for what the
-    rules may have missed - the insurer and the policy number - and names no example values: the
-    small model repeats them (an example insurer appeared in letters of other insurers). Measured on
-    14 real letters this short instruction reads the insurer in 9 of 14 (the long one, with 15
-    fields: 1 of 14) in ~5 s instead of ~25 s. The broker ("Sie werden betreut von") is excluded
-    explicitly."""
-    prompt = (
-        f"<|im_start|>system\n{AI_INSTRUCTION}<|im_end|>\n"
-        f"<|im_start|>user\nBRIEF:\n{snippet}<|im_end|>\n"
-        "<|im_start|>assistant\n"
-    )
-    return prompt + "{" if with_prefill else prompt
-
-
-def extract_with_mini_ai(text: str) -> dict:
-    """Asks the embedded model (Llama-cpp Qwen2.5-1.5B) for the insurer and the policy number of a
-    letter. Returns None if there is no model or no usable answer. What comes back is only a
-    suggestion: ai_merge accepts it for a gap, after checking it against the text."""
-    if not text or len(text.strip()) < 10:
-        return None
-
-    llm = get_llm()
-    if not llm:
-        return None
-
-    snippet = select_relevant_text(text, LLM_TEXT_CHARS)
-    grammar = _get_answer_grammar()
-    prompt = build_ai_prompt(snippet, with_prefill=grammar is None)
-
-    try:
-        response = llm(
-            prompt,
-            max_tokens=LLM_MAX_TOKENS,
-            temperature=0.0,
-            stop=["<|im_end|>"],
-            **({"grammar": grammar} if grammar is not None else {}),
-        )
-        raw_json_str = response["choices"][0]["text"]
-        if grammar is None:
-            raw_json_str = "{" + raw_json_str
-            if "}" in raw_json_str:
-                raw_json_str = raw_json_str[:raw_json_str.rfind("}") + 1]
-        parsed = json.loads(raw_json_str)
-
-        company = str(parsed.get("company") or "").strip() or None
-        number = str(parsed.get("policy_number") or "").strip() or None
-        print(f"[Mini-AI] Answer of Qwen2.5-1.5B: company='{company}', policy number found={bool(number)}")
-        return {
-            "company": company,
-            "insurance_number": number,
-            "ai_used": True,
-            "ai_model": "Qwen2.5-1.5B (Embedded)"
-        }
-    except Exception as e:
-        print(f"[Mini-AI] Exception during AI execution ({type(e).__name__}: {e}). Using the rules only.")
-
     return None
 
 def is_invalid_policy_num(candidate: str) -> bool:
@@ -720,39 +528,6 @@ def one_month_before(end_date):
     year, month = (end_date.year - 1, 12) if end_date.month == 1 else (end_date.year, end_date.month - 1)
     return datetime.date(year, month, min(end_date.day, calendar.monthrange(year, month)[1]))
 
-def sanitize_coverage_details(coverage_list: list) -> list:
-    cleaned = []
-    for item in coverage_list:
-        if not isinstance(item, str) or not item.strip():
-            continue
-        s = item.strip()
-
-        # Filter out negative statements or non-covered items
-        if re.search(r'(?i)(:\s*nein|ist nicht vertragsinhalt|nicht versichert|erloschen|ausgeschlossen)', s):
-            continue
-
-        # Convert raw copied sentences to grammatically perfect German
-        if "Leistet, wenn mit dem versicherten Fahrzeug" in s or "berechtigte Ansprüche" in s:
-            cleaned.append("Kfz-Haftpflichtversicherung (Personen- & Sachschäden an Dritten, Erstattung berechtigter Ansprüche & Abwehr unberechtigter Forderungen)")
-        elif "Bietet organisatorische und finanzielle Hilfe" in s:
-            cleaned.append("Schutzbrief (Organisatorische & finanzielle Hilfe bei Panne oder Unfall, Pannenhilfe vor Ort & Abschleppen)")
-        elif "Ersetzt Schäden an Ihrem Fahrzeug durch Vandalismus" in s or "Vollkasko" in s and "(" not in s:
-            cleaned.append("Vollkasko (Abdeckung von Unfallschäden am eigenen Fahrzeug & Vandalismus)")
-        elif "Ersetzt den Personenschaden des Fahrers" in s or "Fahrerschutz" in s and "(" not in s:
-            cleaned.append("Fahrerschutz (Übernahme von Personenschäden & Genesungskosten des Fahrers bei Unfall)")
-        elif "Ersetzt Ihren Personen- und Sachschaden bei einem Unfall im Ausland" in s or "Ausland-Schadenschutz" in s and "(" not in s:
-            cleaned.append("Ausland-Schadenschutz (Schadenregulierung bei Unfällen im Ausland nach deutschem Standard)")
-        elif "Schützt Sie vor öffentlich-rechtlichen Ansprüchen nach dem Umweltschadensgesetz" in s or "Umweltschaden" in s and "(" not in s:
-            cleaned.append("Kfz-Umweltschadenversicherung (Schutz vor öffentlich-rechtlichen Ansprüchen nach dem Umweltschadensgesetz)")
-        elif "Versichert sind z. B. Diebstahl, Hagel, Sturm" in s or "Teilkasko" in s and "(" not in s:
-            cleaned.append("Teilkasko (Schutz bei Glasbruch, Diebstahl, Hagel, Sturm & Wildunfällen)")
-        elif "Ersetzt Schäden an Ihrem Fahrzeug durch Verschleiß" in s:
-            continue
-        else:
-            cleaned.append(s)
-
-    return list(dict.fromkeys(cleaned))
-
 _COVERAGE_STOP = re.compile(r'(?im)^\s*(?:besonders zu beachten|kontoauszug|bitte beachten sie folgendes)')
 
 
@@ -1009,21 +784,8 @@ def finalize_extraction(data: dict, text: str) -> dict:
     return data
 
 
-def extract_insurance_data(text: str, db=None) -> dict:
-    use_ai = True
-    if db is not None:
-        try:
-            import models
-            setting = db.query(models.SystemSetting).filter(models.SystemSetting.key == "use_ai_ocr").first()
-            if setting and setting.value is not None:
-                use_ai = setting.value.lower() in ["true", "1", "yes"]
-        except Exception as se:
-            print(f"Notice checking AI setting: {se}")
-
-    # The rules lead. The embedded model only fills gaps in the identification of a letter
-    # (insurer, policy number) and what it says must stand in the text (see ai_merge.py).
+def extract_insurance_data(text: str) -> dict:
     data = extract_insurance_data_regex(text)
-    data["ai_used"] = False
 
     # Apply learned vendor patterns if company is detected. They are untrusted
     # input (partly community-sourced), so they only run through pattern_safety.
@@ -1036,10 +798,6 @@ def extract_insurance_data(text: str, db=None) -> dict:
                 if field == "regional_class" and not val.upper().startswith("R"):
                     val = f"R{val}"
                 data[field] = val
-
-    if use_ai and has_gaps(data) and not is_informational(document_type_for(detect_kind(text))):
-        merge_ai_into_rules(data, extract_with_mini_ai(text), text)
-        company = data.get("company")
 
     finalize_extraction(data, text)
 

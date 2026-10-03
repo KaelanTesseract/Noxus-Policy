@@ -43,7 +43,6 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
   const [showRawText, setShowRawText] = useState(false);
   const [progress, setProgress] = useState(0);
   const [progressText, setProgressText] = useState("Dokument wird vorbereitet...");
-  const [useAi, setUseAi] = useState(true);
   const [includeCoverageDetails, setIncludeCoverageDetails] = useState<boolean>(true);
   
   const initialPreId = preselectedInsuranceId || targetInsuranceId;
@@ -62,10 +61,6 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
 
   useEffect(() => {
     if (isOpen) {
-      api.get("/documents/ai-config")
-        .then((cfg: any) => setUseAi(!!cfg.use_ai))
-        .catch(() => setUseAi(true));
-
       api.get("/insurances")
         .then((data: any[]) => setInsuranceList(data))
         .catch((err) => console.error("Fehler beim Laden der Versicherungsliste:", err));
@@ -97,10 +92,10 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
     const progressInterval = setInterval(() => {
       setProgress((prev) => {
         if (prev < 35) {
-          setProgressText(useAi ? "Optische Texterkennung (OCR) verarbeitet Dokument..." : "Texterkennung liest Dokument aus...");
+          setProgressText("Texterkennung liest das Dokument aus...");
           return prev + 10;
         } else if (prev < 88) {
-          setProgressText(useAi ? "Lokale Mini-KI (Qwen2.5 1.5B) analysiert Vertragsdaten & Leistungen..." : "Vertragsdaten werden strukturiert...");
+          setProgressText("Vertragsdaten werden erkannt...");
           return prev + 8;
         } else if (prev < 98) {
           setProgressText("Formularfelder werden aufbereitet...");
@@ -359,7 +354,7 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
 
                 <div className="flex justify-between items-center text-[11px] text-zinc-500 font-mono pt-1">
                   <span>1. Texterkennung (OCR)</span>
-                  <span>{useAi ? "2. Mini-KI (Qwen2.5 1.5B)" : "2. Daten-Strukturierung"}</span>
+                  <span>2. Daten erkennen</span>
                 </div>
               </div>
             )}
@@ -397,15 +392,9 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
             <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-800/50 flex items-center justify-between text-xs text-emerald-300 font-mono">
               <div className="flex items-center gap-2">
                 <span>Daten verarbeitet</span>
-                {useAi && extractedData?.ai_used ? (
-                  <span className="px-2 py-0.5 rounded text-[10px] bg-purple-950 text-purple-300 border border-purple-800 font-sans font-semibold flex items-center gap-1">
-                    Mini-KI ({extractedData.ai_model || "Qwen2.5 1.5B"})
-                  </span>
-                ) : (
-                  <span className="px-2 py-0.5 rounded text-[10px] bg-zinc-800 text-zinc-300 border border-zinc-700 font-sans">
-                    Texterkennung (OCR)
-                  </span>
-                )}
+                <span className="px-2 py-0.5 rounded text-[10px] bg-zinc-800 text-zinc-300 border border-zinc-700 font-sans">
+                  Texterkennung (OCR)
+                </span>
               </div>
               <button
                 onClick={() => setShowRawText(!showRawText)}
@@ -430,7 +419,7 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
                 <span>Dokumenten-Informationen</span>
                 {extractedData.doc_type && (
                   <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-900/80 border border-indigo-700 text-white font-normal">
-                    {useAi ? "KI-Vorschlag:" : "Vorschlag:"} {extractedData.doc_type}
+                    Vorschlag: {extractedData.doc_type}
                   </span>
                 )}
               </div>

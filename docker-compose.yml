@@ -7,7 +7,6 @@ services:
     volumes:
       - ./backend/data:/app/data
       - ./backend/documents:/app/documents
-      - ./backend/models:/app/models_data
     environment:
       - DATABASE_URL=sqlite:////app/data/versicherungsmanager.db
       # No insecure fallback here on purpose: every login token is signed with

@@ -20,7 +20,34 @@ import datetime
 import re
 from typing import Optional
 
-from ai_merge import date_pattern, value_in_text
+
+def _squash(value: str) -> str:
+    return re.sub(r"[\s\-/.:]", "", (value or "").lower())
+
+
+def date_pattern(value) -> "re.Pattern":
+    """Regex for a date as letters print it: 08.05.2018, 8.5.2018 or 8.5.18 - never as the
+    beginning of a longer number ("31.12.20" must not match inside "31.12.2019")."""
+    forms = {value.strftime("%d.%m.%Y"), f"{value.day}.{value.month}.{value.year}",
+             f"{value.day}.{value.month}.{value.strftime('%y')}"}
+    alternatives = "|".join(re.escape(form) for form in sorted(forms, key=len, reverse=True))
+    return re.compile(r"(?<![0-9.])(?:" + alternatives + r")(?![0-9])")
+
+
+def value_in_text(field: str, value, text: str) -> bool:
+    """True if the value, in its written form, stands in the text."""
+    if value in (None, "", []):
+        return False
+    haystack = text or ""
+    if isinstance(value, (datetime.date, datetime.datetime)):
+        return date_pattern(value).search(haystack) is not None
+    needle = str(value)
+    if field == "company":
+        return needle.strip().lower() in haystack.lower()
+    # numbers and classes: OCR and layout add or drop spaces and hyphens
+    squashed_needle = _squash(needle)
+    return len(squashed_needle) >= 2 and squashed_needle in _squash(haystack)
+
 
 PAGE_MARKER = re.compile(r"^--- Page (\d+) ---$")
 SNIPPET_CHARS = 90
@@ -127,9 +154,8 @@ def _check(field: str, value, text: str, data: dict) -> Optional[dict]:
 
 def assess_fields(data: dict, text: str) -> dict:
     """{field: {"status": ..., "seite": ..., "stelle": ..., "grund": ...}} for every checked
-    field that has a value. A field the model filled is marked with ``quelle: "ki"``."""
+    field that has a value."""
     result = {}
-    ai_fields = set(data.get("ai_fields") or [])
     for field in CHECKED_FIELDS:
         entry = _check(field, data.get(field), text, data)
         if entry is None:
@@ -137,7 +163,5 @@ def assess_fields(data: dict, text: str) -> dict:
         # The cancellation date is derived from the end date: if that is not read, neither is it
         if field == "cancellation_date" and entry["status"] == "berechnet" and result.get("end_date", {}).get("status") == "berechnet":
             entry["grund"] = "Ablauf minus ein Monat; der Ablauf selbst ist berechnet"
-        if field in ai_fields:
-            entry["quelle"] = "ki"
         result[field] = entry
     return result

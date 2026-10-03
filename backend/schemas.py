@@ -205,8 +205,5 @@ class ExtractionResult(BaseModel):
     new_cost: Optional[float] = None
     
     extracted_text: str
-    ai_used: Optional[bool] = False
-    ai_model: Optional[str] = None
     duplicate: Optional[dict] = None  # an earlier document of this user with the same file, see document_hash.py
     field_checks: Optional[dict] = None  # per field: gefunden / berechnet / unsicher, see field_checks.py
-    ai_fields: Optional[List[str]] = None  # fields the model filled (the rules found nothing)

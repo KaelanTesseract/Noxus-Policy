@@ -1,5 +1,5 @@
 <h1 align="center">Noxus Policy</h1>
-<h3 align="center">Versicherungsmanager mit KI-gestützter Dokumentenanalyse</h3>
+<h3 align="center">Versicherungsmanager mit automatischer Dokumentenanalyse</h3>
 
 <p align="center">
   <img src="https://github.com/KaelanTesseract/Noxus-Policy/blob/fcd19a9946ac18d64a184fe4778384bd5b48a888/logo.png" alt="Noxus Policy Logo" width="140" />
@@ -7,7 +7,7 @@
 
 <p align="center">
   <b>Moderne, selbstgehostete Open-Source Plattform zur automatischen Analyse, Verwaltung und Fristen-Überwachung von Versicherungspolicen.</b><br>
-  <i>100% Datenschutzkonform • Lokale KI (Qwen2.5-1.5B) • Proxmox LXC 1-Klick Installation</i>
+  <i>100% Datenschutzkonform • Lokale Texterkennung (Tesseract) • Proxmox LXC 1-Klick Installation</i>
 </p>
 
 <p align="center">
@@ -15,12 +15,12 @@
   <a href="#-tech-stack"><img src="https://img.shields.io/badge/Docker-Ready-2496ED.svg?style=for-the-badge&logo=docker" alt="Docker"></a>
   <a href="#-tech-stack"><img src="https://img.shields.io/badge/Next.js_16-v0.2.5--beta-black.svg?style=for-the-badge&logo=next.js" alt="Next.js"></a>
   <a href="#-tech-stack"><img src="https://img.shields.io/badge/FastAPI-Python-009688.svg?style=for-the-badge&logo=fastapi" alt="FastAPI"></a>
-  <a href="#-ki-gestützte-dokumentenanalyse--lernsystem"><img src="https://img.shields.io/badge/Local_AI-Qwen2.5_1.5B-purple.svg?style=for-the-badge" alt="Local AI"></a>
+  <a href="#-dokumentenanalyse--lernsystem"><img src="https://img.shields.io/badge/Local_OCR-Tesseract-purple.svg?style=for-the-badge" alt="Local OCR"></a>
 </p>
 
 > [!WARNING]
-> **Hinweis zur KI- & OCR-Texterkennung (Aktive Testphase):**
-> Die automatische Texterkennung und Dokumentenanalyse befindet sich derzeit in einer **kontinuierlichen Erprobungs- & Testphase**. Je nach Qualität, Formatierung, Scan-Auflösung oder Layout der hochgeladenen PDF-Dokumente kann es vereinzelt zu Abweichungen oder Fehlern bei der Datenerkennung kommen. Bitte überprüfe ausgelesene Vertragsdaten, Kündigungsfristen und Beiträge stets sorgfältig auf ihre Richtigkeit.
+> **Hinweis zur Texterkennung (Aktive Testphase):**
+> Die automatische Texterkennung und Dokumentenanalyse befindet sich derzeit in einer **kontinuierlichen Erprobungs- & Testphase**. Je nach Qualität, Formatierung, Scan-Auflösung oder Layout der hochgeladenen PDF-Dokumente kann es vereinzelt zu Abweichungen oder Fehlern bei der Datenerkennung kommen. Bitte überprüfe ausgelesene Vertragsdaten, Kündigungsfristen und Beiträge stets sorgfältig auf ihre Richtigkeit. Die App hilft dabei: Zu jedem ausgelesenen Wert zeigt sie, ob er im Dokument gefunden (mit Seite und Textstelle), nur berechnet (z. B. die Kündigungsfrist) oder unsicher ist.
 
 ---
 
@@ -32,7 +32,7 @@
 - [🔒 Sicherheit & HTTPS (Reverse Proxy)](#-sicherheit--https-reverse-proxy)
 - [✨ Hauptfunktionen](#-hauptfunktionen)
   - [🔐 Sicherheit, Benutzer- & Zugriffsverwaltung](#-sicherheit-benutzer---zugriffsverwaltung)
-  - [🤖 KI-gestützte Dokumentenanalyse & Lernsystem](#-ki-gestützte-dokumentenanalyse--lernsystem)
+  - [🔎 Dokumentenanalyse & Lernsystem](#-dokumentenanalyse--lernsystem)
   - [🛡️ Datenschutz-Garantien beim Dokumenten-Upload](#️-datenschutz-garantien-beim-dokumenten-upload)
   - [📈 Verträge, Kosten & Fristen im Blick](#-verträge-kosten--fristen-im-blick)
   - [📊 Dashboard, Posteingang & Auswertung](#-dashboard-posteingang--auswertung)
@@ -99,6 +99,9 @@ Das Skript erstellt **automatisch ein Vorab-Sicherheitsbackup** der Datenbank, f
 ```text
 [██████████████████████████████] 100% | 5/5: Update erfolgreich abgeschlossen!
 ```
+
+> [!NOTE]
+> **Die Anwendung kommt ohne KI-Modell aus.** Eine frühere Version konnte optional ein Sprachmodell (Qwen2.5-1.5B) laden. Gemessen brachte es gegenüber der regelbasierten Erkennung kaum etwas, kostete aber rund 1,5 GB Arbeitsspeicher, 1,1 GB Festplatte und Rechenzeit, deshalb wurde es entfernt. Auf bestehenden Installationen ist der Ordner `backend/models` (das heruntergeladene Modell, ca. 1,1 GB) nun überflüssig und kann gelöscht werden.
 
 ---
 
@@ -216,8 +219,7 @@ Ein Dokument darf höchstens 15 MB groß sein, Backup-Dateien beim Wiederherstel
 - **Kalender-Abo-Link vertraulich behandeln**: Die WebCal-Adresse enthält ein geheimes Token (Kalender-Apps können keine Anmeldung senden). Wer den Link kennt, sieht deine Kündigungsfristen. Bei Verdacht erneuerst du ihn unter *Einstellungen → Kalender* (der alte Link wird ungültig).
 - **Versicherer-Logos**: Die Logos lädt der Server (nicht dein Browser) über den Google-Favicon-Dienst; Google erfährt dabei nur die Domain des Versicherers und die Adresse des Servers, nie die Adresse der Benutzer. Wer keinerlei externe Anfrage möchte, setzt `DISABLE_LOGO_LOOKUP=true` in der `.env`-Datei – es erscheinen dann Initialen.
 - **Löschen von Konten**: Benutzer können ihr Konto unter *Einstellungen → Konto löschen* selbst entfernen (Administratoren löscht ein anderer Administrator). Dabei werden Verträge, Schadensfälle, Dokumente und Posteingang samt Dateien gelöscht. Bereits erstellte Server-Backups enthalten die Daten weiterhin, bis sie gelöscht werden.
-- **Container laufen ohne Root-Rechte.** Das Frontend läuft als Benutzer `node`. Das Backend startet kurz als Root, übergibt die Datenordner (`backend/data`, `backend/documents`, `backend/models`) an den Benutzer `app` und läuft danach unprivilegiert; alle unnötigen Linux-Capabilities sind entzogen. Sollte das auf einem ungewöhnlichen Speicher-Setup Probleme machen, fällt der Start mit einer Warnung im Log auf Root zurück; erzwingen lässt sich das mit `RUN_AS_ROOT=1` in der `.env`-Datei (dann `docker compose up -d`).
-- **Die KI-Modelldatei wird geprüft.** Das Sprachmodell wird von einem festen Hugging-Face-Stand geladen und gegen eine SHA-256-Prüfsumme verglichen; eine abweichende Datei wird verworfen und die KI fällt auf die klassische Erkennung zurück.
+- **Container laufen ohne Root-Rechte.** Das Frontend läuft als Benutzer `node`. Das Backend startet kurz als Root, übergibt die Datenordner (`backend/data`, `backend/documents`) an den Benutzer `app` und läuft danach unprivilegiert; alle unnötigen Linux-Capabilities sind entzogen. Sollte das auf einem ungewöhnlichen Speicher-Setup Probleme machen, fällt der Start mit einer Warnung im Log auf Root zurück; erzwingen lässt sich das mit `RUN_AS_ROOT=1` in der `.env`-Datei (dann `docker compose up -d`).
 
 ---
 
@@ -231,10 +233,17 @@ Ein Dokument darf höchstens 15 MB groß sein, Backup-Dateien beim Wiederherstel
 * **Automatische Session-Abmeldung (`/session-expired`):** Läuft eine Sitzung ab (401 Unauthorized), wird der Nutzer automatisch zum Login zurückgeführt.
 * **Passwort-Reset per E-Mail:** Selbstständiger Passwort-Reset über einen admin-konfigurierbaren SMTP-Server; alternativ kann ein Administrator die Reset-Mail direkt aus der Benutzerverwaltung auslösen.
 
-### 🤖 KI-gestützte Dokumentenanalyse & Lernsystem
-* **Lokale KI-Engine (Qwen2.5-1.5B via llama.cpp):** 100 % lokale Extraktion von Gesellschaft, Policennummer, Fristen, KFZ-Klassen, Beiträgen & Deckungsbausteinen — vertrauliche Dokumente verlassen den Server nicht.
-* **Dual-Engine OCR:** Umschaltbar zwischen lokaler KI und einer schnellen, klassischen Regex-/Keyword-Erkennung als Fallback, inklusive `pytesseract`-Bildtexterkennung für gescannte PDFs.
-* **Eine Analyse statt zwei:** Dokumentenvorschau und -speicherung teilen sich dasselbe Analyseergebnis — der frühere doppelte KI-/OCR-Durchlauf pro Upload entfällt.
+### 🔎 Dokumentenanalyse & Lernsystem
+* **Lokale Texterkennung, ohne KI-Modell:** Gesellschaft, Policennummer, Fristen, KFZ-Klassen, Beiträge und versicherte Leistungen werden mit festen Regeln gelesen. PDFs mit Textebene liest Poppler (`pdftotext -layout`, Tabellen behalten ihre Spalten), Scans und Fotos liest Tesseract mit deutschem Wörterbuch. Die Dokumente verlassen den Server nie; es werden keine Modelle heruntergeladen.
+* **Schräge und gedrehte Seiten:** Schräg eingescannte oder fotografierte Seiten werden vor dem Lesen begradigt, um 90° oder 180° gedrehte Seiten erkennt die Texterkennung an ihrer Sicherheit und liest sie neu.
+* **Lange PDFs:** Bei PDFs mit Textebene bleiben die Seiten mit den meisten Vertragsdaten erhalten, bei langen Scans wird in Schüben gelesen und aufgehört, sobald ein Beitrag gefunden ist; ein Informationsschreiben mit 60 Seiten wird nicht bis zum Ende gelesen.
+* **Dokumentart wird erkannt:** Versicherungsschein, Beitragsrechnung, Nachtrag, Beitragsanpassung, Grüne Karte, Bedingungen und Verbraucherinformationen werden an der Kopfzeile erkannt; Informationsschreiben ändern nie Vertragsdaten.
+* **Beträge richtig gelesen:** Guthaben und Erstattungen werden nie als Beitrag übernommen; bei einem beendeten Vertrag gibt es keinen Beitrag und keine Kündigungsfrist.
+* **Prüfung jedes Werts:** Der Upload-Dialog zeigt zu jedem Wert, ob er im Dokument gefunden wurde (Seite und Textstelle), nur berechnet ist oder unsicher.
+* **Sinnvoller Dokumentname:** Statt kryptischer Scan-Namen schlägt die App „Gesellschaft, Art des Schreibens, Datum“ vor (z. B. *Itzehoer Kfz-Beitragsrechnung Januar 2021*), nie mit der Policennummer.
+* **Doppelte Dokumente:** Wird eine Datei erneut hochgeladen, warnt die App („Dieses Dokument hast du schon hochgeladen“); gespeichert werden kann sie trotzdem. Verglichen werden nur die eigenen Dokumente.
+* **Vertragsdaten nur vom richtigen Schreiben:** Beginn und Ende eines bestehenden Vertrags ändern nur die Police (beides) und ein Nachtrag (nur das Ende); Rechnungen und Beitragsanpassungen übernehmen Beitrag, Zahlweise und Klassen, aber keine Laufzeit.
+* **Eine Analyse statt zwei:** Dokumentenvorschau und -speicherung teilen sich dasselbe Analyseergebnis — der frühere doppelte Durchlauf pro Upload entfällt.
 * **Anonymisiertes Vendor-Pattern-Lernsystem:** Ein Sanitizer (`sanitizer.py`) entfernt vor jedem Lernschritt ausnahmslos Namen, Adressen, IBANs, Policennummern, Kennzeichen und Telefonnummern (Zero-PII-Leak).
 * **Community-Musterabgleich per Pull Request:** Standardmäßig **deaktiviert** und pro Instanz vom Administrator aktivierbar (inkl. eigenem GitHub-Token in den Einstellungen). Statt Änderungen automatisch zu veröffentlichen, öffnet bzw. aktualisiert das Backend einen Pull Request — Muster-Updates werden erst nach Review übernommen. Die gelernten, anonymisierten Layout-Muster werden dabei zusätzlich obfuskiert (Base64/XOR) abgelegt.
 
@@ -254,7 +263,7 @@ Ein Dokument darf höchstens 15 MB groß sein, Backup-Dateien beim Wiederherstel
 
 ### 📊 Dashboard, Posteingang & Auswertung
 * **Live-Kennzahlen-Kacheln:** Aktive Policen, Gesamtkosten pro Jahr, eine anklickbare Kündigungsfristen-Kachel (zeigt Anzahl & nächste fällige Frist der kommenden 90 Tage) sowie eine anklickbare Posteingang-Kachel mit der aktuellen Zahl noch nicht zugeordneter Dokumente.
-* **Posteingang (Inbox):** Zentrale Ablage für hochgeladene Dokumente vor der Zuordnung zu einer Police, inklusive KI-Analyse-Vorschlägen direkt im Posteingang.
+* **Posteingang (Inbox):** Zentrale Ablage für hochgeladene Dokumente vor der Zuordnung zu einer Police, inklusive Analyse-Vorschlägen direkt im Posteingang.
 * **Visuelles Kosten-Diagramm:** Interaktive Aufschlüsselung der Jahresausgaben nach Versicherungssparte (Kfz, Privathaftpflicht, Hausrat, Rechtsschutz, …).
 * **Suche & Sortierung in Echtzeit:** Nach Name, Gesellschaft, Policennummer, Kosten, Kündigungsfrist oder Alphabet.
 * **Dynamische Tab-Navigation:** Übersichtliche Detailansicht je Police in 5 Tabs (`📋 Stammdaten & Leistungen`, `📈 Beitragsentwicklung`, `📄 Dokumente`, `💥 Schadensfälle`, `📝 Notizen & Memos`).
@@ -269,16 +278,16 @@ Ein Dokument darf höchstens 15 MB groß sein, Backup-Dateien beim Wiederherstel
 ### 💾 Betrieb, Backup & Performance
 * **Verschlüsselte Backups mit Rotation:** Passwortbasiert verschlüsselte (Fernet/AES) Archive aus Datenbank und Dokumenten, automatisch bei jedem `update` sowie nach konfigurierbarem Zeitplan; ältere Backups werden nach Anzahl/Alter automatisch rotiert.
 * **Optimierte Datenbankzugriffe:** Indizes auf allen Fremdschlüsseln sowie Eager-Loading (`selectinload`) vermeiden N+1-Abfragen auf stark frequentierten Endpunkten.
-* **Schlankes Docker-Image:** Mehrstufiger Docker-Build — die Build-Werkzeuge zur Kompilierung der KI-Engine landen nicht im laufenden Produktions-Image.
+* **Schlankes Docker-Image:** Keine Compiler und keine Modelldateien im Image; alle Python-Abhängigkeiten sind fertige Pakete.
 
 ---
 
 ## 💻 Empfohlene Hardware-Ressourcen
 
-| Komponente | Minimum (OCR ohne KI) | Empfohlen (mit lokaler KI) |
+| Komponente | Minimum | Empfohlen |
 | :--- | :--- | :--- |
-| **Prozessor (CPU)** | 2 Kerne | **4 Kerne** (mit AVX2) |
-| **Arbeitsspeicher (RAM)** | 2 GB RAM | **4 GB RAM** (Modell benötigt ~1,2 GB) |
+| **Prozessor (CPU)** | 2 Kerne | **4 Kerne** (Scans werden schneller gelesen) |
+| **Arbeitsspeicher (RAM)** | 2 GB RAM | **4 GB RAM** |
 | **Festplatte (Disk)** | 5 GB SSD | **16 GB SSD** |
 
 ---
@@ -286,8 +295,8 @@ Ein Dokument darf höchstens 15 MB groß sein, Backup-Dateien beim Wiederherstel
 ## 🛠️ Tech Stack
 
 * **Frontend:** Next.js 16 (App Router, Turbopack), React 19, TailwindCSS, Lucide Icons.
-* **Backend:** Python 3.11, FastAPI, SQLAlchemy (SQLite3), PyPDF, Llama-cpp-python.
-* **Deployment:** Docker (mehrstufiger Build), Docker Compose, Proxmox VE Helper Scripts (LXC).
+* **Backend:** Python 3.11, FastAPI, SQLAlchemy (SQLite3), PyPDF, Tesseract (pytesseract), Poppler.
+* **Deployment:** Docker, Docker Compose, Proxmox VE Helper Scripts (LXC).
 
 ---
 
@@ -299,5 +308,5 @@ Dieses Projekt ist Open-Source-Software und steht unter der **[MIT Lizenz](LICEN
 
 ### 📚 Drittanbieter-Bibliotheken & Open-Source Attributierung
 * **Frontend:** Next.js (MIT), React (MIT), TailwindCSS (MIT), Lucide Icons (ISC).
-* **Backend:** FastAPI (MIT), Uvicorn (BSD), SQLAlchemy (MIT), PyPDF (BSD), Llama-cpp-python (MIT).
-* **KI-Modell:** Qwen2.5 1.5B Instruct von Alibaba Cloud (Apache 2.0 License - Open Commercial Use).
+* **Backend:** FastAPI (MIT), Uvicorn (BSD), SQLAlchemy (MIT), PyPDF (BSD), pytesseract (Apache 2.0).
+* **Texterkennung:** Tesseract OCR (Apache 2.0), Poppler (GPL, als eigenständiges Programm aufgerufen).

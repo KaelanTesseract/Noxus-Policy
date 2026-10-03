@@ -20,7 +20,7 @@ import { OidcCard } from "@/components/settings/OidcCard";
 import { SsoLinkCard } from "@/components/settings/SsoLinkCard";
 import { APP_VERSION } from "@/lib/version";
 import { clearSession } from "@/lib/session";
-import { RefreshCw, CheckCircle2, AlertCircle, Loader2, Settings, Wrench, Palette, Calendar, Cpu, Clock, Database, Mail, Users, ArrowLeft, GitPullRequest, Check, Info, Trash2 } from "lucide-react";
+import { RefreshCw, CheckCircle2, AlertCircle, Loader2, Settings, Wrench, Palette, Calendar, Clock, Database, Mail, Users, ArrowLeft, GitPullRequest, Check, Info, Trash2 } from "lucide-react";
 
 interface User {
   id: number;
@@ -115,12 +115,6 @@ export default function SettingsPage() {
   const [userImporting, setUserImporting] = useState(false);
   const [userImportMsg, setUserImportMsg] = useState("");
   const [userImportErr, setUserImportErr] = useState("");
-
-  // AI OCR Config State
-  const [useAiOcr, setUseAiOcr] = useState(true);
-  const [aiConfigMsg, setAiConfigMsg] = useState("");
-  const [aiConfigErr, setAiConfigErr] = useState("");
-  const [aiConfigSaving, setAiConfigSaving] = useState(false);
 
   // Community pattern-sync (Pull Request based) admin state
   const [patternSyncEnabled, setPatternSyncEnabled] = useState(false);
@@ -266,14 +260,6 @@ export default function SettingsPage() {
         const usersList = await api.get("/users/all");
         setAllUsers(usersList);
 
-        // Load AI Config
-        try {
-          const aiConfig = await api.get("/documents/ai-config");
-          setUseAiOcr(aiConfig.use_ai);
-        } catch (aiErr) {
-          console.error("Error loading AI config:", aiErr);
-        }
-
         // Load community pattern-sync config
         try {
           const syncConfig = await api.get("/documents/pattern-sync-config");
@@ -362,22 +348,6 @@ export default function SettingsPage() {
       setProfileErr(err.message || "Fehler beim Aktualisieren des Profils.");
     } finally {
       setProfileLoading(false);
-    }
-  };
-
-  const handleSaveAiConfig = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAiConfigMsg("");
-    setAiConfigErr("");
-    setAiConfigSaving(true);
-
-    try {
-      const res = await api.post("/documents/ai-config", { use_ai: useAiOcr });
-      setAiConfigMsg(res.msg || "KI-Einstellungen erfolgreich gespeichert!");
-    } catch (err: any) {
-      setAiConfigErr(err.message || "Fehler beim Speichern der KI-Einstellungen.");
-    } finally {
-      setAiConfigSaving(false);
     }
   };
 
@@ -1340,67 +1310,6 @@ export default function SettingsPage() {
                     Wenn der Server rein lokal (z. B. <code>http://192.168.x.x:3000</code>) ohne externe Anbindung betrieben wird, können externe Kalender-Server nicht auf den Live-Link zugreifen. Deaktiviere in diesem Fall das WebCal-Live-Abonnement. Alle Benutzer können stattdessen weiterhin den <strong>manuellen .ics-Download</strong> nutzen!
                   </p>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* AI OCR Engine Settings Card */}
-            <Card className="border-zinc-800 bg-zinc-900/50 backdrop-blur-md shadow-xl">
-              <CardHeader>
-                <CardTitle className="text-xl font-semibold flex items-center gap-2">
-                  <Cpu className="w-5 h-5 text-zinc-400" />
-                  <span>KI-gestützte Dokumentenanalyse & OCR Engine</span>
-                </CardTitle>
-                <CardDescription className="mt-1">
-                  Wähle zwischen der lokalen KI (Qwen2.5 1.5B) zur präzisen Vertragsanalyse oder der klassischen regelbasierten OCR-Erkennung.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <form onSubmit={handleSaveAiConfig} className="space-y-5">
-                  <div className="flex items-center space-x-3 p-4 rounded-xl bg-zinc-950/60 border border-zinc-800">
-                    <input
-                      type="checkbox"
-                      id="useAiOcr"
-                      checked={useAiOcr}
-                      onChange={e => setUseAiOcr(e.target.checked)}
-                      className="w-5 h-5 rounded border-zinc-700 bg-zinc-900 text-purple-600 focus:ring-purple-500 accent-purple-600 cursor-pointer"
-                    />
-                    <Label htmlFor="useAiOcr" className="text-sm font-semibold text-white cursor-pointer select-none">
-                      Lokale KI-Analyse aktivieren (Qwen2.5 1.5B via Llama-cpp)
-                    </Label>
-                  </div>
-
-                  {/* Recommended Hardware Info Box */}
-                  <div className="p-4 rounded-xl bg-purple-950/20 border border-purple-800/40 text-purple-200 space-y-2 text-xs leading-relaxed">
-                    <h4 className="font-bold text-purple-300 uppercase tracking-wider text-[11px]">
-                      Empfohlene Hardware-Ressourcen für KI-Nutzung:
-                    </h4>
-                    <ul className="list-disc list-inside space-y-1 text-zinc-300 font-mono text-[11px]">
-                      <li><strong>Prozessor (CPU):</strong> Mindestens <strong>4 CPU-Kerne</strong> (mit AVX2-Befehlssatz).</li>
-                      <li><strong>Arbeitsspeicher (RAM):</strong> Mindestens <strong>4 GB RAM</strong> (Modell benötigt ~1,2 GB freien RAM).</li>
-                      <li><strong>Festplattenspeicher:</strong> ca. <strong>1 GB</strong> für die lokalen Modellgewichtungen.</li>
-                    </ul>
-                    <p className="text-zinc-400 text-[11px] pt-1">
-                      <em>Hinweis bei schwächeren Systemen:</em> Auf Servern mit unter 4 GB RAM oder 2 CPU-Kernen empfiehlt es sich, die KI zu deaktivieren. Das System nutzt dann automatisch die superschnelle klassische OCR-Erkennung ohne KI-Modell.
-                    </p>
-                  </div>
-
-                  {aiConfigMsg && (
-                    <div className="p-3 bg-emerald-950/50 border border-emerald-800 text-emerald-300 rounded-xl text-xs">
-                      {aiConfigMsg}
-                    </div>
-                  )}
-                  {aiConfigErr && (
-                    <div className="p-3 bg-red-950/50 border border-red-800 text-red-300 rounded-xl text-xs">
-                      {aiConfigErr}
-                    </div>
-                  )}
-
-                  <div className="flex justify-end pt-2 border-t border-zinc-800/80">
-                    <Button type="submit" disabled={aiConfigSaving} className="theme-bg-accent text-white theme-glow text-xs font-medium">
-                      {aiConfigSaving ? "Speichert..." : "KI-Einstellungen speichern"}
-                    </Button>
-                  </div>
-                </form>
               </CardContent>
             </Card>
 

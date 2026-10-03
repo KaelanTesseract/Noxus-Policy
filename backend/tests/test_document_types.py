@@ -369,13 +369,3 @@ def test_a_terminated_contract_covers_nothing():
     text = ("Itzehoer Versicherungen\nNachtrag zur Kraftfahrtversicherung\nDer zwischen uns geschlossene Vertrag ist beendet.\n"
             "Erstattungsbeitrag\nKfz-Haftpflicht 28,29- €\nTeilkasko 5,60- €\nZwischensumme 40,33- €\n")
     assert ocr.extract_insurance_data(text)["coverage_details"] == []
-
-
-def test_the_instruction_for_the_model_names_no_example_values():
-    # the small model repeats examples: an insurer from the instruction showed up in letters of other
-    # insurers, and the example coverages came back unchanged for every document
-    prompt = ocr.build_ai_prompt("Beispieltext", with_prefill=False)
-    for example in ("HUK", "Allianz", "AXA", "Schutzbrief", "Kfz-Haftpflichtversicherung", "SF 15", "Muster"):
-        assert example not in prompt
-    assert "coverage_details" not in prompt
-    assert "coverage_details" not in ocr._answer_schema()["properties"]

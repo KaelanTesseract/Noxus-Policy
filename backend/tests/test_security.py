@@ -151,7 +151,7 @@ def test_totp_matches_the_rfc_6238_test_vector():
 
 
 # ----------------------------------------------------------------------------- access control
-@pytest.mark.parametrize("path", ["/api/users/smtp-status", "/api/users/webcal-config", "/api/documents/ai-config", "/api/users/me"])
+@pytest.mark.parametrize("path", ["/api/users/smtp-status", "/api/users/webcal-config", "/api/users/me"])
 def test_settings_endpoints_require_login(client, path):
     assert client.get(path).status_code == 401
 

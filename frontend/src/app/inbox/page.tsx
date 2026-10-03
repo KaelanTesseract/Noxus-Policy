@@ -168,10 +168,10 @@ export default function InboxPage() {
     setMessage(null);
     try {
       const res = await api.post(`/inbox/${docId}/analyze`, {});
-      setMessage({ type: "success", text: "KI-Analyse erfolgreich abgeschlossen!" });
+      setMessage({ type: "success", text: "Analyse erfolgreich abgeschlossen!" });
       await loadData();
     } catch (err: any) {
-      setMessage({ type: "error", text: err?.message || "Fehler bei der KI-Analyse." });
+      setMessage({ type: "error", text: err?.message || "Fehler bei der Analyse." });
     } finally {
       setAnalyzingId(null);
     }
@@ -283,7 +283,7 @@ export default function InboxPage() {
               </span>
             </div>
             <p className="text-xs sm:text-sm text-zinc-400 mt-1">
-              Hier landen alle hochgeladenen Dokumente zur KI-Analyse & Zuordnung.
+              Hier landen alle hochgeladenen Dokumente zur Analyse & Zuordnung.
             </p>
           </div>
         </div>
@@ -370,7 +370,7 @@ export default function InboxPage() {
                               ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
                               : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
                           }`}>
-                            {doc.status === "analyzed" ? "KI-Analysiert" : "Ausstehend"}
+                            {doc.status === "analyzed" ? "Analysiert" : "Ausstehend"}
                           </span>
                         </div>
 
@@ -382,7 +382,7 @@ export default function InboxPage() {
 
                         <DuplicateNotice duplicate={doc.duplicate_of} />
 
-                        {/* AI Extraction Preview Box */}
+                        {/* Preview of the extracted data */}
                         {aiParsed && (
                           <div className="mt-3 p-3 rounded-xl bg-indigo-950/30 border border-indigo-900/40 text-xs text-indigo-200 space-y-1 font-mono">
                             <div className="font-bold text-indigo-400 flex items-center gap-1">
@@ -419,7 +419,7 @@ export default function InboxPage() {
                         size="sm"
                         className="border-indigo-800/80 bg-indigo-950/40 hover:bg-indigo-900/60 text-indigo-200 text-xs font-semibold"
                       >
-                        {analyzingId === doc.id ? "Analysiere..." : "KI-Analyse"}
+                        {analyzingId === doc.id ? "Analysiere..." : "Analysieren"}
                       </Button>
 
                       {insurances.length > 0 && (
@@ -551,7 +551,7 @@ export default function InboxPage() {
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto">
               <h3 className="font-bold text-lg text-zinc-100">Neue Versicherung aus Dokument erstellen</h3>
               <p className="text-xs text-zinc-400">
-                Die Daten wurden per KI vorbereitet. Überprüfe die Werte und erstelle die Versicherung.
+                Die Daten wurden automatisch aus dem Dokument vorbereitet. Überprüfe die Werte und erstelle die Versicherung.
               </p>
 
               <div className="space-y-3 text-xs">

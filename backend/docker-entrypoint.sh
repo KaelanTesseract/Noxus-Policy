@@ -13,7 +13,7 @@
 
 set -e
 
-DIRS="/app/data /app/documents /app/models_data"
+DIRS="/app/data /app/documents"
 
 if [ "$(id -u)" != "0" ]; then
   exec "$@"
