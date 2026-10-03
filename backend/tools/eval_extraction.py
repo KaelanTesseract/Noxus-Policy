@@ -93,11 +93,14 @@ def main():
     parser.add_argument("--draft", action="store_true", help="write eval/expected.json from the rule results")
     parser.add_argument("--fresh", action="store_true", help="read the documents again instead of using cached texts")
     parser.add_argument("--only", help="only documents whose file name contains this text")
+    parser.add_argument("--tesseract", default="", help="extra Tesseract options, e.g. \"--psm 6\" (implies --fresh)")
     args = parser.parse_args()
 
     prepare_windows_tools()
     import ocr
     import document_naming
+    ocr.OCR_TESSERACT_CONFIG = args.tesseract
+    args.fresh = args.fresh or bool(args.tesseract)
 
     files = sorted(f for f in os.listdir(DOCS_DIR) if f.lower().endswith(EXTENSIONS))
     if args.only:

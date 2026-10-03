@@ -4,6 +4,7 @@
 import pytesseract
 from pattern_safety import apply_patterns
 from document_naming import detect_kind, suggest_title
+from image_prep import prepare_for_ocr
 from document_types import CONTRACT_FIELDS, DEFAULT_DOC_TYPE, DOC_TYPE_FOR_KIND, document_type_for, is_informational
 from PIL import Image
 from pdf2image import convert_from_path
@@ -108,8 +109,20 @@ OCR_MAX_IMAGE_PIXELS = 50_000_000    # decoded pixels above this are refused out
 OCR_PDF_RENDER_TIMEOUT_S = 60
 OCR_TESSERACT_TIMEOUT_S = 60
 MAX_EXTRACTED_TEXT_CHARS = 200_000   # what the (regex-heavy) extractors ever get to see
+OCR_TESSERACT_CONFIG = ""            # extra Tesseract options (page segmentation mode etc.), see tools/eval_ocr.py
 
 Image.MAX_IMAGE_PIXELS = OCR_MAX_IMAGE_PIXELS
+
+def read_page_image(img) -> str:
+    """Text of one page image. The page is straightened first (phone photos and hurried
+    scans are tilted; see image_prep.py) - if that fails for any reason the original
+    image is read instead."""
+    try:
+        prepared = prepare_for_ocr(img)
+    except Exception as e:
+        print(f"Image preparation notice: {e}")
+        prepared = img
+    return pytesseract.image_to_string(prepared, lang='deu', config=OCR_TESSERACT_CONFIG, timeout=OCR_TESSERACT_TIMEOUT_S)
 
 def extract_text_from_file(filepath: str) -> str:
     text = ""
@@ -138,12 +151,12 @@ def extract_text_from_file(filepath: str) -> str:
                     size=OCR_MAX_PAGE_SIDE_PX, timeout=OCR_PDF_RENDER_TIMEOUT_S,
                 )
                 for img in images:
-                    text += pytesseract.image_to_string(img, lang='deu', timeout=OCR_TESSERACT_TIMEOUT_S) + "\n"
+                    text += read_page_image(img) + "\n"
         else:
             with Image.open(filepath) as img:
                 img.draft("RGB", (OCR_MAX_IMAGE_SIDE_PX, OCR_MAX_IMAGE_SIDE_PX))  # cheap JPEG downscale while decoding
                 img.thumbnail((OCR_MAX_IMAGE_SIDE_PX, OCR_MAX_IMAGE_SIDE_PX))
-                text = pytesseract.image_to_string(img, lang='deu', timeout=OCR_TESSERACT_TIMEOUT_S)
+                text = read_page_image(img)
     except Exception as e:
         print(f"Error during OCR/text extraction: {e}")
     return text[:MAX_EXTRACTED_TEXT_CHARS]
@@ -349,6 +362,13 @@ def extract_policy_number_fallback(text: str, current_num: str = None) -> str:
     if direct_match:
         val = direct_match.group(1).strip()
         if not is_invalid_policy_num(val):
+            return val
+
+    # 1b. The same number with a space inside, as scans often come out: "LJ-23375 102-001"
+    spaced = re.search(r'\b([A-Z]{1,4}-\d{3,8}) (\d{2,8}-\d{1,3})\b', text)
+    if spaced:
+        val = spaced.group(1) + spaced.group(2)
+        if 6 <= len(re.findall(r'\d', val.split('-', 1)[1].rsplit('-', 1)[0])) <= 12 and not is_invalid_policy_num(val):
             return val
 
     # 2. Multi-line label search: e.g. "Versicherungsschein-Nummer\nLJ-12345678-001"
