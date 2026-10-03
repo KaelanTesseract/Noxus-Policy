@@ -34,6 +34,9 @@ render_progress() {
   printf "\r\033[K${CYAN}[${GREEN}%s${CYAN}%s] %3d%%${NC} | %s" "$filled_bar" "$empty_bar" "$percentage" "$stage_name"
 }
 
+# The banner is shown once: after it has pulled the new version this script starts itself again
+# (see NOXUS_UPDATE_REEXECED below), and that second run continues the same progress bar.
+if [ -z "$NOXUS_UPDATE_REEXECED" ]; then
 echo -e "${CYAN}"
 echo '  _   _  _____  ___   _ ____    ____   ___  _     ___ ______   __'
 echo ' | \ | |/ _ \ \/ / | | / ___|  |  _ \ / _ \| |   |_ _/ ___\ \ / /'
@@ -42,6 +45,7 @@ echo ' | |\  | |_| /  \| |_| |___) | |  __/| |_| | |___ | | |___  | |  '
 echo ' |_| \_|\___/_/\_\\___/|____/  |_|    \___/|_____|___\____| |_|  '
 echo -e "${NC}"
 echo -e "${YELLOW}🚀 Starte System-Update von Noxus Policy...${NC}\n"
+fi
 
 INSTALL_DIR="/opt/versicherungsmanager"
 if [ ! -d "$INSTALL_DIR" ]; then
