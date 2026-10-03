@@ -20,7 +20,7 @@ import datetime
 import re
 from typing import Optional
 
-from ai_merge import value_in_text
+from ai_merge import date_pattern, value_in_text
 
 PAGE_MARKER = re.compile(r"^--- Page (\d+) ---$")
 SNIPPET_CHARS = 90
@@ -50,11 +50,6 @@ def _german_amounts(value: float) -> list:
     plain = f"{value:.2f}".replace(".", ",")
     grouped = f"{value:,.2f}".replace(",", "#").replace(".", ",").replace("#", ".")
     return list({plain, grouped})
-
-
-def _date_forms(value: datetime.date) -> list:
-    return [value.strftime("%d.%m.%Y"), f"{value.day}.{value.month}.{value.year}",
-            f"{value.day}.{value.month}.{value.strftime('%y')}"]
 
 
 def _lines_with_pages(text: str):
@@ -111,7 +106,8 @@ def _check(field: str, value, text: str, data: dict) -> Optional[dict]:
             return {"status": "unsicher", "grund": "Beitrag nur vermutet (erster passender Betrag im Dokument)",
                     "seite": found[0], "stelle": found[1][:SNIPPET_CHARS]}
     elif isinstance(value, (datetime.date, datetime.datetime)):
-        found = _locate(text, _date_forms(value))
+        pattern = date_pattern(value)
+        found = next(((page, raw.strip()) for page, raw in _lines_with_pages(text) if pattern.search(raw)), None)
     elif field == "sf_class":
         found = _locate_sf_class(text, str(value))
     elif field in _CLASS_FIELDS:

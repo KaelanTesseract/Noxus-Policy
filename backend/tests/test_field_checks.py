@@ -97,3 +97,15 @@ def test_a_cost_taken_from_the_first_amount_on_the_page_is_not_certain():
     data = ocr.extract_insurance_data(text)
     assert data["cost"] == 77.70 and data["cost_certain"] is False
     assert data["field_checks"]["cost"]["status"] == "unsicher"
+
+
+def test_a_short_year_never_matches_inside_a_longer_one():
+    # "31.12.20" is the short form of 31.12.2020 - it must not be found in "31.12.2019"
+    checks = fc.assess_fields({"start_date": datetime.date(2019, 1, 1), "end_date": datetime.date(2020, 12, 31)},
+                              "gültig bis 31.12.2019 und ab 01.01.2019")
+    assert checks["end_date"]["status"] == "berechnet"
+    assert checks["start_date"]["status"] == "gefunden"
+
+
+def test_short_forms_of_a_date_are_still_found():
+    assert fc.assess_fields({"start_date": datetime.date(2018, 5, 8)}, "Beginn 8.5.18 Uhr")["start_date"]["status"] == "gefunden"

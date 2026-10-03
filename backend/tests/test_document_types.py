@@ -281,3 +281,32 @@ def test_a_premium_letter_still_updates_cost_and_history(client, make_user):
     after = client.get(f"/api/insurances/{ins_id}", headers=headers).json()
     assert after["cost"] == 62.48
     assert any(h["cost"] == 62.48 for h in after["premium_history"])
+
+
+# ----- Fehler, die der Prüfstand mit echten Dokumenten aufgedeckt hat -----------------------
+
+def test_the_type_class_is_read_from_the_first_row_of_the_premium_table():
+    text = "Itzehoer Versicherungen\nBeitragsrechnung zur Kfz-Versicherung\nKfz-Haftpflicht R05 18 SF 3 (65 %) 43,47 €\nTeilkasko R05 21 12,30 €\n"
+    assert ocr.extract_insurance_data_regex(text)["type_class"] == "18"
+
+
+def test_a_garbled_first_row_gives_no_type_class_rather_than_the_one_of_the_previous_year():
+    text = ("Itzehoer Versicherungen\nBeitragsrechnung zur Kfz-Versicherung\nKfz-Haftpflicht R05 In SF7 (51%) 45,91€\n"
+            "Beitragsvergleich\nKfz-Haftpflicht ROS 16 SF6 (53%) 40,87€ 39,32 € 45,91€\n")
+    assert ocr.extract_insurance_data_regex(text).get("type_class") is None
+
+
+def test_an_ocr_split_region_token_does_not_hide_the_type_class():
+    text = "Itzehoer Versicherungen\nKfz-Haftpflicht — Ron 18 SF 8 (50 %) 32,95 €\n"
+    assert ocr.extract_insurance_data_regex(text)["type_class"] == "18"
+
+
+def test_a_balance_date_is_not_the_start_of_the_contract():
+    text = "Nachtrag zur Kraftfahrtversicherung\nBeginn der Änderung --.--.---- 00:00 Uhr Ablauf 08.05.2018 24:00 Uhr\nIhr Konto für diesen Vertrag war\nam 30.04.2018 ausgeglichen\n"
+    assert ocr.extract_insurance_data_regex(text)["start_date"] is None
+
+
+def test_huk24_letters_name_huk24_not_huk_coburg():
+    text = "HUK24 AG, HUK-COBURG-Platz 1, 96440 Coburg\nVersicherungsschein - Kraftfahrtversicherung Nr. 669/246004-Q\n"
+    assert ocr.extract_insurance_data_regex(text)["company"] == "HUK24"
+    assert ocr.extract_insurance_data_regex("HUK-COBURG Versicherungen\nBeitragsrechnung\n")["company"] == "HUK-COBURG"

@@ -623,7 +623,8 @@ def calculate_insurance_dates(start_date_str, end_date_str, cancellation_date_st
             e_date = parsed_end
 
     # 3. Search for explicit Beginn / Fälligkeitsdatum in text
-    match_start = re.search(r'(?i)(?:beginn der änderung|versicherungsbeginn|vertragsbeginn|beginn|gültig ab|fällig am|zeitraum|am)\.?:?\s*(\d{2}\.\d{2}\.\d{4})', text)
+    # (a bare "am" is not a start: "Ihr Konto war am 30.04.2018 ausgeglichen" is no contract date)
+    match_start = re.search(r'(?i)(?:beginn der änderung|versicherungsbeginn|vertragsbeginn|beginn|gültig ab|fällig am|zeitraum)\.?:?\s*(\d{2}\.\d{2}\.\d{4})', text)
     if match_start and not s_date:
         parsed_start = parse_date(match_start.group(1))
         if parsed_start:
@@ -727,8 +728,12 @@ def extract_insurance_data_regex(text: str) -> dict:
             data["company"] = comp
             break
 
+    # HUK24 is a company of its own; its letters also name HUK-COBURG (address, group). The letterhead decides.
+    if data["company"] == "HUK-COBURG" and re.search(r'\bHUK24\b', "\n".join(text.split("\n")[:60])):
+        data["company"] = "HUK24"
+
     if not data["company"]:
-        comp_match = re.search(r'([A-ZÄÖÜa-zäöü0-9\-\s]{3,30}\s+(?:Versicherung(?:en)?|AG|SE|VVaG|Krankenkasse))', text)
+        comp_match =re.search(r'([A-ZÄÖÜa-zäöü0-9\-\s]{3,30}\s+(?:Versicherung(?:en)?|AG|SE|VVaG|Krankenkasse))', text)
         if comp_match:
             comp_candidate = comp_match.group(1).strip()
             if len(comp_candidate) < 35 and not comp_candidate.lower().startswith(('die', 'der', 'das', 'ihre', 'fuer', 'vertrag')):
@@ -861,6 +866,15 @@ def extract_insurance_data_regex(text: str) -> dict:
     match_typ = re.search(r'(?i)\b(?:typ\s*klasse|typ-?klasse|tk)\b[^\n\d]*?(\d{1,2})\b', text)
     if match_typ:
         data["type_class"] = match_typ.group(1)
+    else:
+        # Beitragsrechnung: a table row "Kfz-Haftpflicht R05 18 SF 3 (65 %) 43,47 €"; the first row
+        # is the current one (further rows compare with the previous year)
+        # Only the first row counts: if OCR garbled its class, the class stays empty rather than
+        # being taken from a comparison row of the previous year.
+        first_row = re.search(r'(?im)^\s*kfz-haftpflicht\b[^\n]*\bSF[^\n]*', text)
+        row = re.search(r'(?<![\dR])(\d{2})\s+SF', first_row.group(0)) if first_row else None
+        if row:
+            data["type_class"] = row.group(1)
 
     # Price Adjustment / Price Change Regex Extraction
     if re.search(r'(?i)(beitragsanpassung|beitragserhöhung|neuer beitrag|beitragsänderung|jahresrechnung)', text):

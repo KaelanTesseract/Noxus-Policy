@@ -27,16 +27,22 @@ def _squash(value: str) -> str:
     return re.sub(r"[\s\-/.:]", "", (value or "").lower())
 
 
+def date_pattern(value) -> "re.Pattern":
+    """Regex for a date as letters print it: 08.05.2018, 8.5.2018 or 8.5.18 - never as the
+    beginning of a longer number ("31.12.20" must not match inside "31.12.2019")."""
+    forms = {value.strftime("%d.%m.%Y"), f"{value.day}.{value.month}.{value.year}",
+             f"{value.day}.{value.month}.{value.strftime('%y')}"}
+    alternatives = "|".join(re.escape(form) for form in sorted(forms, key=len, reverse=True))
+    return re.compile(r"(?<![0-9.])(?:" + alternatives + r")(?![0-9])")
+
+
 def value_in_text(field: str, value, text: str) -> bool:
     """True if the value, in its written form, stands in the text."""
     if value in (None, "", []):
         return False
     haystack = text or ""
     if isinstance(value, (datetime.date, datetime.datetime)):
-        # dd.mm.yyyy as printed; two-digit years and single-digit days are also common
-        return (value.strftime("%d.%m.%Y") in haystack
-                or f"{value.day}.{value.month}.{value.strftime('%y')}" in haystack
-                or f"{value.day}.{value.month}.{value.year}" in haystack)
+        return date_pattern(value).search(haystack) is not None
     needle = str(value)
     if field == "company":
         return needle.strip().lower() in haystack.lower()

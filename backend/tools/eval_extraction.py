@@ -143,6 +143,11 @@ def main():
                 print(f"    [{method}] FEHLER: {type(e).__name__}: {e}")
                 continue
             got = pick(result)
+            # a value the extractor only computed (cancellation date, end date without a date in the
+            # letter) is not a reading of the document: it counts as "not read"
+            for f, check in ((result or {}).get("field_checks") or {}).items():
+                if f in got and check["status"] == "berechnet":
+                    got[f] = None
             want = expected.get(name)
             if method == "regex":
                 drafts[name] = {k: (str(v) if v is not None else None) for k, v in (result or {}).items() if k in FIELDS}
