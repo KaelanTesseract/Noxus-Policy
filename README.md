@@ -174,7 +174,7 @@ Zusätzlich zum Passwort können sich Nutzer über einen OpenID-Connect-Provider
 **Wie Konten zugeordnet werden**
 
 - Wer sich wiederholt anmeldet, wird über die Identität im Provider erkannt, nicht über die E-Mail. Ändert sich die Adresse im Provider, bleibt es dasselbe Konto.
-- **Bestehende Konten verknüpfen:** Jeder angemeldete Nutzer kann unter *Einstellungen → Single Sign-On → Konto jetzt verknüpfen* sein Konto gezielt mit seiner Identität im Provider verbinden, unabhängig von der E-Mail-Adresse. Eine Identität gehört immer zu genau einem Konto. Das ist der sichere Weg, wenn die Adressen verschieden sind; sonst legt die erste Anmeldung über die Anmeldeseite ein zweites, getrenntes Konto an.
+- **Bestehende Konten verknüpfen:** Jeder angemeldete Nutzer kann unter *Einstellungen → Single Sign-On → Konto jetzt verknüpfen* sein Konto gezielt mit seiner Identität im Provider verbinden, unabhängig von der E-Mail-Adresse. Eine Identität gehört immer zu genau einem Konto. Das ist der sichere Weg, wenn die Adressen verschieden sind oder dein Provider die E-Mail nicht als bestätigt meldet. Meldet sich jemand ohne verknüpftes Konto an, sagt ihm die Anmeldeseite, dass er sein Konto zuerst verknüpfen muss.
 - Bei der ersten Anmeldung wird ein bestehendes Konto mit gleicher E-Mail-Adresse verknüpft, **aber nur, wenn der Provider die Adresse als bestätigt meldet**. Ein Admin-Konto bleibt dabei Admin. Gibt es kein solches Konto, wird (wenn aktiviert) ein normales Benutzerkonto angelegt.
 - Wer Administrator ist, bestimmt immer die App, nie der Provider.
 - Bei einer SSO-Anmeldung entfällt die 2-Faktor-Abfrage der App, weil der Passkey beim Provider der starke Faktor ist.

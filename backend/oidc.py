@@ -253,7 +253,12 @@ def exchange_and_verify(cfg: OidcConfig, discovery: dict, code: str, flow: Flow,
 
         access_token = tokens.get("access_token")
         if "email" not in claims and isinstance(access_token, str) and _valid_url(discovery.get("userinfo_endpoint"), cfg.issuer):
-            info = _get_json(client, discovery["userinfo_endpoint"], headers={"Authorization": f"Bearer {access_token}"})
+            try:
+                info = _get_json(client, discovery["userinfo_endpoint"], headers={"Authorization": f"Bearer {access_token}"})
+            except OidcError:
+                # Userinfo only fills gaps. A returning user is recognised by the signed token
+                # alone, so a failing userinfo endpoint must not stop the sign-in.
+                info = {}
             # Only trust userinfo that is about the very same subject as the signed token.
             if info.get("sub") == claims["sub"]:
                 for field in ("email", "email_verified", "name", "preferred_username"):

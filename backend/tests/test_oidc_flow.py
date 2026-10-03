@@ -73,8 +73,8 @@ def assert_signed_in(response):
     return response.headers["x-refreshed-token"]
 
 
-def assert_refused(response):
-    assert response.status_code == 302 and response.headers["location"] == "/login?error=sso"
+def assert_refused(response, code="sso"):
+    assert response.status_code == 302 and response.headers["location"] == f"/login?error={code}"
     assert "x-refreshed-token" not in response.headers
 
 
@@ -120,29 +120,29 @@ def test_returning_user_is_recognised_by_subject_even_after_an_email_change(clie
 
 def test_unverified_email_neither_links_nor_creates(client, sso):
     _, query, cookie = begin(client)
-    assert_refused(finish(client, sso, query, cookie, sub="sub-x", email=ADMIN_EMAIL, email_verified=False))
+    assert_refused(finish(client, sso, query, cookie, sub="sub-x", email=ADMIN_EMAIL, email_verified=False), "sso_unlinked")
     assert user_by_email(ADMIN_EMAIL).oidc_sub is None
     _, query, cookie = begin(client)
-    assert_refused(finish(client, sso, query, cookie, sub="sub-y", email="unverified@test.example", email_verified=None))
+    assert_refused(finish(client, sso, query, cookie, sub="sub-y", email="unverified@test.example", email_verified=None), "sso_unlinked")
     assert user_by_email("unverified@test.example") is None
 
 
 def test_missing_email_is_refused(client, sso):
     _, query, cookie = begin(client)
-    assert_refused(finish(client, sso, query, cookie, sub="sub-z", email=None, email_verified=None))
+    assert_refused(finish(client, sso, query, cookie, sub="sub-z", email=None, email_verified=None), "sso_unlinked")
 
 
 def test_account_linked_to_another_identity_cannot_be_taken_over_by_email(client, sso):
     _, query, cookie = begin(client)
     assert_signed_in(finish(client, sso, query, cookie, sub="owner-sub", email="owned@test.example"))
     _, query, cookie = begin(client)
-    assert_refused(finish(client, sso, query, cookie, sub="attacker-sub", email="owned@test.example"))
+    assert_refused(finish(client, sso, query, cookie, sub="attacker-sub", email="owned@test.example"), "sso_unlinked")
 
 
 def test_automatic_creation_can_be_turned_off(client, sso, admin_headers):
     client.put("/api/users/oidc-config", headers=admin_headers, json={"auto_create": False})
     _, query, cookie = begin(client)
-    assert_refused(finish(client, sso, query, cookie, sub="sub-off", email="nobody@test.example"))
+    assert_refused(finish(client, sso, query, cookie, sub="sub-off", email="nobody@test.example"), "sso_unlinked")
     assert user_by_email("nobody@test.example") is None
 
 
@@ -187,7 +187,7 @@ def test_results_are_written_to_the_audit_log(client, sso, admin_headers):
     _, query, cookie = begin(client)
     assert_signed_in(finish(client, sso, query, cookie, sub="sub-audit", email="audit@test.example"))
     _, query, cookie = begin(client)
-    assert_refused(finish(client, sso, query, cookie, sub="sub-audit2", email="audit2@test.example", email_verified=False))
+    assert_refused(finish(client, sso, query, cookie, sub="sub-audit2", email="audit2@test.example", email_verified=False), "sso_unlinked")
     entries = client.get("/api/users/audit-log?limit=60", headers=admin_headers).json()
     actions = {e["action"] for e in entries}
     assert {"sso_created", "sso_denied"} <= actions
@@ -259,3 +259,20 @@ def test_app_url_decides_the_redirect_address_and_must_be_a_url(client, admin_he
     assert r.json()["redirect_uri"] == "https://nexus.test.example/api/auth/oidc/callback"
     assert client.put("/api/users/oidc-config", headers=admin_headers, json={"app_url": "javascript:alert(1)"}).status_code == 400
     assert client.put("/api/users/oidc-config", headers=admin_headers, json={"app_url": "nexus.test.example"}).status_code == 400
+
+
+def test_technical_failures_stay_generic_while_missing_links_get_advice(client, sso):
+    # a forged state is an attack or a broken setup: no hint about accounts
+    _, query, cookie = begin(client)
+    assert_refused(finish(client, sso, query, cookie, state="forged", sub="g1", email="g1@test.example"), "sso")
+    # a valid sign-in without a linked account tells the person how to link
+    _, query, cookie = begin(client)
+    assert_refused(finish(client, sso, query, cookie, sub="g2", email="g2@test.example", email_verified=False), "sso_unlinked")
+
+
+def test_returning_user_signs_in_even_when_token_has_no_email_and_userinfo_fails(client, sso):
+    _, query, cookie = begin(client)
+    assert_signed_in(finish(client, sso, query, cookie, sub="sub-quiet", email="quiet@test.example"))
+    _, query, cookie = begin(client)
+    token = assert_signed_in(finish(client, sso, query, cookie, sub="sub-quiet", email=None, email_verified=None))
+    assert client.get("/api/users/me", headers=bearer(token)).json()["email"] == "quiet@test.example"

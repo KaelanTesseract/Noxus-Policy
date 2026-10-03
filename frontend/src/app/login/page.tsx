@@ -29,8 +29,13 @@ export default function Login() {
       .then(res => (res.ok ? res.json() : null))
       .then(cfg => { if (cfg) setAuthConfig(cfg); })
       .catch(() => {});
-    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("error") === "sso") {
-      setError("Die Anmeldung über Single Sign-On hat nicht geklappt. Versuche es erneut oder frage deinen Administrator.");
+    if (typeof window !== "undefined") {
+      const problem = new URLSearchParams(window.location.search).get("error");
+      if (problem === "sso_unlinked") {
+        setError("Dein Konto ist noch nicht mit Single Sign-On verknüpft. Melde dich einmal mit deinem Passwort an und klicke unter Einstellungen > Single Sign-On auf „Konto jetzt verknüpfen“. Danach funktioniert die Anmeldung ohne Passwort.");
+      } else if (problem === "sso") {
+        setError("Die Anmeldung über Single Sign-On hat nicht geklappt. Versuche es erneut oder frage deinen Administrator.");
+      }
     }
   }, []);
 

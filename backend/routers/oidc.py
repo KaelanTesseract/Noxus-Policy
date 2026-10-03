@@ -24,13 +24,22 @@ from rate_limit import rate_limiter
 
 router = APIRouter(prefix="/api/auth/oidc", tags=["oidc"])
 
+# Why a sign-in found no account. These are the cases where the right advice to the
+# person is "link your account first", so the login page can say so instead of a
+# generic failure. The text carries no information about other people's accounts.
+REASON_NO_EMAIL = "provider sent no email address"
+REASON_UNVERIFIED = "email address is not verified by the provider"
+REASON_LINKED_ELSEWHERE = "account is already linked to a different identity"
+REASON_NO_ACCOUNT = "no account for this email and automatic creation is off"
+UNLINKED_REASONS = {REASON_NO_EMAIL, REASON_UNVERIFIED, REASON_LINKED_ELSEWHERE, REASON_NO_ACCOUNT}
+
 FLOW_COOKIE = "noxus_oidc"
 FLOW_COOKIE_PATH = "/api/auth/oidc"
 _limit = rate_limiter(max_calls=20, period_seconds=300)
 
 
-def _error_redirect(link_mode: bool = False) -> RedirectResponse:
-    response = RedirectResponse("/settings?sso=error" if link_mode else "/login?error=sso", status_code=302)
+def _error_redirect(link_mode: bool = False, code: str = "sso") -> RedirectResponse:
+    response = RedirectResponse("/settings?sso=error" if link_mode else f"/login?error={code}", status_code=302)
     response.delete_cookie(FLOW_COOKIE, path=FLOW_COOKIE_PATH)
     return response
 
@@ -55,21 +64,21 @@ def resolve_user(db: Session, claims: dict, cfg: oidc.OidcConfig) -> Tuple[Optio
 
     email = str(claims.get("email") or "").strip()
     if not email:
-        return None, "provider sent no email address"
+        return None, REASON_NO_EMAIL
     if not _verified(claims):
-        return None, "email address is not verified by the provider"
+        return None, REASON_UNVERIFIED
 
     existing = auth.get_user_by_email(db, email)
     try:
         if existing:
             if existing.oidc_sub:
-                return None, "account is already linked to a different identity"
+                return None, REASON_LINKED_ELSEWHERE
             existing.oidc_issuer, existing.oidc_sub = cfg.issuer, subject
             db.commit()
             return existing, "sso_linked"
 
         if not oidc_settings.auto_create_enabled(db):
-            return None, "no account for this email and automatic creation is off"
+            return None, REASON_NO_ACCOUNT
         created = models.User(
             email=email,
             # Nobody knows this password; the account signs in through SSO.
@@ -162,7 +171,7 @@ def oidc_callback(
 
     def refuse(reason: str, actor: Optional[str] = None) -> RedirectResponse:
         audit.log_event(db, "sso_denied", request, actor=actor, detail=reason[:250])
-        return _error_redirect(link_mode)
+        return _error_redirect(link_mode, "sso_unlinked" if reason in UNLINKED_REASONS else "sso")
 
     cfg = oidc_settings.load_config(db)
     if cfg is None:
