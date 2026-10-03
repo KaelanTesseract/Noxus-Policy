@@ -1,6 +1,8 @@
-<img src="logo.png" alt="Zettelfrieden" width="96" />
+<p align="center">
+  <img src="logo.png" alt="Zettelfrieden" width="96" />
+</p>
 
-# Zettelfrieden
+<h1 align="center">Zettelfrieden</h1>
 
 Selbst gehostete Verwaltung für Versicherungsverträge mit lokaler Dokumentenanalyse. Zettelfrieden liest Versicherungsscheine, Beitragsrechnungen und Nachträge aus, trägt Gesellschaft, Policennummer, Beitrag und Fristen in eine Übersicht ein und erinnert rechtzeitig an Kündigungsfristen. Die Dokumente verlassen den Server nicht: Die Texterkennung läuft vollständig lokal (Poppler und Tesseract), ein Sprachmodell oder ein externer Dienst wird nicht verwendet.
 
