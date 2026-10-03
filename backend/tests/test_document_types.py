@@ -375,7 +375,7 @@ def test_the_instruction_for_the_model_names_no_example_values():
     # the small model repeats examples: an insurer from the instruction showed up in letters of other
     # insurers, and the example coverages came back unchanged for every document
     prompt = ocr.build_ai_prompt("Beispieltext", with_prefill=False)
-    for example in ("HUK", "Allianz", "AXA", "Schutzbrief", "Kfz-Haftpflichtversicherung", "SF 15"):
+    for example in ("HUK", "Allianz", "AXA", "Schutzbrief", "Kfz-Haftpflichtversicherung", "SF 15", "Muster"):
         assert example not in prompt
     assert "coverage_details" not in prompt
     assert "coverage_details" not in ocr._answer_schema()["properties"]

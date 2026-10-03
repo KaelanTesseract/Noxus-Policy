@@ -116,3 +116,45 @@ def test_a_gap_is_filled_by_the_model_only_with_what_the_letter_says(monkeypatch
     assert data["insurance_number"] in (None, "")          # not in the letter -> not accepted
     assert data["start_date"] != datetime.date(2022, 2, 1)  # not in the letter -> not accepted
     assert data["cost"] == 45.60
+
+
+# ----- the model only suggests; what it says must look right ------------------------------------
+
+LETTER_WITH_BROKER = """Itzehoer Versicherungen
+Sie werden betreut von:
+Flenker Brennecke GmbH
+Große Bäckerstraße 9
+Nachtrag zur Kraftfahrtversicherung LJ-23375102-001
+"""
+
+
+@pytest.mark.parametrize("field,value,ok", [
+    ("company", "Itzehoer Versicherungen", True),
+    ("company", "HUK24 AG", True),
+    ("company", "Versicherungen", False),            # only a part of the name
+    ("company", "IV-KFGK001 01.18", False),          # a form number
+    ("company", "Flenker Brennecke GmbH", False),    # the broker
+    ("company", "", False),
+    ("insurance_number", "LJ-23375102-001", True),
+    ("insurance_number", "669/246004-Q", True),
+    ("insurance_number", "Versicherungsschein-Nummer", False),   # the label, no digits
+    ("insurance_number", "K 500 09.17", False),                   # a form code with spaces
+    ("insurance_number", "OD", False),
+])
+def test_the_model_suggestions_must_look_like_an_insurer_and_a_number(field, value, ok):
+    assert ai_merge.plausible(field, value, LETTER_WITH_BROKER) is ok
+
+
+def test_the_broker_is_never_taken_as_the_insurer():
+    merged = ai_merge.merge_ai_into_rules({"company": None, "insurance_number": "LJ-23375102-001"},
+                                          {"company": "Flenker Brennecke GmbH", "ai_model": "t"}, LETTER_WITH_BROKER)
+    assert merged["company"] is None and merged["ai_used"] is False
+
+
+def test_the_model_only_fills_company_and_policy_number():
+    ai = {"company": "Nordlicht Assekuranz", "insurance_number": "NL-4711-0815", "start_date": datetime.date(2024, 2, 1),
+          "sf_class": "SF 5", "ai_model": "t"}
+    text = "Nordlicht Assekuranz GmbH\nNL-4711-0815\nBeginn 01.02.2024 SF 5"
+    merged = ai_merge.merge_ai_into_rules({"company": None, "insurance_number": None, "start_date": None, "sf_class": None}, ai, text)
+    assert merged["company"] == "Nordlicht Assekuranz" and merged["insurance_number"] == "NL-4711-0815"
+    assert merged["start_date"] is None and merged["sf_class"] is None
