@@ -1,3 +1,9 @@
+/**
+ * Based on shadcn/ui (https://ui.shadcn.com), MIT License, Copyright (c) 2023 shadcn.
+ * SPDX-License-Identifier: MIT
+ * Full notice: THIRD_PARTY_NOTICES.md in the project root.
+ */
+
 import * as React from "react"
 import { Input as InputPrimitive } from "@base-ui/react/input"
 

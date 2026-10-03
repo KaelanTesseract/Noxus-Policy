@@ -1,5 +1,6 @@
-# Copyright (c) 2026 Dennis Guse. All rights reserved.
-# Licensed under the MIT License. See LICENSE file in project root.
+# Copyright (c) 2026 Dennis Guse
+# SPDX-License-Identifier: MIT
+# See the LICENSE file in the project root.
 
 """A file that was uploaded before is recognised by its SHA-256 - for the same user only."""
 

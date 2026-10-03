@@ -1,5 +1,6 @@
-# Copyright (c) 2026 Dennis Guse. All rights reserved.
-# Licensed under the MIT License. See LICENSE file in project root.
+# Copyright (c) 2026 Dennis Guse
+# SPDX-License-Identifier: MIT
+# See the LICENSE file in the project root.
 
 """Notfall-Zugang: setzt das Passwort eines Administrators auf ein neues
 Zufallspasswort zurück (z. B. wenn das initiale Passwort aus dem Log nicht mehr

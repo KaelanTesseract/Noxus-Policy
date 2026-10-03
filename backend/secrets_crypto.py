@@ -1,5 +1,6 @@
-# Copyright (c) 2026 Dennis Guse. All rights reserved.
-# Licensed under the MIT License. See LICENSE file in project root.
+# Copyright (c) 2026 Dennis Guse
+# SPDX-License-Identifier: MIT
+# See the LICENSE file in the project root.
 
 """Encrypts secrets (SMTP password, pattern-sync GitHub token) before they're
 stored in the SystemSetting table, which was previously plaintext - readable

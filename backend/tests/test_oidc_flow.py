@@ -1,5 +1,6 @@
-# Copyright (c) 2026 Dennis Guse. All rights reserved.
-# Licensed under the MIT License. See LICENSE file in project root.
+# Copyright (c) 2026 Dennis Guse
+# SPDX-License-Identifier: MIT
+# See the LICENSE file in the project root.
 
 """The browser-facing SSO flow end to end, against a fake provider."""
 

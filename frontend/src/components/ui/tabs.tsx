@@ -1,5 +1,11 @@
 "use client"
 
+/**
+ * Based on shadcn/ui (https://ui.shadcn.com), MIT License, Copyright (c) 2023 shadcn.
+ * SPDX-License-Identifier: MIT
+ * Full notice: THIRD_PARTY_NOTICES.md in the project root.
+ */
+
 import { Tabs as TabsPrimitive } from "@base-ui/react/tabs"
 import { cva, type VariantProps } from "class-variance-authority"
 

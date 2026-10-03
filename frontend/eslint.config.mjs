@@ -1,3 +1,9 @@
+/**
+ * Copyright (c) 2026 Dennis Guse
+ * SPDX-License-Identifier: MIT
+ * See the LICENSE file in the project root.
+ */
+
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";

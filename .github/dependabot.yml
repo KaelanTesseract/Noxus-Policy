@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Dennis Guse
+# SPDX-License-Identifier: MIT
+# See the LICENSE file in the project root.
+
 version: 2
 
 # Major version jumps are not proposed automatically: for this app they need a

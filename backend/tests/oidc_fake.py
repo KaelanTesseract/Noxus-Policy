@@ -1,5 +1,6 @@
-# Copyright (c) 2026 Dennis Guse. All rights reserved.
-# Licensed under the MIT License. See LICENSE file in project root.
+# Copyright (c) 2026 Dennis Guse
+# SPDX-License-Identifier: MIT
+# See the LICENSE file in the project root.
 
 """A stand-in OpenID provider for tests: RSA key, discovery document, JWKS, token
 and userinfo endpoints behind an httpx MockTransport, so the real code path runs

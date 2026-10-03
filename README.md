@@ -1,119 +1,85 @@
-<h1 align="center">Zettelfrieden</h1>
-<h3 align="center">Versicherungsmanager mit automatischer Dokumentenanalyse</h3>
+<img src="logo.png" alt="Zettelfrieden" width="96" />
 
-<p align="center">
-  <img src="logo.png" alt="Zettelfrieden Logo" width="140" />
-</p>
+# Zettelfrieden
 
-<p align="center">
-  <b>Moderne, selbstgehostete Open-Source Plattform zur automatischen Analyse, Verwaltung und Fristen-Überwachung von Versicherungspolicen.</b><br>
-  <i>100% Datenschutzkonform • Lokale Texterkennung (Tesseract) • Proxmox LXC 1-Klick Installation</i>
-</p>
+Selbst gehostete Verwaltung für Versicherungsverträge mit lokaler Dokumentenanalyse. Zettelfrieden liest Versicherungsscheine, Beitragsrechnungen und Nachträge aus, trägt Gesellschaft, Policennummer, Beitrag und Fristen in eine Übersicht ein und erinnert rechtzeitig an Kündigungsfristen. Die Dokumente verlassen den Server nicht: Die Texterkennung läuft vollständig lokal (Poppler und Tesseract), ein Sprachmodell oder ein externer Dienst wird nicht verwendet.
 
-<p align="center">
-  <a href="#-proxmox-ve--linux-1-klick-installation"><img src="https://img.shields.io/badge/Proxmox_VE-Helper_Script-orange.svg?style=for-the-badge&logo=proxmox" alt="Proxmox Script"></a>
-  <a href="#-tech-stack"><img src="https://img.shields.io/badge/Docker-Ready-2496ED.svg?style=for-the-badge&logo=docker" alt="Docker"></a>
-  <a href="#-tech-stack"><img src="https://img.shields.io/badge/Next.js_16-v0.2.5--beta-black.svg?style=for-the-badge&logo=next.js" alt="Next.js"></a>
-  <a href="#-tech-stack"><img src="https://img.shields.io/badge/FastAPI-Python-009688.svg?style=for-the-badge&logo=fastapi" alt="FastAPI"></a>
-  <a href="#-dokumentenanalyse--lernsystem"><img src="https://img.shields.io/badge/Local_OCR-Tesseract-purple.svg?style=for-the-badge" alt="Local OCR"></a>
-</p>
+Die Oberfläche ist deutsch. Zettelfrieden besteht aus einem Next.js-Frontend und einem FastAPI-Backend und läuft mit Docker Compose, zum Beispiel in einem Proxmox-LXC-Container.
 
-> [!WARNING]
-> **Hinweis zur Texterkennung (Aktive Testphase):**
-> Die automatische Texterkennung und Dokumentenanalyse befindet sich derzeit in einer **kontinuierlichen Erprobungs- & Testphase**. Je nach Qualität, Formatierung, Scan-Auflösung oder Layout der hochgeladenen PDF-Dokumente kann es vereinzelt zu Abweichungen oder Fehlern bei der Datenerkennung kommen. Bitte überprüfe ausgelesene Vertragsdaten, Kündigungsfristen und Beiträge stets sorgfältig auf ihre Richtigkeit. Die App hilft dabei: Zu jedem ausgelesenen Wert zeigt sie, ob er im Dokument gefunden (mit Seite und Textstelle), nur berechnet (z. B. die Kündigungsfrist) oder unsicher ist.
+> **Hinweis zur Texterkennung:** Die automatische Dokumentenanalyse wird laufend verbessert und arbeitet nicht fehlerfrei. Je nach Qualität, Layout und Auflösung eines Dokuments können Werte fehlen oder falsch erkannt werden. Prüfe Vertragsdaten, Kündigungsfristen und Beiträge deshalb immer anhand des Originals. Zu jedem ausgelesenen Wert zeigt die App, ob er im Dokument gefunden wurde (mit Seite und Textstelle), nur berechnet wurde (zum Beispiel die Kündigungsfrist) oder unsicher ist.
 
----
+## Inhalt
 
-## 📑 Inhaltsverzeichnis
+- [Installation](#installation)
+- [Erster Start](#erster-start)
+- [Update](#update)
+- [Sicherheit und Betrieb](#sicherheit-und-betrieb)
+- [Funktionen](#funktionen)
+- [Systemvoraussetzungen](#systemvoraussetzungen)
+- [Technik](#technik)
+- [Entwicklung](#entwicklung)
+- [Lizenz](#lizenz)
 
-- [🔑 Standard Admin-Zugangsdaten](#-standard-admin-zugangsdaten-erst-login)
-- [🚀 Installation (Proxmox VE & Linux)](#-proxmox-ve--linux-1-klick-installation)
-- [🔄 Auto-Update](#-1-klick-auto-update-mit-live-ladebalken--auto-backup)
-- [🔒 Sicherheit & HTTPS (Reverse Proxy)](#-sicherheit--https-reverse-proxy)
-- [✨ Hauptfunktionen](#-hauptfunktionen)
-  - [🔐 Sicherheit, Benutzer- & Zugriffsverwaltung](#-sicherheit-benutzer---zugriffsverwaltung)
-  - [🔎 Dokumentenanalyse & Lernsystem](#-dokumentenanalyse--lernsystem)
-  - [🛡️ Datenschutz-Garantien beim Dokumenten-Upload](#️-datenschutz-garantien-beim-dokumenten-upload)
-  - [📈 Verträge, Kosten & Fristen im Blick](#-verträge-kosten--fristen-im-blick)
-  - [📊 Dashboard, Posteingang & Auswertung](#-dashboard-posteingang--auswertung)
-  - [🎨 Design & Nutzererlebnis](#-design--nutzererlebnis)
-  - [💾 Betrieb, Backup & Performance](#-betrieb-backup--performance)
-- [💻 Empfohlene Hardware-Ressourcen](#-empfohlene-hardware-ressourcen)
-- [🛠️ Tech Stack](#️-tech-stack)
-- [📝 Lizenz & Copyright](#-lizenz--copyright)
+## Installation
 
----
+Zettelfrieden lässt sich auf einem Proxmox-VE-Server oder in jedem Linux-System (Debian, Ubuntu, LXC) installieren.
 
-## 🔑 Standard Admin-Zugangsdaten (Erst-Login)
-
-Es gibt bewusst **kein festes Standard-Passwort** mehr: Beim ersten Start legt das Backend das Konto `Admin` mit einem zufälligen Einmal-Passwort an und gibt es im Log aus. Das Installations-Skript zeigt es dir am Ende direkt an. Später findest du es so:
-
-```bash
-cd /opt/versicherungsmanager && docker compose logs backend | grep INITIAL_ADMIN_PASSWORD
-```
-
-| Parameter | Wert |
-| :--- | :--- |
-| **Benutzername** | `Admin` |
-| **Passwort** | zufälliges Einmal-Passwort aus dem Log (siehe oben) |
-
-> 🔒 **Sicherheitshinweis:** Beim allerersten Anmelden wirst du automatisch auf die Einrichtungsseite geleitet, um deine eigene E-Mail und dein persönliches Administrator-Passwort festzulegen.
->
-> **Passwort vergessen / Log nicht mehr auffindbar?** Auf dem Server ein neues Einmal-Passwort erzeugen (funktioniert nur mit Zugriff auf den Container, es gibt keinen Netzwerk-Zugang dafür):
-> ```bash
-> cd /opt/versicherungsmanager && docker compose exec backend python reset_admin.py
-> ```
-
----
-
-## 🚀 Proxmox VE & Linux 1-Klick Installation
-
-Zettelfrieden lässt sich in Sekunden auf jedem **Proxmox VE Server** oder **Linux LXC/Debian/Ubuntu** installieren.
-
-### 🌟 Option A: Proxmox VE Host 1-Klick Erstellung (Erstellt neuen LXC Container)
-Führe diesen Befehl in der **Proxmox VE Node Shell** (Host-Ebene) aus:
+**Neuer LXC-Container auf einem Proxmox-VE-Host.** In der Shell des Proxmox-Knotens ausführen:
 
 ```bash
 bash -c "$(wget -qLO - https://raw.githubusercontent.com/KaelanTesseract/Zettelfrieden/main/proxmox-install.sh)"
 ```
 
-### ⚡ Option B: Installation in einem bestehenden Linux / LXC Container
-Führe diesen Befehl im **Terminal deines bestehenden Containers/Servers** aus:
+**Bestehender Linux-Server oder Container.** Im Terminal des Systems ausführen:
 
 ```bash
 bash -c "$(wget -qLO - https://raw.githubusercontent.com/KaelanTesseract/Zettelfrieden/main/install.sh)"
 ```
 
----
+Beide Skripte installieren Docker, laden den Quellcode nach `/opt/versicherungsmanager`, erzeugen den `SECRET_KEY` (siehe unten) und starten die Anwendung. Das Frontend ist danach auf Port 3000 erreichbar.
 
-## 🔄 1-Klick Auto-Update (mit Live-Ladebalken & Auto-Backup)
+## Erster Start
 
-Um das System jederzeit auf den neuesten Stand zu bringen, tippe im Container-Terminal einfach folgenden Befehl ein:
+Es gibt kein festes Standard-Passwort. Beim ersten Start legt das Backend das Konto `Admin` mit einem zufälligen Einmal-Passwort an und schreibt es ins Log. Das Installationsskript zeigt es am Ende an. Später findest du es so:
+
+```bash
+cd /opt/versicherungsmanager && docker compose logs backend | grep INITIAL_ADMIN_PASSWORD
+```
+
+| Angabe | Wert |
+| :--- | :--- |
+| Benutzername | `Admin` |
+| Passwort | zufälliges Einmal-Passwort aus dem Log |
+
+Bei der ersten Anmeldung leitet die App auf eine Einrichtungsseite, auf der du deine E-Mail-Adresse und ein eigenes Administrator-Passwort festlegst.
+
+Passwort vergessen oder Log nicht mehr vorhanden? Auf dem Server lässt sich ein neues Einmal-Passwort erzeugen. Das geht nur mit Zugriff auf den Container, über das Netzwerk ist es nicht möglich:
+
+```bash
+cd /opt/versicherungsmanager && docker compose exec backend python reset_admin.py
+```
+
+## Update
+
+Im Terminal des Servers genügt:
 
 ```bash
 update
 ```
 
-Das Skript erstellt **automatisch ein Vorab-Sicherheitsbackup** der Datenbank, führt einen sauberen Rebuild aus und zeigt dir den Fortschritt in einem **aufgeräumten Live-Fortschrittsbalken**:
+Das Skript sichert zuerst die Datenbank, baut die Anwendung neu und startet sie. Der Fortschritt wird in fünf Schritten angezeigt.
 
-```text
-[██████████████████████████████] 100% | 5/5: Update erfolgreich abgeschlossen!
-```
+> **Hinweis:** Die Anwendung kommt ohne KI-Modell aus. Eine frühere Version konnte optional ein Sprachmodell (Qwen2.5-1.5B) laden. Gemessen brachte es gegenüber der regelbasierten Erkennung kaum etwas, kostete aber rund 1,5 GB Arbeitsspeicher, 1,1 GB Festplatte und Rechenzeit. Es wurde deshalb entfernt. Auf bestehenden Installationen ist der Ordner `backend/models` (ca. 1,1 GB) überflüssig und kann gelöscht werden.
 
-> [!NOTE]
-> **Die Anwendung kommt ohne KI-Modell aus.** Eine frühere Version konnte optional ein Sprachmodell (Qwen2.5-1.5B) laden. Gemessen brachte es gegenüber der regelbasierten Erkennung kaum etwas, kostete aber rund 1,5 GB Arbeitsspeicher, 1,1 GB Festplatte und Rechenzeit, deshalb wurde es entfernt. Auf bestehenden Installationen ist der Ordner `backend/models` (das heruntergeladene Modell, ca. 1,1 GB) nun überflüssig und kann gelöscht werden.
+## Sicherheit und Betrieb
 
----
+Zettelfrieden verarbeitet personenbezogene Daten (Verträge, Beiträge, Dokumente). Diese Punkte gelten für jede Installation.
 
-## 🔒 Sicherheit & HTTPS (Reverse Proxy)
+### HTTPS
 
-Zettelfrieden verarbeitet sensible personenbezogene Daten (Versicherungsverträge, Beiträge, Dokumente). Ein paar Punkte solltest du bei jeder Installation beachten:
+`docker-compose.yml` liefert die App standardmäßig nur über unverschlüsseltes HTTP aus. Von außen erreichbar ist ausschließlich das Frontend auf Port 3000; das Backend (Port 8000) hört nur auf `127.0.0.1` und wird vom Frontend intern angesprochen. Auf `localhost` ist das unproblematisch. Sobald der Server im LAN oder aus dem Internet erreichbar ist, werden Zugangsdaten und Sitzungs-Token bei jeder Anfrage unverschlüsselt übertragen und sind für jeden mitlesbar, der Zugriff auf den Netzwerkpfad hat.
 
-### HTTPS ist Pflicht, sobald der Server erreichbar ist
-
-`docker-compose.yml` liefert die App standardmäßig nur über **reines HTTP** aus. Nach außen ist ausschließlich das Frontend auf **Port 3000** erreichbar; das Backend (Port 8000) hört nur auf `127.0.0.1` und wird vom Frontend intern angesprochen. Das ist für einen Test auf `localhost` unproblematisch, aber sobald der Server im LAN oder gar aus dem Internet erreichbar ist, gehen Login-Zugangsdaten und das Sitzungs-Token bei jeder Anfrage unverschlüsselt über die Leitung – für jeden mitlesbar, der Zugriff auf den Netzwerkpfad hat.
-
-**Richte deshalb immer einen Reverse Proxy mit echtem TLS-Zertifikat vor die App**, z. B. mit Nginx + [Certbot](https://certbot.eff.org/) (Let's Encrypt):
+Betreibe die App deshalb immer hinter einem Reverse Proxy mit TLS-Zertifikat, zum Beispiel Nginx mit [Certbot](https://certbot.eff.org/) (Let's Encrypt):
 
 ```nginx
 # /etc/nginx/sites-available/zettelfrieden
@@ -140,49 +106,49 @@ server {
 }
 ```
 
-Zertifikat besorgen (einmalig) und automatische Erneuerung einrichten:
+Zertifikat besorgen (einmalig, die Erneuerung richtet Certbot automatisch ein):
 
 ```bash
 sudo apt install certbot python3-certbot-nginx
 sudo certbot --nginx -d deine-domain.de
 ```
 
-Der Frontend-Container selbst muss dafür nicht verändert werden – Nginx läuft als eigener Dienst auf dem Host (oder in einem eigenen Container) und leitet Anfragen intern an `127.0.0.1:3000` weiter. Alternativen mit ähnlich wenig Aufwand: [Caddy](https://caddyserver.com/) (holt Let's-Encrypt-Zertifikate automatisch, ganz ohne Certbot) oder ein [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/), falls der Server keine öffentliche IP hat.
+Der Frontend-Container bleibt dafür unverändert. Nginx läuft als eigener Dienst auf dem Host oder in einem eigenen Container und leitet intern an `127.0.0.1:3000` weiter. Alternativen sind [Caddy](https://caddyserver.com/), das Zertifikate automatisch holt, oder ein [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/), wenn der Server keine öffentliche IP-Adresse hat.
 
 ### Reverse Proxy und Anmelde-Begrenzung (`TRUSTED_PROXY_HOPS`)
 
-Das Backend begrenzt fehlgeschlagene Anmeldungen pro Konto und pro Client-IP. Steht ein Reverse Proxy davor, sieht das Backend sonst nur dessen Adresse. Trage deshalb in der `.env`-Datei neben `docker-compose.yml` ein, wie viele Proxys vor der App laufen (ein Nginx Proxy Manager = `1`) und starte neu:
+Das Backend begrenzt fehlgeschlagene Anmeldungen pro Konto und pro Client-IP. Steht ein Reverse Proxy davor, sieht das Backend sonst nur dessen Adresse. Trage deshalb in der `.env`-Datei neben `docker-compose.yml` ein, wie viele Proxys vor der App laufen (ein Nginx Proxy Manager entspricht `1`), und starte neu:
 
 ```bash
 echo "TRUSTED_PROXY_HOPS=1" >> .env && docker compose up -d
 ```
 
-Ohne Proxy (direkter Zugriff auf Port 3000) den Wert bei `0` lassen. Ein falscher Wert schwächt nur das IP-Limit ab, das Limit pro Konto bleibt in jedem Fall aktiv.
+Ohne Proxy (direkter Zugriff auf Port 3000) bleibt der Wert bei `0`. Ein falscher Wert schwächt nur das IP-Limit ab; das Limit pro Konto bleibt immer aktiv.
 
 ### Registrierung abschalten
 
-Ist die Instanz aus dem Internet erreichbar, kann sich zunächst jeder registrieren. Als Administrator kannst du die Selbstregistrierung unter *Einstellungen → Systemeinstellungen* ausschalten. Bestehende Konten bleiben unberührt; für weitere Konten schaltest du sie kurz wieder ein.
+Ist die Instanz aus dem Internet erreichbar, kann sich zunächst jeder registrieren. Als Administrator schaltest du die Selbstregistrierung unter *Einstellungen > Systemeinstellungen* aus. Bestehende Konten bleiben unberührt; für weitere Konten schaltest du sie kurz wieder ein.
 
-### Anmeldung mit Pocket ID (OpenID Connect)
+### Anmeldung mit OpenID Connect (Pocket ID)
 
-Zusätzlich zum Passwort können sich Nutzer über einen OpenID-Connect-Provider anmelden; getestet ist der Ablauf mit [Pocket ID](https://pocket-id.org) (Passkeys), er folgt aber dem Standard (Authorization Code mit PKCE).
+Zusätzlich zum Passwort können sich Nutzer über einen OpenID-Connect-Anbieter anmelden. Getestet ist der Ablauf mit [Pocket ID](https://pocket-id.org) (Passkeys); er folgt dem Standard (Authorization Code mit PKCE).
 
 **Einrichten**
 
-1. In Pocket ID einen neuen OIDC-Client anlegen. Als Rückkehr-Adresse (Callback-URL) trägst du `https://<deine-domain>/api/auth/oidc/callback` ein; die genaue Adresse zeigt dir die App in der SSO-Karte. Notiere Client-ID und Client-Secret.
-2. In der App unter *Einstellungen → Systemeinstellungen → Single Sign-On* trägst du ganz oben die **Adresse dieser App** ein, so wie du sie im Browser aufrufst, also mit Domain (`https://nexus.beispiel.de`), nicht mit der IP-Adresse. Daraus bildet die App die Rückkehr-Adresse, die in Pocket ID stehen muss (sie wird direkt darunter angezeigt). Stimmen beide nicht überein, meldet Pocket ID „redirect_uri is not registered“.
-3. In derselben Karte Aussteller-URL (die Adresse deines Pocket ID, z. B. `https://id.beispiel.de`), Client-ID und Client-Secret eintragen, SSO einschalten und speichern. Auf der Anmeldeseite erscheint der Knopf „Mit Pocket ID anmelden“.
-4. Verknüpfe dein eigenes Admin-Konto: *Einstellungen → Single Sign-On → Konto jetzt verknüpfen*. Das klappt auch, wenn die E-Mail-Adresse in Pocket ID eine andere ist als in der App.
+1. Lege in Pocket ID einen neuen OIDC-Client an. Als Rückkehr-Adresse (Callback-URL) trägst du `https://<deine-domain>/api/auth/oidc/callback` ein; die genaue Adresse zeigt dir die App in der SSO-Karte. Notiere Client-ID und Client-Secret.
+2. Trage in der App unter *Einstellungen > Systemeinstellungen > Single Sign-On* ganz oben die **Adresse dieser App** ein, so wie du sie im Browser aufrufst, also mit Domain (`https://zettelfrieden.beispiel.de`) und nicht mit der IP-Adresse. Daraus bildet die App die Rückkehr-Adresse, die in Pocket ID stehen muss (sie wird direkt darunter angezeigt). Stimmen beide nicht überein, meldet Pocket ID „redirect_uri is not registered“.
+3. Trage in derselben Karte Aussteller-URL (die Adresse deines Pocket ID, z. B. `https://id.beispiel.de`), Client-ID und Client-Secret ein, schalte SSO ein und speichere. Auf der Anmeldeseite erscheint der Knopf „Mit Pocket ID anmelden“.
+4. Verknüpfe dein eigenes Admin-Konto unter *Einstellungen > Single Sign-On > Konto jetzt verknüpfen*. Das funktioniert auch, wenn die E-Mail-Adresse in Pocket ID eine andere ist als in der App.
 
-**Wie Konten zugeordnet werden**
+**Zuordnung der Konten**
 
-- Wer sich wiederholt anmeldet, wird über die Identität im Provider erkannt, nicht über die E-Mail. Ändert sich die Adresse im Provider, bleibt es dasselbe Konto.
-- **Bestehende Konten verknüpfen:** Jeder angemeldete Nutzer kann unter *Einstellungen → Single Sign-On → Konto jetzt verknüpfen* sein Konto gezielt mit seiner Identität im Provider verbinden, unabhängig von der E-Mail-Adresse. Eine Identität gehört immer zu genau einem Konto. Das ist der sichere Weg, wenn die Adressen verschieden sind oder dein Provider die E-Mail nicht als bestätigt meldet. Meldet sich jemand ohne verknüpftes Konto an, sagt ihm die Anmeldeseite, dass er sein Konto zuerst verknüpfen muss.
-- Bei der ersten Anmeldung wird ein bestehendes Konto mit gleicher E-Mail-Adresse verknüpft, **aber nur, wenn der Provider die Adresse als bestätigt meldet**. Ein Admin-Konto bleibt dabei Admin. Gibt es kein solches Konto, wird (wenn aktiviert) ein normales Benutzerkonto angelegt.
-- Wer Administrator ist, bestimmt immer die App, nie der Provider.
-- Bei einer SSO-Anmeldung entfällt die 2-Faktor-Abfrage der App, weil der Passkey beim Provider der starke Faktor ist.
+- Wer sich wiederholt anmeldet, wird über die Identität im Anbieter erkannt, nicht über die E-Mail-Adresse. Ändert sich die Adresse im Anbieter, bleibt es dasselbe Konto.
+- Bestehende Konten lassen sich gezielt verknüpfen: Jeder angemeldete Nutzer kann unter *Einstellungen > Single Sign-On > Konto jetzt verknüpfen* sein Konto mit seiner Identität im Anbieter verbinden, unabhängig von der E-Mail-Adresse. Eine Identität gehört immer zu genau einem Konto. Das ist der sichere Weg, wenn die Adressen verschieden sind oder der Anbieter die E-Mail-Adresse nicht als bestätigt meldet. Meldet sich jemand ohne verknüpftes Konto an, weist ihn die Anmeldeseite darauf hin, sein Konto zuerst zu verknüpfen.
+- Bei der ersten Anmeldung wird ein bestehendes Konto mit gleicher E-Mail-Adresse verknüpft, aber nur, wenn der Anbieter die Adresse als bestätigt meldet. Ein Admin-Konto bleibt dabei Admin. Gibt es kein solches Konto, wird (sofern aktiviert) ein normales Benutzerkonto angelegt.
+- Wer Administrator ist, bestimmt immer die App, nie der Anbieter.
+- Bei einer SSO-Anmeldung entfällt die Zwei-Faktor-Abfrage der App, weil der Passkey beim Anbieter der starke Faktor ist.
 
-**Passwort-Anmeldung ausschalten:** Sobald SSO läuft und dein Konto verknüpft ist, lässt sich die Anmeldung mit Passwort für alle ausschalten (nur dann, damit niemand ausgesperrt wird). Ist Pocket ID einmal nicht erreichbar, schaltet dieser Befehl auf dem Server das Passwort wieder ein und setzt zugleich ein neues Admin-Passwort:
+**Passwort-Anmeldung ausschalten.** Sobald SSO läuft und dein Konto verknüpft ist, lässt sich die Anmeldung mit Passwort für alle ausschalten (nur dann, damit niemand ausgesperrt wird). Ist Pocket ID einmal nicht erreichbar, schaltet dieser Befehl auf dem Server das Passwort wieder ein und setzt zugleich ein neues Admin-Passwort:
 
 ```bash
 docker compose exec backend python reset_admin.py --enable-password-login
@@ -190,123 +156,139 @@ docker compose exec backend python reset_admin.py --enable-password-login
 
 ### SECRET_KEY
 
-Jedes Login-Token wird mit dem Wert der Umgebungsvariable `SECRET_KEY` signiert. `install.sh`, `proxmox-install.sh` und `update.sh` erzeugen dafür automatisch einen zufälligen, 64-stelligen Schlüssel in einer lokalen `.env`-Datei neben `docker-compose.yml` (diese Datei ist in `.gitignore` und wird nie ins Repository übernommen). Startest du den Stack manuell per `docker compose up` ohne eines dieser Skripte, musst du diese `.env`-Datei selbst anlegen:
+Jedes Login-Token wird mit dem Wert der Umgebungsvariable `SECRET_KEY` signiert. `install.sh`, `proxmox-install.sh` und `update.sh` erzeugen dafür automatisch einen zufälligen, 64-stelligen Schlüssel in einer lokalen `.env`-Datei neben `docker-compose.yml`. Diese Datei steht in `.gitignore` und gelangt nie ins Repository. Startest du den Stack von Hand mit `docker compose up`, lege die Datei selbst an:
 
 ```bash
 echo "SECRET_KEY=$(openssl rand -hex 32)" > .env
 ```
 
-Das Backend verweigert absichtlich den Start, wenn `SECRET_KEY` fehlt oder einer der bekannten unsicheren Standardwerte ist.
+Das Backend startet absichtlich nicht, wenn `SECRET_KEY` fehlt oder ein bekannter unsicherer Standardwert ist.
 
-**Sichere die `.env`-Datei getrennt von den Backups.** Aus dem `SECRET_KEY` wird auch der Schlüssel abgeleitet, mit dem gespeicherte Passwörter (SMTP, automatisches Backup, GitHub-Token) in der Datenbank verschlüsselt sind. Geht der Schlüssel verloren oder ändert er sich, sind diese Passwörter nicht mehr lesbar (das Backend meldet das beim Start im Log und beim Wiederherstellen eines Backups einer anderen Instanz) und müssen neu eingegeben werden; außerdem müssen sich alle Benutzer neu anmelden. Die Dokumente und Verträge selbst sind davon nicht betroffen.
+**Sichere die `.env`-Datei getrennt von den Backups.** Aus dem `SECRET_KEY` wird auch der Schlüssel abgeleitet, mit dem gespeicherte Passwörter (SMTP, automatisches Backup, GitHub-Token) in der Datenbank verschlüsselt sind. Geht der Schlüssel verloren oder ändert er sich, sind diese Passwörter nicht mehr lesbar (das Backend meldet das beim Start im Log und beim Wiederherstellen eines Backups einer anderen Instanz) und müssen neu eingegeben werden. Außerdem müssen sich alle Benutzer neu anmelden. Die Dokumente und Verträge selbst sind davon nicht betroffen.
 
 ### Sitzungsdauer
 
-Eine Anmeldung gilt `ACCESS_TOKEN_EXPIRE_MINUTES` Minuten (Standard **15**) ab der letzten Aktivität und verlängert sich automatisch, solange du die Seite benutzt. Nach spätestens `SESSION_MAX_HOURS` Stunden (Standard **12**) seit der Anmeldung musst du dich unabhängig davon neu anmelden. Beide Werte lassen sich in der `.env`-Datei ändern.
+Eine Anmeldung gilt `ACCESS_TOKEN_EXPIRE_MINUTES` Minuten (Standard 15) ab der letzten Aktivität und verlängert sich automatisch, solange die Seite benutzt wird. Nach spätestens `SESSION_MAX_HOURS` Stunden (Standard 12) seit der Anmeldung ist unabhängig davon eine neue Anmeldung nötig. Beide Werte lassen sich in der `.env`-Datei ändern.
 
 ### Uploads, Nginx und Größenlimits
 
-Ein Dokument darf höchstens 15 MB groß sein, Backup-Dateien beim Wiederherstellen höchstens 512 MB (entpackt höchstens 2 GB), alle anderen Anfragen höchstens 2 MB. Größere Anfragen werden schon vor der Verarbeitung abgewiesen. Steht ein Nginx davor, muss er Uploads dieser Größe durchlassen – bei Fehler 413 beim Hochladen trage im Nginx (bzw. im Nginx Proxy Manager unter *Advanced*) `client_max_body_size 600m;` ein.
+Ein Dokument darf höchstens 15 MB groß sein, eine Backup-Datei beim Wiederherstellen höchstens 512 MB (entpackt höchstens 2 GB), alle anderen Anfragen höchstens 2 MB. Größere Anfragen werden schon vor der Verarbeitung abgewiesen. Steht ein Nginx davor, muss er Uploads dieser Größe durchlassen. Bei Fehler 413 trägst du im Nginx (im Nginx Proxy Manager unter *Advanced*) `client_max_body_size 600m;` ein.
 
 ### Weitere Empfehlungen
 
-- **Automatische Backups verschlüsseln**: Lege unter *Einstellungen → Systemeinstellungen → Automatische Backups* ein eigenes Passwort fest, statt das beim ersten Lauf automatisch generierte zu verwenden – notiere es dir an einem sicheren Ort, ohne dieses Passwort ist ein Backup nicht wiederherstellbar.
-- **API-Dokumentation (`/docs`, `/redoc`) bleibt standardmäßig deaktiviert.** Nur falls du sie lokal zur Entwicklung brauchst, aktiviere sie gezielt über `ENABLE_API_DOCS=true` in der `.env`-Datei – nicht auf einem von außen erreichbaren Server.
-- **2-Faktor-Authentifizierung einschalten**: Unter *Einstellungen → 2-Faktor-Authentifizierung* kann jeder Benutzer einen Authenticator-App-Code (TOTP, z. B. Aegis, 2FAS, Google Authenticator) als zweiten Faktor verlangen. Besonders für Administratoren empfohlen: Ein gestohlenes Passwort reicht dann nicht mehr. Die Wiederherstellungscodes werden nur einmal angezeigt – bewahre sie getrennt auf. Hat jemand Handy *und* Codes verloren, kann ein Administrator die 2FA in der Benutzerverwaltung zurücksetzen; für den Admin-Zugang selbst setzt `reset_admin.py` (siehe oben) auch die 2FA zurück.
-- **Sicherheitsprotokoll prüfen**: Administratoren sehen unter *Systemeinstellungen → Sicherheitsprotokoll* Anmeldungen, Fehlversuche (samt Adresse) und Änderungen an Konten/Einstellungen der letzten 12 Monate. Viele Fehlversuche von einer Adresse deuten auf einen Angriff hin.
-- **Starke Passwörter verwenden**: Das System verlangt mindestens 8 (höchstens 72 Bytes) Zeichen und weist bekannte Allerwelts-Passwörter („Passwort123“, „qwertz“ …) sowie Passwörter aus der eigenen E-Mail-Adresse ab. Backup-Passwörter brauchen mindestens 12 Zeichen. Echte Sicherheit hängt weiterhin von der Qualität des gewählten Passworts ab.
-- **Festplatte verschlüsseln**: Verträge und Dokumente liegen unverschlüsselt im Dateisystem des Servers (nur Backups und gespeicherte Passwörter sind verschlüsselt). Wer physischen Zugriff auf den Server, den Proxmox-Host oder dessen Snapshots hat, kommt an alles heran – setze deshalb auf Datenträgerverschlüsselung (LUKS/ZFS-Verschlüsselung) und schütze Proxmox-Backups.
-- **Kalender-Abo-Link vertraulich behandeln**: Die WebCal-Adresse enthält ein geheimes Token (Kalender-Apps können keine Anmeldung senden). Wer den Link kennt, sieht deine Kündigungsfristen. Bei Verdacht erneuerst du ihn unter *Einstellungen → Kalender* (der alte Link wird ungültig).
-- **Versicherer-Logos**: Die Logos lädt der Server (nicht dein Browser) über den Google-Favicon-Dienst; Google erfährt dabei nur die Domain des Versicherers und die Adresse des Servers, nie die Adresse der Benutzer. Wer keinerlei externe Anfrage möchte, setzt `DISABLE_LOGO_LOOKUP=true` in der `.env`-Datei – es erscheinen dann Initialen.
-- **Löschen von Konten**: Benutzer können ihr Konto unter *Einstellungen → Konto löschen* selbst entfernen (Administratoren löscht ein anderer Administrator). Dabei werden Verträge, Schadensfälle, Dokumente und Posteingang samt Dateien gelöscht. Bereits erstellte Server-Backups enthalten die Daten weiterhin, bis sie gelöscht werden.
-- **Container laufen ohne Root-Rechte.** Das Frontend läuft als Benutzer `node`. Das Backend startet kurz als Root, übergibt die Datenordner (`backend/data`, `backend/documents`) an den Benutzer `app` und läuft danach unprivilegiert; alle unnötigen Linux-Capabilities sind entzogen. Sollte das auf einem ungewöhnlichen Speicher-Setup Probleme machen, fällt der Start mit einer Warnung im Log auf Root zurück; erzwingen lässt sich das mit `RUN_AS_ROOT=1` in der `.env`-Datei (dann `docker compose up -d`).
+- **Automatische Backups verschlüsseln.** Lege unter *Einstellungen > Systemeinstellungen > Automatische Backups* ein eigenes Passwort fest, statt das beim ersten Lauf erzeugte zu behalten. Notiere es an einem sicheren Ort: Ohne dieses Passwort lässt sich ein Backup nicht wiederherstellen.
+- **API-Dokumentation.** `/docs` und `/redoc` sind standardmäßig deaktiviert. Nur für die lokale Entwicklung lassen sie sich mit `ENABLE_API_DOCS=true` in der `.env`-Datei einschalten, nicht auf einem von außen erreichbaren Server.
+- **Zwei-Faktor-Authentifizierung.** Unter *Einstellungen > 2-Faktor-Authentifizierung* kann jeder Benutzer einen Code aus einer Authenticator-App (TOTP, z. B. Aegis, 2FAS, Google Authenticator) als zweiten Faktor verlangen. Das ist besonders für Administratoren empfehlenswert. Die Wiederherstellungscodes werden nur einmal angezeigt und müssen getrennt aufbewahrt werden. Hat jemand Handy und Codes verloren, kann ein Administrator die 2FA in der Benutzerverwaltung zurücksetzen. Für den Admin-Zugang selbst setzt `reset_admin.py` (siehe oben) auch die 2FA zurück.
+- **Sicherheitsprotokoll.** Administratoren sehen unter *Systemeinstellungen > Sicherheitsprotokoll* Anmeldungen, Fehlversuche (samt Adresse) und Änderungen an Konten und Einstellungen der letzten 12 Monate. Viele Fehlversuche von einer Adresse deuten auf einen Angriff hin.
+- **Passwörter.** Das System verlangt mindestens 8 Zeichen (höchstens 72 Bytes) und weist bekannte Allerwelts-Passwörter („Passwort123“, „qwertz“ …) sowie Passwörter aus der eigenen E-Mail-Adresse ab. Backup-Passwörter brauchen mindestens 12 Zeichen. Die Sicherheit hängt weiterhin von der Qualität des gewählten Passworts ab.
+- **Festplatte verschlüsseln.** Verträge und Dokumente liegen unverschlüsselt im Dateisystem des Servers (nur Backups und gespeicherte Passwörter sind verschlüsselt). Wer physischen Zugriff auf den Server, den Proxmox-Host oder dessen Snapshots hat, erreicht alle Daten. Setze deshalb auf Datenträgerverschlüsselung (LUKS oder ZFS) und schütze die Proxmox-Backups.
+- **Kalender-Abo-Link.** Die WebCal-Adresse enthält ein geheimes Token, weil Kalender-Apps keine Anmeldung senden können. Wer den Link kennt, sieht deine Kündigungsfristen. Bei Verdacht erneuerst du ihn unter *Einstellungen > Kalender*; der alte Link wird ungültig.
+- **Versicherer-Logos.** Die Logos lädt der Server (nicht der Browser) über den Favicon-Dienst von Google. Google erfährt dabei nur die Domain des Versicherers und die Adresse des Servers, nie die Adresse der Benutzer. Wer keine externe Anfrage möchte, setzt `DISABLE_LOGO_LOOKUP=true` in der `.env`-Datei; dann erscheinen Initialen.
+- **Konten löschen.** Benutzer entfernen ihr Konto unter *Einstellungen > Konto löschen* selbst (Administratoren löscht ein anderer Administrator). Dabei werden Verträge, Schadensfälle, Dokumente und Posteingang samt Dateien gelöscht. Bereits erstellte Server-Backups enthalten die Daten weiterhin, bis sie gelöscht werden.
+- **Container ohne Root-Rechte.** Das Frontend läuft als Benutzer `node`. Das Backend startet kurz als Root, übergibt die Datenordner (`backend/data`, `backend/documents`) an den Benutzer `app` und läuft danach unprivilegiert; alle nicht benötigten Linux-Capabilities sind entzogen. Macht das auf einem ungewöhnlichen Speicher-Setup Probleme, fällt der Start mit einer Warnung im Log auf Root zurück. Erzwingen lässt sich das mit `RUN_AS_ROOT=1` in der `.env`-Datei (danach `docker compose up -d`).
 
----
+## Funktionen
 
-## ✨ Hauptfunktionen
+### Dokumentenanalyse
 
-### 🔐 Sicherheit, Benutzer- & Zugriffsverwaltung
-* **Sicherer Erst-Login (`/admin-setup`):** Erzwungene Passwort-Änderung für den ersten Administrator, danach reguläre JWT-Authentifizierung im httpOnly-Cookie (15 Minuten Inaktivitäts-Timeout mit gleitender Verlängerung, bcrypt-Passwort-Hashing).
-* **2-Faktor-Authentifizierung (TOTP) & Sicherheitsprotokoll:** Optionaler zweiter Faktor mit Wiederherstellungscodes; ein Protokoll für Anmeldungen, Fehlversuche und Admin-Aktionen; Konto-Selbstlöschung inkl. aller Dateien.
-* **Rollen- & Benutzerverwaltung:** Admins legen Benutzer an, setzen Passwörter zurück und verwalten Systemeinstellungen zentral im Admin-Panel.
-* **Konsequente Zugriffskontrolle:** Jeder Dokumenten- und Versicherungs-Endpunkt prüft die Eigentümerschaft (`owner_id`) — kein Zugriff auf fremde Unterlagen, auch nicht über direkt aufgerufene Links.
-* **Automatische Session-Abmeldung (`/session-expired`):** Läuft eine Sitzung ab (401 Unauthorized), wird der Nutzer automatisch zum Login zurückgeführt.
-* **Passwort-Reset per E-Mail:** Selbstständiger Passwort-Reset über einen admin-konfigurierbaren SMTP-Server; alternativ kann ein Administrator die Reset-Mail direkt aus der Benutzerverwaltung auslösen.
+- **Lokale Texterkennung ohne KI-Modell.** Gesellschaft, Policennummer, Fristen, Kfz-Klassen, Beiträge und Leistungen werden mit festen Regeln gelesen. PDFs mit Textebene liest Poppler (`pdftotext -layout`, Tabellen behalten ihre Spalten), Scans und Fotos liest Tesseract mit deutschem Wörterbuch. Es werden keine Modelle heruntergeladen.
+- **Schräge und gedrehte Seiten.** Schräg eingescannte Seiten werden vor dem Lesen begradigt. Seiten, die um 90° oder 180° gedreht sind, erkennt die Texterkennung an ihrer geringen Sicherheit und liest sie neu.
+- **Lange PDFs.** Bei PDFs mit Textebene bleiben die Seiten mit den meisten Vertragsdaten erhalten. Lange Scans werden in Schüben gelesen, das Lesen endet, sobald ein Beitrag gefunden ist. Ein Informationsschreiben mit 60 Seiten wird nicht bis zum Ende gelesen.
+- **Art des Schreibens.** Versicherungsschein, Beitragsrechnung, Nachtrag, Beitragsanpassung, Grüne Karte, Bedingungen und Verbraucherinformationen werden an der Kopfzeile erkannt. Informationsschreiben ändern nie Vertragsdaten.
+- **Beträge.** Guthaben und Erstattungen werden nie als Beitrag übernommen. Bei einem beendeten Vertrag gibt es weder Beitrag noch Kündigungsfrist.
+- **Prüfung jedes Werts.** Der Upload-Dialog zeigt zu jedem Wert, ob er im Dokument gefunden wurde (Seite und Textstelle), nur berechnet ist oder unsicher.
+- **Dokumentname.** Statt kryptischer Scan-Namen schlägt die App „Gesellschaft, Art des Schreibens, Datum“ vor, zum Beispiel *Itzehoer Kfz-Beitragsrechnung Januar 2021*, nie mit der Policennummer.
+- **Doppelte Dokumente.** Wird eine Datei erneut hochgeladen, warnt die App; gespeichert werden kann sie trotzdem. Verglichen werden nur die eigenen Dokumente.
+- **Vertragsdaten nur vom richtigen Schreiben.** Beginn und Ende eines bestehenden Vertrags ändern nur die Police (beides) und ein Nachtrag (nur das Ende). Rechnungen und Beitragsanpassungen übernehmen Beitrag, Zahlweise und Klassen, aber keine Laufzeit.
+- **Eine Analyse pro Upload.** Dokumentvorschau und Speicherung teilen sich dasselbe Analyseergebnis.
+- **Lernsystem mit Anonymisierung.** Ein Sanitizer (`sanitizer.py`) entfernt vor jedem Lernschritt Namen, Adressen, IBANs, Policennummern, Kennzeichen und Telefonnummern.
+- **Musterabgleich per Pull Request.** Standardmäßig deaktiviert und pro Instanz vom Administrator aktivierbar (mit eigenem GitHub-Token in den Einstellungen). Das Backend veröffentlicht nichts automatisch, sondern öffnet oder aktualisiert einen Pull Request, sodass Muster erst nach einer Prüfung übernommen werden. Die gelernten, anonymisierten Layout-Muster werden zusätzlich obfuskiert (Base64/XOR) abgelegt.
 
-### 🔎 Dokumentenanalyse & Lernsystem
-* **Lokale Texterkennung, ohne KI-Modell:** Gesellschaft, Policennummer, Fristen, KFZ-Klassen, Beiträge und versicherte Leistungen werden mit festen Regeln gelesen. PDFs mit Textebene liest Poppler (`pdftotext -layout`, Tabellen behalten ihre Spalten), Scans und Fotos liest Tesseract mit deutschem Wörterbuch. Die Dokumente verlassen den Server nie; es werden keine Modelle heruntergeladen.
-* **Schräge und gedrehte Seiten:** Schräg eingescannte oder fotografierte Seiten werden vor dem Lesen begradigt, um 90° oder 180° gedrehte Seiten erkennt die Texterkennung an ihrer Sicherheit und liest sie neu.
-* **Lange PDFs:** Bei PDFs mit Textebene bleiben die Seiten mit den meisten Vertragsdaten erhalten, bei langen Scans wird in Schüben gelesen und aufgehört, sobald ein Beitrag gefunden ist; ein Informationsschreiben mit 60 Seiten wird nicht bis zum Ende gelesen.
-* **Dokumentart wird erkannt:** Versicherungsschein, Beitragsrechnung, Nachtrag, Beitragsanpassung, Grüne Karte, Bedingungen und Verbraucherinformationen werden an der Kopfzeile erkannt; Informationsschreiben ändern nie Vertragsdaten.
-* **Beträge richtig gelesen:** Guthaben und Erstattungen werden nie als Beitrag übernommen; bei einem beendeten Vertrag gibt es keinen Beitrag und keine Kündigungsfrist.
-* **Prüfung jedes Werts:** Der Upload-Dialog zeigt zu jedem Wert, ob er im Dokument gefunden wurde (Seite und Textstelle), nur berechnet ist oder unsicher.
-* **Sinnvoller Dokumentname:** Statt kryptischer Scan-Namen schlägt die App „Gesellschaft, Art des Schreibens, Datum“ vor (z. B. *Itzehoer Kfz-Beitragsrechnung Januar 2021*), nie mit der Policennummer.
-* **Doppelte Dokumente:** Wird eine Datei erneut hochgeladen, warnt die App („Dieses Dokument hast du schon hochgeladen“); gespeichert werden kann sie trotzdem. Verglichen werden nur die eigenen Dokumente.
-* **Vertragsdaten nur vom richtigen Schreiben:** Beginn und Ende eines bestehenden Vertrags ändern nur die Police (beides) und ein Nachtrag (nur das Ende); Rechnungen und Beitragsanpassungen übernehmen Beitrag, Zahlweise und Klassen, aber keine Laufzeit.
-* **Eine Analyse statt zwei:** Dokumentenvorschau und -speicherung teilen sich dasselbe Analyseergebnis — der frühere doppelte Durchlauf pro Upload entfällt.
-* **Anonymisiertes Vendor-Pattern-Lernsystem:** Ein Sanitizer (`sanitizer.py`) entfernt vor jedem Lernschritt ausnahmslos Namen, Adressen, IBANs, Policennummern, Kennzeichen und Telefonnummern (Zero-PII-Leak).
-* **Community-Musterabgleich per Pull Request:** Standardmäßig **deaktiviert** und pro Instanz vom Administrator aktivierbar (inkl. eigenem GitHub-Token in den Einstellungen). Statt Änderungen automatisch zu veröffentlichen, öffnet bzw. aktualisiert das Backend einen Pull Request — Muster-Updates werden erst nach Review übernommen. Die gelernten, anonymisierten Layout-Muster werden dabei zusätzlich obfuskiert (Base64/XOR) abgelegt.
+### Verträge, Kosten und Fristen
 
-### 🛡️ Datenschutz-Garantien beim Dokumenten-Upload
-* **Namensschutz:** Neue Dokumenten-Uploads überschreiben niemals den Namen einer bestehenden Police.
-* **Ruhendstellungs-Garantie:** Der Ruhend-Status (`is_suspended`) und der hinterlegte Grund bleiben bei neuen Uploads unangetastet und lassen sich ausschließlich manuell ändern.
-* **Intelligente Informations-Kategorien:** Dokumente vom Typ *Sonstiges*, *Verbraucherinformationen* oder *Kundeninformationen* werden ausschließlich archiviert, ohne Vertragsdaten oder Beiträge zu überschreiben.
+- **Beitragsentwicklung.** Preisanpassungen werden aus Beitragsrechnungen gelesen und über die Jahre als Balkendiagramm mit prozentualer Veränderung dargestellt.
+- **Kfz-Tarifklassen.** Schadenfreiheitsklasse, Regionalklasse und Typklasse werden erkannt und angezeigt.
+- **Ruhendstellung.** Verträge lassen sich pausieren. Ruhende Verträge fließen mit 0 € in die Jahresausgaben ein und sind als ruhend markiert.
+- **Kündigungsschreiben.** Der Assistent erzeugt druckfertige Vorlagen für die ordentliche Kündigung (§ 11 VVG), die Sonderkündigung wegen Beitragserhöhung (§ 40 VVG), nach einem Schadensfall (§ 92 VVG) und bei Wegfall des versicherten Risikos (§ 80 VVG), jeweils mit SEPA-Widerruf und Löschhinweis nach DSGVO. Die Vorlagen ersetzen keine Rechtsberatung.
+- **Kalender.** Eine WebCal-Adresse bindet die Fristen in Apple-, Google- oder Outlook-Kalender ein, mit Erinnerungen 14 und 7 Tage vorher. Zusätzlich gibt es `.ics`-Downloads für die Offline-Nutzung.
+- **E-Mail-Erinnerungen.** Ist ein SMTP-Server hinterlegt, verschickt das System täglich Erinnerungen an Nutzer, die das in ihrem Profil aktiviert haben. Der Kalender funktioniert auch ohne SMTP.
+- **Steuerexport.** Klassifizierung nach § 10 und § 9 EStG, Jahressummen sowie CSV-Export (WISO, Elster, Excel). Der Export ersetzt keine Steuerberatung.
+- **Schadensfälle und Notizen.** Schadensfälle mit Datum, Schadensnummer, Höhe und Status (in Bearbeitung, reguliert, abgelehnt) sowie freie Notizen je Vertrag.
 
-### 📈 Verträge, Kosten & Fristen im Blick
-* **Beitragsanpassungs-Tracker:** Liest Preisanpassungen automatisch aus Beitragsrechnungen aus und visualisiert die Entwicklung über die Jahre in einem Balkendiagramm mit prozentualen Trend-Badges (z. B. `📈 +12,5 %`).
-* **KFZ-Sondertarifklassen:** Automatische Erkennung und Anzeige von Schadenfreiheitsklasse (SF-Klasse), Regionalklasse und Typklasse.
-* **Ruhendstellung & Beitragsfreistellung:** Verträge lassen sich pausieren; ruhende Verträge fließen automatisch mit 0 € in die Jahresausgaben ein und werden als `⏸️ Ruhend (0 €)` markiert.
-* **Sonderkündigungsrechts-Assistent:** Erstellt rechtlich fundierte, druckfertige Kündigungsschreiben (ordentliche Kündigung § 11 VVG, Sonderkündigung wegen Beitragserhöhung § 40 VVG, nach Schadensfall § 92 VVG oder Risikowegfall § 80 VVG) inklusive SEPA-Widerruf und DSGVO-Löschklausel.
-* **Live-Kalender (WebCal) & iCal-Export:** Einmalige Einbindung in Apple-, Google- oder Outlook-Kalender mit automatischen 14- und 7-Tage-Erinnerungen; zusätzlich 1-Klick-`.ics`-Downloads für die Offline-Nutzung.
-* **E-Mail-Erinnerungen vor Fristablauf:** Ist ein SMTP-Server hinterlegt, verschickt das System täglich automatisch Erinnerungsmails an Nutzer, die dies in ihrem Profil aktiviert haben — unabhängig vom WebCal-Kanal, der auch ohne SMTP-Konfiguration funktioniert.
-* **Steuererklärungs- & Haushalts-PDF-Export:** Klassifizierung nach § 10 / § 9 EStG, automatische Jahressummen-Berechnung sowie CSV-Export (WISO / Elster / Excel).
+### Übersicht und Posteingang
 
-### 📊 Dashboard, Posteingang & Auswertung
-* **Live-Kennzahlen-Kacheln:** Aktive Policen, Gesamtkosten pro Jahr, eine anklickbare Kündigungsfristen-Kachel (zeigt Anzahl & nächste fällige Frist der kommenden 90 Tage) sowie eine anklickbare Posteingang-Kachel mit der aktuellen Zahl noch nicht zugeordneter Dokumente.
-* **Posteingang (Inbox):** Zentrale Ablage für hochgeladene Dokumente vor der Zuordnung zu einer Police, inklusive Analyse-Vorschlägen direkt im Posteingang.
-* **Visuelles Kosten-Diagramm:** Interaktive Aufschlüsselung der Jahresausgaben nach Versicherungssparte (Kfz, Privathaftpflicht, Hausrat, Rechtsschutz, …).
-* **Suche & Sortierung in Echtzeit:** Nach Name, Gesellschaft, Policennummer, Kosten, Kündigungsfrist oder Alphabet.
-* **Dynamische Tab-Navigation:** Übersichtliche Detailansicht je Police in 5 Tabs (`📋 Stammdaten & Leistungen`, `📈 Beitragsentwicklung`, `📄 Dokumente`, `💥 Schadensfälle`, `📝 Notizen & Memos`).
-* **Schadensfälle & Notizen:** Schadensfall-Tracker (Datum, Schadensnummer, Höhe in €, Status: *In Bearbeitung*, *Reguliert*, *Abgelehnt*) sowie freie Notizen/Memos je Vertrag.
+- **Kennzahlen.** Aktive Policen, Gesamtkosten pro Jahr, Kündigungsfristen der nächsten 90 Tage (anklickbar) und die Zahl der noch nicht zugeordneten Dokumente im Posteingang (anklickbar).
+- **Posteingang.** Zentrale Ablage für hochgeladene Dokumente vor der Zuordnung zu einer Police, mit Analysevorschlägen.
+- **Kostenverteilung.** Jahresausgaben nach Sparte (Kfz, Privathaftpflicht, Hausrat, Rechtsschutz und weitere).
+- **Suche und Sortierung.** Nach Name, Gesellschaft, Policennummer, Kosten, Kündigungsfrist oder Alphabet.
+- **Detailansicht je Police** mit den Reitern Stammdaten, Beitragsentwicklung, Dokumente, Schadensfälle und Notizen.
+- **Dokumentvorschau.** PDFs und Bilder öffnen sich in einem großen, authentifiziert geladenen Vorschaufenster.
 
-### 🎨 Design & Nutzererlebnis
-* **6 durchgestaltete Themes:** Dunkel Neon, Klassisch Business Hell, Skandinavisch Warm, Executive Slate, Mint Frisch, Cyberpunk — jedes mit einem eigens abgestimmten, dezenten Gradient-Hintergrund.
-* **Monochrome Vektor-Icons:** Schlanke, hochkontrastreiche Aktions-Icons (`Eye`, `RefreshCw`, `Pencil`, `Trash2`) und KFZ-Badges (`Car`, `MapPin`, `Shield`).
-* **Große, browserbreite Dokumentenvorschau:** PDF- und Bildvorschauen öffnen sich in einem großzügigen, authentifiziert geladenen Vorschaufenster.
-* **Spürbar kürzere Ladezeiten:** Dashboard und Detailseiten rendern sofort aus einem lokalen Zwischenspeicher und aktualisieren die Daten anschließend im Hintergrund (Stale-while-Revalidate) — merklich schneller nach dem Login und beim Öffnen einer Police.
+### Benutzer und Zugriff
 
-### 💾 Betrieb, Backup & Performance
-* **Verschlüsselte Backups mit Rotation:** Passwortbasiert verschlüsselte (Fernet/AES) Archive aus Datenbank und Dokumenten, automatisch bei jedem `update` sowie nach konfigurierbarem Zeitplan; ältere Backups werden nach Anzahl/Alter automatisch rotiert.
-* **Optimierte Datenbankzugriffe:** Indizes auf allen Fremdschlüsseln sowie Eager-Loading (`selectinload`) vermeiden N+1-Abfragen auf stark frequentierten Endpunkten.
-* **Schlankes Docker-Image:** Keine Compiler und keine Modelldateien im Image; alle Python-Abhängigkeiten sind fertige Pakete.
+- **Erst-Login.** Der erste Administrator muss sein Passwort ändern. Danach läuft die Sitzung über einen JWT in einem httpOnly-Cookie (bcrypt-Passwort-Hashing, 15 Minuten Inaktivitäts-Timeout mit gleitender Verlängerung).
+- **Zwei-Faktor-Authentifizierung und Sicherheitsprotokoll.** Optionaler zweiter Faktor (TOTP) mit Wiederherstellungscodes. Das Protokoll hält Anmeldungen, Fehlversuche und Administrator-Aktionen fest.
+- **Rollen.** Administratoren legen Benutzer an, setzen Passwörter zurück und verwalten die Systemeinstellungen.
+- **Zugriffskontrolle.** Jeder Endpunkt für Dokumente und Verträge prüft die Eigentümerschaft. Fremde Unterlagen sind auch über direkt aufgerufene Links nicht erreichbar.
+- **Passwort-Reset per E-Mail** über einen vom Administrator konfigurierten SMTP-Server. Alternativ löst ein Administrator die Reset-Mail aus der Benutzerverwaltung aus.
+- **Single Sign-On** über OpenID Connect (siehe oben).
 
----
+### Schutz bestehender Daten beim Upload
 
-## 💻 Empfohlene Hardware-Ressourcen
+- **Namensschutz.** Ein neues Dokument überschreibt nie den Namen einer bestehenden Police.
+- **Ruhendstellung bleibt erhalten.** Der Status „ruhend“ und der hinterlegte Grund bleiben bei neuen Uploads unberührt und lassen sich nur von Hand ändern.
+- **Informationsdokumente.** Dokumente vom Typ Sonstiges, Verbraucherinformationen oder Kundeninformationen werden nur archiviert und ändern weder Vertragsdaten noch Beiträge.
+
+### Darstellung
+
+- **Drei Designs:** Dunkel (Standard), Dark Neon Glass und Apple Light, kombinierbar mit mehreren Akzentfarben. Die Oberfläche verwendet durchgehend einheitliche Linien-Symbole und respektiert die Systemeinstellung für reduzierte Bewegung.
+- **Kurze Ladezeiten.** Übersicht und Detailseiten werden sofort aus einem lokalen Zwischenspeicher dargestellt und danach im Hintergrund aktualisiert.
+
+### Betrieb
+
+- **Verschlüsselte Backups mit Rotation.** Passwortgeschützte (Fernet/AES) Archive aus Datenbank und Dokumenten, automatisch bei jedem `update` und nach einem einstellbaren Zeitplan. Ältere Backups werden nach Anzahl oder Alter rotiert. Neue Backups tragen die Endung `.zfbackup`; ältere `.noxusbackup`-Dateien bleiben les- und wiederherstellbar.
+- **Datenbankzugriffe.** Indizes auf allen Fremdschlüsseln und Eager-Loading (`selectinload`) vermeiden N+1-Abfragen.
+- **Schlankes Docker-Image.** Ohne Compiler und ohne Modelldateien; alle Python-Abhängigkeiten sind fertige Pakete.
+
+## Systemvoraussetzungen
 
 | Komponente | Minimum | Empfohlen |
 | :--- | :--- | :--- |
-| **Prozessor (CPU)** | 2 Kerne | **4 Kerne** (Scans werden schneller gelesen) |
-| **Arbeitsspeicher (RAM)** | 2 GB RAM | **4 GB RAM** |
-| **Festplatte (Disk)** | 5 GB SSD | **16 GB SSD** |
+| Prozessor | 2 Kerne | 4 Kerne (Scans werden schneller gelesen) |
+| Arbeitsspeicher | 2 GB | 4 GB |
+| Festplatte | 5 GB SSD | 16 GB SSD |
 
----
+## Technik
 
-## 🛠️ Tech Stack
+- **Frontend:** Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS, Lucide.
+- **Backend:** Python 3.11, FastAPI, SQLAlchemy (SQLite), pypdf, Tesseract (pytesseract), Poppler.
+- **Betrieb:** Docker, Docker Compose, Installationsskripte für Proxmox VE (LXC) und Linux.
 
-* **Frontend:** Next.js 16 (App Router, Turbopack), React 19, TailwindCSS, Lucide Icons.
-* **Backend:** Python 3.11, FastAPI, SQLAlchemy (SQLite3), PyPDF, Tesseract (pytesseract), Poppler.
-* **Deployment:** Docker, Docker Compose, Proxmox VE Helper Scripts (LXC).
+## Entwicklung
 
----
+```bash
+# Backend (aus backend/)
+pip install -r requirements-dev.txt
+pytest
+uvicorn main:app --host 0.0.0.0 --port 8000
 
-## 📝 Lizenz & Copyright
+# Frontend (aus frontend/)
+npm install
+npm run dev
+```
 
-Copyright (c) 2026 **Dennis Guse** ([KaelanTesseract](https://github.com/KaelanTesseract))
+Die Tests des Backends laufen gegen eine temporäre SQLite-Datenbank. Sie prüfen auch, dass jede Quelldatei den Lizenzkopf trägt (`tests/test_license_headers.py`). Neue Dateien erhalten diesen Kopf:
 
-Dieses Projekt ist Open-Source-Software und steht unter der **[MIT Lizenz](LICENSE)**.
+```text
+Copyright (c) 2026 Dennis Guse
+SPDX-License-Identifier: MIT
+See the LICENSE file in the project root.
+```
 
-### 📚 Drittanbieter-Bibliotheken & Open-Source Attributierung
-* **Frontend:** Next.js (MIT), React (MIT), TailwindCSS (MIT), Lucide Icons (ISC).
-* **Backend:** FastAPI (MIT), Uvicorn (BSD), SQLAlchemy (MIT), PyPDF (BSD), pytesseract (Apache 2.0).
-* **Texterkennung:** Tesseract OCR (Apache 2.0), Poppler (GPL, als eigenständiges Programm aufgerufen).
+## Lizenz
+
+Copyright (c) 2026 Dennis Guse ([KaelanTesseract](https://github.com/KaelanTesseract))
+
+Zettelfrieden steht unter der [MIT-Lizenz](LICENSE). Die Software wird ohne jede Gewährleistung bereitgestellt; die Haftung der Autoren ist im Rahmen des Lizenztextes ausgeschlossen. Die Anwendung liest Verträge automatisch aus und erzeugt Schreiben und Auswertungen. Sie ersetzt weder Rechts-, Versicherungs- noch Steuerberatung, und die ausgelesenen Werte sind vor jeder Verwendung zu prüfen.
+
+Drittanbieter-Software, Schriften und deren Lizenzen sind in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) aufgeführt. Das Logo gehört zum Repository und steht wie der Quellcode unter der MIT-Lizenz. Namen und Logos von Versicherern sind Eigentum der jeweiligen Unternehmen.
