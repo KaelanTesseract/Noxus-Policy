@@ -314,20 +314,30 @@ def _get_answer_grammar():
     return _answer_grammar or None
 
 
+AI_INSTRUCTION = (
+    "Du liest einen Brief einer Versicherung. Trage ein: "
+    "\"company\" = der Versicherer, der den Brief verschickt (Briefkopf, Logo, Fußzeile). "
+    "NICHT der Makler oder Vermittler (erkennbar an 'Sie werden betreut von'), NICHT die Bank, NICHT der Empfänger. "
+    "\"policy_number\" = die Versicherungsschein-Nummer. "
+    "Schreibe nur, was wörtlich im Text steht. Ist ein Feld nicht zu erkennen, bleibt es leer (\"\"). "
+    "Erfinde nichts. Antworte nur mit JSON."
+)
+
+
+def ai_messages(snippet: str) -> list:
+    """The conversation for a model with a chat template of its own (used by tools/eval_models.py)."""
+    return [{"role": "system", "content": AI_INSTRUCTION}, {"role": "user", "content": f"BRIEF:\n{snippet}"}]
+
+
 def build_ai_prompt(snippet: str, with_prefill: bool) -> str:
-    """The instruction for the model. It asks only for what the rules may have missed - the
-    insurer and the policy number - and names no example values: the small model repeats them
-    (an example insurer appeared in letters of other insurers). Measured on 14 real letters this
-    short instruction reads the insurer in 9 of 14 (the long one, with 15 fields: 1 of 14) in
-    ~5 s instead of ~25 s. The broker ("Sie werden betreut von") is excluded explicitly."""
+    """The instruction for the model, in the ChatML format of Qwen2.5. It asks only for what the
+    rules may have missed - the insurer and the policy number - and names no example values: the
+    small model repeats them (an example insurer appeared in letters of other insurers). Measured on
+    14 real letters this short instruction reads the insurer in 9 of 14 (the long one, with 15
+    fields: 1 of 14) in ~5 s instead of ~25 s. The broker ("Sie werden betreut von") is excluded
+    explicitly."""
     prompt = (
-        "<|im_start|>system\n"
-        "Du liest einen Brief einer Versicherung. Trage ein: "
-        "\"company\" = der Versicherer, der den Brief verschickt (Briefkopf, Logo, Fußzeile). "
-        "NICHT der Makler oder Vermittler (erkennbar an 'Sie werden betreut von'), NICHT die Bank, NICHT der Empfänger. "
-        "\"policy_number\" = die Versicherungsschein-Nummer. "
-        "Schreibe nur, was wörtlich im Text steht. Ist ein Feld nicht zu erkennen, bleibt es leer (\"\"). "
-        "Erfinde nichts. Antworte nur mit JSON.<|im_end|>\n"
+        f"<|im_start|>system\n{AI_INSTRUCTION}<|im_end|>\n"
         f"<|im_start|>user\nBRIEF:\n{snippet}<|im_end|>\n"
         "<|im_start|>assistant\n"
     )
@@ -413,6 +423,45 @@ def extract_subject_fallback(text: str) -> str:
 
     return None
 
+_NUMBER_LABEL = re.compile(
+    r'(?i)\b(?:versicherungsschein-?(?:nummer|nr)|versicherungs-?nummer|policen-?(?:nummer|nr)|police(?:n)?-?nr|police'
+    r'|vertrags-?(?:nummer|nr)|schein-?(?:nummer|nr)|vsnr)\b\.?[ \t]*:?[ \t]*')
+
+
+def _number_from_tokens(candidate: str):
+    """The policy number at the start of ``candidate``: groups as letters print them ("WG 5544-3321",
+    "7 123 456 789 0", "30.120.456-7", "K 4455 6677 88"). It ends at the first word, a date or any
+    character a number does not contain."""
+    tokens = []
+    for token in candidate.split()[:6]:
+        if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9./\-]*', token) or re.fullmatch(r'\d{2}\.\d{2}\.\d{2,4}', token):
+            break
+        if not re.search(r'\d', token) and not (len(token) <= 3 and token.isupper()):
+            break
+        tokens.append(token)
+    while tokens and not re.search(r'\d', tokens[-1]):   # a trailing "WG" belongs to what follows, not to the number
+        tokens.pop()
+    value = " ".join(tokens)
+    if len(re.findall(r'\d', value)) >= 5 and not is_invalid_policy_num(value):
+        return value
+    return None
+
+
+def number_after_label(text: str):
+    """The number written behind a label like "Versicherungsschein-Nr.", "Vertragsnummer:" or
+    "Police", on the same line or - when the line ends with the label - on the next one."""
+    lines = (text or "").split("\n")
+    for i, line in enumerate(lines):
+        for label in _NUMBER_LABEL.finditer(line):
+            rest = line[label.end():].strip()
+            if not rest and i + 1 < len(lines):
+                rest = lines[i + 1].strip()
+            value = _number_from_tokens(rest)
+            if value:
+                return value
+    return None
+
+
 def extract_policy_number_fallback(text: str, current_num: str = None) -> str:
     # 1. Direct pattern like LJ-12345678-001 or 123/456789-A or VSN-999999 (High precision)
     direct_match = re.search(r'\b([A-Z]{1,4}-\d{6,12}-\d{1,3}|\d{3}/\d{6}-[A-Za-z0-9])\b', text)
@@ -427,6 +476,11 @@ def extract_policy_number_fallback(text: str, current_num: str = None) -> str:
         val = spaced.group(1) + spaced.group(2)
         if 6 <= len(re.findall(r'\d', val.split('-', 1)[1].rsplit('-', 1)[0])) <= 12 and not is_invalid_policy_num(val):
             return val
+
+    # 1c. A number behind a label, whatever its layout ("WG 5544-3321", "Police: 12-3456789-0")
+    labelled = number_after_label(text)
+    if labelled:
+        return labelled
 
     # 2. Multi-line label search: e.g. "Versicherungsschein-Nummer\nLJ-12345678-001"
     multiline_patterns = [

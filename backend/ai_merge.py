@@ -61,14 +61,30 @@ def plausible(field: str, value, text: str) -> bool:
         return False
     value = str(value).strip()
     if field == "insurance_number":
-        # a number has no spaces ("Versicherungsschein-Nummer", "K 500 09.17" are not numbers) and digits
-        return not re.search(r"\s", value) and len(value) >= 6 and len(re.findall(r"\d", value)) >= 4
+        if len(value) < 6 or len(re.findall(r"\d", value)) < 4:        # "Versicherungsschein-Nummer", "OD"
+            return False
+        # Written in groups ("7 123 456 789 0", "WG 5544-3321") it is a number only behind a label; the same
+        # shape without one is something else ("K 500 09.17" is a form code in the corner of the page).
+        return not re.search(r"\s", value) or _behind_number_label(value, text)
     if field == "company":
         words = [w for w in re.findall(r"[A-Za-zÄÖÜäöüß]{3,}", value) if w.lower() not in _GENERIC_NAME_WORDS]
         if len(value) < 4 or not words or re.search(r"\d{3}|\d\.\d", value):    # "Versicherungen", "IV-KFGK001 01.18"
             return False
         return not _is_broker(value, text)
     return True
+
+
+_NUMBER_WORDS = re.compile(r"(?i)versicherungsschein|versicherungsnummer|vers\.-?\s?nr|police|vertrag|mitglied|schein-?nr|vsnr|zeichen")
+
+
+def _behind_number_label(value: str, text: str) -> bool:
+    """The value stands on the line of, or right below, a word that names a policy number."""
+    lines = (text or "").splitlines()
+    squashed = re.sub(r"\s", "", value)
+    for i, line in enumerate(lines):
+        if squashed in re.sub(r"\s", "", line) and _NUMBER_WORDS.search(" ".join(lines[max(0, i - 1):i + 1])):
+            return True
+    return False
 
 
 def _is_broker(name: str, text: str) -> bool:
