@@ -14,9 +14,9 @@ export const metadata: Metadata = {
   title: "Zettelfrieden | Versicherungsmanager",
   description: "Dein intelligenter digitaler Versicherungsmanager",
   icons: {
-    icon: "/logo.png",
-    shortcut: "/logo.png",
-    apple: "/logo.png",
+    icon: [{ url: "/favicon.png", type: "image/png" }, { url: "/logo.svg", type: "image/svg+xml" }],
+    shortcut: "/favicon.png",
+    apple: "/apple-touch-icon.png",
   },
 };
 
@@ -28,8 +28,9 @@ export default function RootLayout({
   return (
     <html lang="de" className="dark" data-theme="indigo" data-style="dark-calm">
       <head>
-        <link rel="icon" href="/logo.png" type="image/png" />
-        <link rel="apple-touch-icon" href="/logo.png" />
+        <link rel="icon" href="/logo.svg" type="image/svg+xml" />
+        <link rel="icon" href="/favicon.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       </head>
       <body className="font-sans bg-zinc-950 text-zinc-50 antialiased min-h-screen selection:bg-indigo-500/30 flex flex-col justify-between">
         <ThemeProvider>

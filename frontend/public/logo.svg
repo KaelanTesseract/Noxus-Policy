@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="512" height="512" role="img" aria-label="Zettelfrieden">
+  <title>Zettelfrieden</title>
+  <rect x="0.6" y="0.6" width="62.8" height="62.8" rx="14" fill="#25221E" stroke="#3A362F" stroke-width="1.2"/>
+  <g transform="translate(32 32) scale(0.86) translate(-32 -32)">
+    <rect x="14" y="12" width="34" height="42" rx="4" fill="#6F695F" transform="rotate(-9 31 33)"/>
+    <rect x="14" y="12" width="34" height="42" rx="4" fill="#C2BBAD" transform="rotate(5 31 33)"/>
+    <rect x="15" y="9" width="34" height="44" rx="4" fill="#ECE7DD"/>
+    <path d="M36 9h9v17l-4.5-3.5L36 26z" fill="#E6B24C"/>
+    <path d="M22 35h19M22 43h12" stroke="#6F695F" stroke-width="3" stroke-linecap="round" fill="none"/>
+  </g>
+</svg>

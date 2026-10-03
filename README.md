@@ -2,7 +2,7 @@
 <h3 align="center">Versicherungsmanager mit automatischer Dokumentenanalyse</h3>
 
 <p align="center">
-  <img src="https://github.com/KaelanTesseract/Noxus-Policy/blob/fcd19a9946ac18d64a184fe4778384bd5b48a888/logo.png" alt="Zettelfrieden Logo" width="140" />
+  <img src="logo.png" alt="Zettelfrieden Logo" width="140" />
 </p>
 
 <p align="center">
