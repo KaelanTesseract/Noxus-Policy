@@ -322,3 +322,60 @@ def test_regional_classes_run_from_1_to_12():
     assert ocr.extract_regionalklasse_fallback("Regionalklasse R12") == "R12"
     assert ocr.extract_regionalklasse_fallback("Regionalklasse R13") is None
     assert ocr.extract_regionalklasse_fallback("Tarifgruppe R0") is None
+
+
+# ----- Leistungen (versicherte Risiken) ----------------------------------------------------
+
+POLICE_MIT_BOILERPLATE = """HUK24 AG, HUK-COBURG-Platz 1, 96440 Coburg
+Versicherungsschein - Kraftfahrtversicherung Nr. 669/246004-Q
+Versicherungsumfang
+Kfz-Haftpflichtversicherung 100 Mio. € Versicherungssumme für Personen-, Sach- und Vermögensschäden 17,95 €
+Kaskoversicherung Teilkasko 150 € Selbstbeteiligung 11,34 €
+Jahresbeitrag Gültig ab 24.07.2026 29,29 €
+Kontoauszug
+Neue Buchungen: Erstbeitrag 29,26
+""" + "Zeile mit Hinweisen zur Zahlung des Erstbeitrags.\n" * 10 + """In der Kfz-Haftpflichtversicherung, beim Autoschutzbrief, beim Fahrerschutz und beim Ausland-Schadenschutz
+haben Sie vorläufigen Versicherungsschutz.
+II Vollkasko - Schutz vor finanziellen Folgen bei Beschädigung
+"""
+
+
+def _coverage_keys(text):
+    result = ocr.extract_insurance_data_regex(text)
+    return sorted({k for item in result["coverage_details"] for k in
+                   ("haftpflicht", "schutzbrief", "teilkasko", "vollkasko", "fahrerschutz", "ausland", "umwelt")
+                   if k in item.split("(")[0].lower()})
+
+
+def test_general_sections_do_not_add_coverages_to_a_policy():
+    assert _coverage_keys(POLICE_MIT_BOILERPLATE) == ["haftpflicht", "teilkasko"]
+
+
+def test_the_scope_ends_at_the_first_general_section_but_only_after_the_letterhead():
+    text = "x" * 400 + "\nBesonders zu beachten:\nVollkasko Schutzbrief"
+    assert ocr.coverage_scope(text) == "x" * 400 + "\n"
+    short = "Besonders zu beachten:\nTeilkasko mit 150 € Selbstbeteiligung"
+    assert ocr.coverage_scope(short) == short       # a heading at the very top is not a boundary
+
+
+def test_a_compound_word_in_boilerplate_is_no_vollkasko():
+    text = ("Itzehoer Versicherungen\nKfz-Haftpflicht\nTeilkasko mit 150 € Selbstbeteiligung\n"
+            "Sie haben uns berechtigt, bei Beendigung eines Kfz-Haftpflicht- oder Vollkaskovertrags Daten zu übermitteln.\n")
+    assert "vollkasko" not in _coverage_keys(text)
+    assert "vollkasko" in _coverage_keys("Itzehoer\nVollkasko mit 500 € Selbstbeteiligung\n")
+
+
+def test_a_terminated_contract_covers_nothing():
+    text = ("Itzehoer Versicherungen\nNachtrag zur Kraftfahrtversicherung\nDer zwischen uns geschlossene Vertrag ist beendet.\n"
+            "Erstattungsbeitrag\nKfz-Haftpflicht 28,29- €\nTeilkasko 5,60- €\nZwischensumme 40,33- €\n")
+    assert ocr.extract_insurance_data(text)["coverage_details"] == []
+
+
+def test_the_instruction_for_the_model_names_no_example_values():
+    # the small model repeats examples: an insurer from the instruction showed up in letters of other
+    # insurers, and the example coverages came back unchanged for every document
+    prompt = ocr.build_ai_prompt("Beispieltext", with_prefill=False)
+    for example in ("HUK", "Allianz", "AXA", "Schutzbrief", "Kfz-Haftpflichtversicherung", "SF 15"):
+        assert example not in prompt
+    assert "coverage_details" not in prompt
+    assert "coverage_details" not in ocr._answer_schema()["properties"]

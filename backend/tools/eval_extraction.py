@@ -50,7 +50,7 @@ def prepare_windows_tools() -> None:
 
 
 FIELDS = ["company", "insurance_number", "category", "doc_type", "cost", "refund_amount", "payment_cycle",
-          "start_date", "end_date", "cancellation_date", "sf_class", "regional_class", "type_class"]
+          "start_date", "end_date", "cancellation_date", "sf_class", "regional_class", "type_class", "coverage"]
 EXTENSIONS = (".pdf", ".jpg", ".jpeg", ".png")
 
 
@@ -79,8 +79,28 @@ def normalise(value):
         return text
 
 
+COVERAGE_KEYS = [("haftpflicht", "haftpflicht"), ("schutzbrief", "schutzbrief"), ("teilkasko", "teilkasko"),
+                 ("vollkasko", "vollkasko"), ("fahrerschutz", "fahrerschutz"), ("ausland", "ausland"),
+                 ("umwelt", "umwelt")]
+
+
+def coverage_of(result: dict):
+    """The covered risks of a result as a sorted, comma separated list of short keys."""
+    found = set()
+    for item in (result or {}).get("coverage_details") or []:
+        name = item.split("(")[0].lower()
+        for needle, key in COVERAGE_KEYS:
+            if needle in name:
+                found.add(key)
+    return ",".join(sorted(found)) or None
+
+
 def pick(result: dict) -> dict:
-    return {f: normalise(result.get(f)) for f in FIELDS} if result else {f: None for f in FIELDS}
+    if not result:
+        return {f: None for f in FIELDS}
+    values = {f: normalise(result.get(f)) for f in FIELDS if f != "coverage"}
+    values["coverage"] = coverage_of(result)
+    return values
 
 
 def show(value) -> str:

@@ -202,11 +202,10 @@ def _answer_schema() -> dict:
             "is_price_change": {"type": "boolean"},
             "previous_cost": number,
             "new_cost": number,
-            "coverage_details": {"type": "array", "items": {"type": "string", "maxLength": 160}, "maxItems": 8},
         },
         "required": ["company", "insurance_type", "policy_number", "start_date", "end_date", "cost", "payment_cycle",
                      "category", "sf_class", "regional_class", "type_class", "is_price_change", "previous_cost",
-                     "new_cost", "coverage_details"],
+                     "new_cost"],
     }
 
 
@@ -228,40 +227,33 @@ def _get_answer_grammar():
 
 
 def build_ai_prompt(snippet: str, with_prefill: bool) -> str:
+    """The instruction for the model. It names no example values on purpose: the small model
+    repeats them (an insurer from the example appeared in letters of other insurers, and the
+    example coverages came back unchanged for every document). Which risks a contract covers
+    is not asked at all - the rules read that (see coverage_scope)."""
     prompt = (
         "<|im_start|>system\n"
         "Du bist ein präziser deutscher Versicherungs-Experte. "
-        "Analysiere den folgenden Vertragstext und extrahiere alle Informationen. "
+        "Lies den folgenden Vertragstext und trage die Felder des JSON-Objekts ein. "
         "Schreibe nur Werte, die wörtlich im Text stehen; was fehlt, bleibt leer (\"\") oder null. "
-        "WICHTIG für 'coverage_details': Extrahiere NUR TATSÄCHLICH VERSICHERTE LEISTUNGEN (ignoriere 'Was ist nicht versichert'!). "
-        "Formatiere JEDE Leistung streng in grammatikalisch perfektem Deutsch nach dem Schema: 'Name der Leistung (Prägnante Nomen-Stichpunkte zur Abdeckung in Klammern)'. "
-        "Kopiere NIEMALS lange Rohsätze wie 'Leistet, wenn...' oder 'Ersetzt berechtigte...'. Nutze stattdessen grammatikalisch saubere Substantivierungen!\n"
-        "Beispiele für perfektes Deutsch:\n"
-        "- 'Kfz-Haftpflichtversicherung (Personen- & Sachschäden an Dritten, Erstattung berechtigter Ansprüche & Abwehr unberechtigter Forderungen)'\n"
-        "- 'Schutzbrief (Organisatorische & finanzielle Hilfe bei Panne oder Unfall, Pannenhilfe vor Ort & Abschleppen)'\n"
-        "- 'Teilkasko (Schutz bei Glasbruch, Diebstahl, Hagel, Sturm & Wildunfällen)'\n"
-        "- 'Vollkasko (Abdeckung von Unfallschäden am eigenen Fahrzeug & Vandalismus)'\n"
-        "- 'Fahrerschutz (Übernahme von Personenschäden & Genesungskosten des Fahrers bei Unfall)'\n"
-        "- 'Ausland-Schadenschutz (Schadenregulierung bei Unfällen im Ausland nach deutschem Standard)'\n"
-        "- 'Kfz-Umweltschadenversicherung (Schutz vor öffentlich-rechtlichen Ansprüchen nach dem Umweltschadensgesetz)'\n"
+        "Erfinde nichts und übernimm keine Beispiele aus dieser Anweisung.\n"
         "Antworte AUSSCHLIESSLICH mit einem gültigen JSON-Objekt ohne Erklärungen oder Markdown.\n"
-        "JSON-Format:\n"
+        "Felder:\n"
         "{\n"
-        '  "company": "Name des Versicherers (z.B. HUK-COBURG, HUK24, Allianz, AXA)",\n'
-        '  "insurance_type": "Art der Versicherung (z.B. Kfz-Versicherung, Privathaftpflicht)",\n'
+        '  "company": "Name des Versicherers aus dem Briefkopf",\n'
+        '  "insurance_type": "Art der Versicherung",\n'
         '  "policy_number": "Versicherungsscheinnummer",\n'
-        '  "start_date": "YYYY-MM-DD",\n'
-        '  "end_date": "YYYY-MM-DD",\n'
-        '  "cost": 123.45,\n'
+        '  "start_date": "Versicherungsbeginn als YYYY-MM-DD",\n'
+        '  "end_date": "Ablauf als YYYY-MM-DD",\n'
+        '  "cost": Beitrag in Euro als Zahl,\n'
         '  "payment_cycle": "monatlich", "vierteljährlich", "halbjährlich" oder "jährlich",\n'
         '  "category": "Kfz", "Haftpflicht", "Hausrat", "Leben", "Gesundheit", "Rechtsschutz" oder "Sonstige",\n'
-        '  "sf_class": "Schadenfreiheitsklasse (z.B. SF 15, SF 1/2 oder SF 3)",\n'
-        '  "regional_class": "Regionalklasse (z.B. R4 oder 04)",\n'
-        '  "type_class": "Typklasse (z.B. 18 oder TK18)",\n'
-        '  "is_price_change": true oder false (wenn das Dokument eine Beitragsanpassung/Beitragserhöhung ist),\n'
-        '  "previous_cost": 100.00,\n'
-        '  "new_cost": 120.00,\n'
-        '  "coverage_details": ["Kfz-Haftpflichtversicherung (Personen- & Sachschäden an Dritten, Erstattung berechtigter Ansprüche)", "Schutzbrief (Organisatorische & finanzielle Hilfe bei Panne oder Unfall)"]\n'
+        '  "sf_class": "Schadenfreiheitsklasse",\n'
+        '  "regional_class": "Regionalklasse",\n'
+        '  "type_class": "Typklasse",\n'
+        '  "is_price_change": true wenn das Dokument eine Beitragsanpassung ist, sonst false,\n'
+        '  "previous_cost": bisheriger Beitrag als Zahl oder null,\n'
+        '  "new_cost": neuer Beitrag als Zahl oder null\n'
         "}<|im_end|>\n"
         f"<|im_start|>user\nVERTRAGSTEXT:\n{snippet}<|im_end|>\n"
         "<|im_start|>assistant\n"
@@ -319,11 +311,6 @@ def extract_with_mini_ai(text: str) -> dict:
         if payment_cycle not in ["monatlich", "vierteljährlich", "halbjährlich", "jährlich"]:
             payment_cycle = "jährlich"
 
-        cov_details = parsed.get("coverage_details", [])
-        if not isinstance(cov_details, list):
-            cov_details = []
-        cov_details = sanitize_coverage_details(cov_details)
-
         raw_s = str(parsed.get("start_date") or "")
         raw_e = str(parsed.get("end_date") or "")
         raw_c = str(parsed.get("cancellation_date") or "")
@@ -359,7 +346,7 @@ def extract_with_mini_ai(text: str) -> dict:
             "start_date": s_date,
             "end_date": e_date,
             "cancellation_date": c_date,
-            "coverage_details": cov_details,
+            "coverage_details": [],  # not asked of the model, see build_ai_prompt
             "sf_class": sf_class,
             "regional_class": regional_class,
             "type_class": type_class,
@@ -695,6 +682,18 @@ def sanitize_coverage_details(coverage_list: list) -> list:
 
     return list(dict.fromkeys(cleaned))
 
+_COVERAGE_STOP = re.compile(r'(?im)^\s*(?:besonders zu beachten|kontoauszug|bitte beachten sie folgendes)')
+
+
+def coverage_scope(text: str) -> str:
+    """The part of a letter that says what THIS contract covers. Everything from the first
+    general section on ("Besonders zu beachten", the account statement, advice on paying the
+    first premium) is boilerplate that mentions Schutzbrief, Fahrerschutz, Vollkasko ... for every
+    customer: a trailer policy listed six coverages because of it, two of them not insured."""
+    m = _COVERAGE_STOP.search(text or "")
+    return text[:m.start()] if m and m.start() > 300 else (text or "")
+
+
 def extract_insurance_data_regex(text: str) -> dict:
     data = {
         "company": None,
@@ -804,58 +803,59 @@ def extract_insurance_data_regex(text: str) -> dict:
 
     # Coverage Details (Excluding negative matches)
     coverage_details = []
+    cov_text = coverage_scope(text)
     
     # Kfz
-    if re.search(r'(?i)(kfz\-haftpflicht|kraftfahrt-haftpflicht)', text):
+    if re.search(r'(?i)(kfz\-haftpflicht|kraftfahrt-haftpflicht)', cov_text):
         coverage_details.append("Kfz-Haftpflichtversicherung (Schäden an Drittfahrzeugen, Personenschäden & Abwehr unberechtigter Ansprüche)")
-    if re.search(r'(?i)(schutzbrief)', text) and not re.search(r'(?i)schutzbrief[^\n]*ist nicht vertragsinhalt', text):
+    if re.search(r'(?i)(schutzbrief)', cov_text) and not re.search(r'(?i)schutzbrief[^\n]*ist nicht vertragsinhalt', cov_text):
         coverage_details.append("Schutzbrief (Organisatorische & finanzielle Hilfe bei Panne oder Unfall, Abschleppen & Mietwagen)")
-    if re.search(r'(?i)(teilkasko)', text):
+    if re.search(r'(?i)(teilkasko)', cov_text):
         coverage_details.append("Teilkasko (Schutz bei Glasbruch, Diebstahl, Hagel, Sturm & Wildunfällen)")
-    if re.search(r'(?i)(vollkasko)', text) and not re.search(r'(?i)vollkasko[^\n]*ist nicht vertragsinhalt', text):
+    if re.search(r'(?i)(vollkasko(?!vertrag))', cov_text) and not re.search(r'(?i)vollkasko[^\n]*ist nicht vertragsinhalt', cov_text):
         coverage_details.append("Vollkasko (Abdeckung von Unfallschäden am eigenen Fahrzeug & Vandalismus)")
-    if re.search(r'(?i)(fahrerschutz)', text) and not re.search(r'(?i)fahrerschutz[^\n]*ist nicht vertragsinhalt', text):
+    if re.search(r'(?i)(fahrerschutz)', cov_text) and not re.search(r'(?i)fahrerschutz[^\n]*ist nicht vertragsinhalt', cov_text):
         coverage_details.append("Fahrerschutz (Übernahme von Personenschäden & Genesungskosten des Fahrers bei Unfall)")
-    if re.search(r'(?i)(ausland\-schadenschutz)', text) and not re.search(r'(?i)ausland\-schadenschutz[^\n]*ist nicht vertragsinhalt', text):
+    if re.search(r'(?i)(ausland\-schadenschutz)', cov_text) and not re.search(r'(?i)ausland\-schadenschutz[^\n]*ist nicht vertragsinhalt', cov_text):
         coverage_details.append("Ausland-Schadenschutz (Schadenregulierung bei Unfällen im Ausland nach deutschem Standard)")
-    if re.search(r'(?i)(umweltschaden|umweltschadensgesetz)', text):
+    if re.search(r'(?i)(umweltschaden|umweltschadensgesetz)', cov_text):
         coverage_details.append("Kfz-Umweltschadenversicherung (Schutz vor öffentlich-rechtlichen Ansprüchen nach dem Umweltschadensgesetz)")
 
     # Exclude false positives like "Wohngebäude bei der Itzehoer versichert: Nein"
-    if re.search(r'(?i)(wohngebäude|gebäudeversicherung)', text) and not re.search(r'(?i)wohngebäude[^\n]*:\s*nein', text) and not re.search(r'(?i)wohngebäude[^\n]*ist nicht', text):
+    if re.search(r'(?i)(wohngebäude|gebäudeversicherung)', cov_text) and not re.search(r'(?i)wohngebäude[^\n]*:\s*nein', cov_text) and not re.search(r'(?i)wohngebäude[^\n]*ist nicht', cov_text):
         coverage_details.append("Wohngebäudeversicherung (Absicherung gegen Feuer, Sturm, Hagel, Leitungswasser & Elementarschäden)")
 
     # Haftpflicht
-    if re.search(r'(?i)(privathaftpflicht)', text):
+    if re.search(r'(?i)(privathaftpflicht)', cov_text):
         coverage_details.append("Privathaftpflicht (Schäden an Dritten, Mietsachschäden, Gefälligkeitshandlungen & Schlüsselverlust)")
-    if re.search(r'(?i)(hundehaftpflicht|tierhalterhaftpflicht)', text):
+    if re.search(r'(?i)(hundehaftpflicht|tierhalterhaftpflicht)', cov_text):
         coverage_details.append("Tierhalterhaftpflicht (Personen- & Sachschäden durch Haustiere/Hunde an Dritten)")
-    if re.search(r'(?i)(bauherrenhaftpflicht|haus-? und grundbesitzer)', text):
+    if re.search(r'(?i)(bauherrenhaftpflicht|haus-? und grundbesitzer)', cov_text):
         coverage_details.append("Haus- & Grundbesitzerhaftpflicht (Absicherung von Verkehrssicherungspflichten & Bauherrenschäden)")
 
     # Hausrat
-    if re.search(r'(?i)(hausrat)', text):
+    if re.search(r'(?i)(hausrat)', cov_text):
         coverage_details.append("Hausratversicherung (Schutz bei Einbruchdiebstahl, Vandalismus, Leitungswasser, Sturm & Hagel)")
 
     # Rechtsschutz
-    if re.search(r'(?i)(rechtsschutz)', text):
-        if re.search(r'(?i)(verkehrsrechtsschutz)', text):
+    if re.search(r'(?i)(rechtsschutz)', cov_text):
+        if re.search(r'(?i)(verkehrsrechtsschutz)', cov_text):
             coverage_details.append("Verkehrsrechtsschutz (Kostendeckung bei Streitigkeiten im Straßenverkehr & Anwaltskosten)")
-        if re.search(r'(?i)(berufsrechtsschutz)', text):
+        if re.search(r'(?i)(berufsrechtsschutz)', cov_text):
             coverage_details.append("Berufsrechtsschutz (Rechtlicher Schutz bei Arbeitsplatz- & Arbeitsvertragsstreitigkeiten)")
-        if re.search(r'(?i)(mietrechtsschutz|immobilienrechtsschutz)', text):
+        if re.search(r'(?i)(mietrechtsschutz|immobilienrechtsschutz)', cov_text):
             coverage_details.append("Miet- & Immobilienrechtsschutz (Rechtsschutz bei Konflikten zwischen Mieter und Vermieter)")
         if not any("rechtsschutz" in c.lower() for c in coverage_details):
             coverage_details.append("Rechtsschutz (Übernahme von Anwalts- & Gerichtskosten sowie Freie Anwaltswahl)")
 
     # Gesundheit & Zahn
-    if re.search(r'(?i)(zahnzusatz|zahnersatz|zahnbehandlung)', text):
+    if re.search(r'(?i)(zahnzusatz|zahnersatz|zahnbehandlung)', cov_text):
         coverage_details.append("Zahnzusatzversicherung (Kostenerstattung für professionelle Zahnreinigung, Inlays & Zahnersatz)")
-    if re.search(r'(?i)(krankentagegeld|krankengeld)', text):
+    if re.search(r'(?i)(krankentagegeld|krankengeld)', cov_text):
         coverage_details.append("Krankentagegeld (Einkommenssicherung bei längerer Krankheitsdauer)")
 
     # Leben & Vorsorge
-    if re.search(r'(?i)(berufsunfähigkeit|bu\-rente)', text):
+    if re.search(r'(?i)(berufsunfähigkeit|bu\-rente)', cov_text):
         coverage_details.append("Berufsunfähigkeitsversicherung (Monatliche Rente & Beitragsbefreiung bei Berufs- oder Erwerbsunfähigkeit)")
 
     # KFZ Specific Regex Extraction
@@ -923,6 +923,7 @@ def finalize_extraction(data: dict, text: str) -> dict:
         data["new_cost"] = None
         # the contract is over: there is nothing left to give notice for (the end date stays)
         data["cancellation_date"] = None
+        data["coverage_details"] = []  # nothing is insured any more; the lines are only the refund calculation
         return data
 
     cost, certain = extract_cost_with_basis(text)
