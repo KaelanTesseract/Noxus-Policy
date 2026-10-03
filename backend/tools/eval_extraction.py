@@ -114,6 +114,7 @@ def main():
     parser.add_argument("--fresh", action="store_true", help="read the documents again instead of using cached texts")
     parser.add_argument("--only", help="only documents whose file name contains this text")
     parser.add_argument("--side", type=int, help="longest side in pixels a PDF page is rendered at (implies --fresh)")
+    parser.add_argument("--pypdf", action="store_true", help="read text-layer PDFs with pypdf instead of pdftotext -layout (implies --fresh)")
     parser.add_argument("--tesseract", default="", help="extra Tesseract options, e.g. \"--psm 6\" (implies --fresh)")
     args = parser.parse_args()
 
@@ -121,9 +122,11 @@ def main():
     import ocr
     import document_naming
     ocr.OCR_TESSERACT_CONFIG = args.tesseract
+    if args.pypdf:
+        ocr.USE_PDFTOTEXT = False
     if args.side:
         ocr.OCR_MAX_PAGE_SIDE_PX = args.side
-    args.fresh = args.fresh or bool(args.tesseract) or bool(args.side)
+    args.fresh = args.fresh or bool(args.tesseract) or bool(args.side) or args.pypdf
 
     files = sorted(f for f in os.listdir(DOCS_DIR) if f.lower().endswith(EXTENSIONS))
     if args.only:

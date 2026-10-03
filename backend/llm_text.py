@@ -36,7 +36,9 @@ def select_relevant_text(text: str, max_chars: int) -> str:
     """At most ``max_chars`` characters of ``text``: the letterhead plus the lines that
     look like contract data (with the line behind each), in their original order. A text
     that fits is returned unchanged."""
-    lines = [line.strip()[:MAX_LINE_CHARS] for line in (text or "").splitlines() if line.strip()]
+    # (a layout-preserving text puts wide gaps between columns: squeeze them, or the amount in
+    # the right column would be cut off with the rest of a long line)
+    lines = [re.sub(r" {3,}", "  ", line.strip())[:MAX_LINE_CHARS] for line in (text or "").splitlines() if line.strip()]
     if sum(len(line) + 1 for line in lines) <= max_chars:
         return "\n".join(lines)
 

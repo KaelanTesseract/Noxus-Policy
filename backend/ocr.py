@@ -5,6 +5,7 @@ import pytesseract
 from pattern_safety import apply_patterns
 from document_naming import detect_kind, suggest_title
 from image_prep import prepare_for_ocr
+from page_select import MAX_OCR_PAGES, FIRST_OCR_PAGES, OCR_BATCH_PAGES, choose_text_pages, has_premium, split_pdftotext
 from llm_text import select_relevant_text
 from ai_merge import has_gaps, merge_ai_into_rules
 from field_checks import assess_fields
@@ -15,6 +16,8 @@ import re
 import os
 import json
 import hashlib
+import shutil
+import subprocess
 import httpx
 from datetime import datetime
 try:
@@ -105,7 +108,6 @@ def get_llm():
 # Bounds for untrusted uploads: a PDF page or image can declare absurd dimensions
 # (a few KB that expand to gigabytes of pixels) and Tesseract can be made to churn
 # on adversarial images, so rendering, decoding and recognition are all capped.
-OCR_MAX_PAGES = 5
 OCR_MAX_PAGE_SIDE_PX = 3300          # longest side a PDF page is rendered at (~280 dpi on A4; at 2400 a policy number on a green card and a class digit were lost)
 OCR_MAX_IMAGE_SIDE_PX = 3600
 OCR_MAX_IMAGE_PIXELS = 50_000_000    # decoded pixels above this are refused outright
@@ -130,34 +132,74 @@ def read_page_image(img) -> str:
         prepared = img
     return pytesseract.image_to_string(prepared, lang='deu', config=OCR_TESSERACT_CONFIG, timeout=OCR_TESSERACT_TIMEOUT_S)
 
+PDFTOTEXT_TIMEOUT_S = 30
+MAX_LAYER_PAGES = 150               # pages of a text-layer PDF that are ever read (the rest is terms and conditions)
+USE_PDFTOTEXT = True                # layout-preserving text from Poppler's pdftotext, see read_text_layer
+
+def read_text_layer(filepath: str) -> list:
+    """Text of every page of a PDF with a text layer, as a list (index = page - 1); empty
+    pages stay in the list. With Poppler's pdftotext (-layout) tables and columns keep their
+    shape; without it, or if it fails, pypdf reads the pages. A scan has no text layer: the
+    pages come back empty."""
+    if USE_PDFTOTEXT:
+        exe = shutil.which("pdftotext")
+        if exe:
+            try:
+                done = subprocess.run(
+                    [exe, "-layout", "-enc", "UTF-8", "-l", str(MAX_LAYER_PAGES), os.path.abspath(filepath), "-"],
+                    capture_output=True, timeout=PDFTOTEXT_TIMEOUT_S, check=True,
+                )
+                return split_pdftotext(done.stdout.decode("utf-8", errors="replace"))
+            except (subprocess.SubprocessError, OSError) as e:
+                print(f"pdftotext notice: {e}")
+    try:
+        from pypdf import PdfReader
+        reader = PdfReader(filepath)
+        return [(page.extract_text() or "") for page in reader.pages[:MAX_LAYER_PAGES]]
+    except Exception as pe:
+        print(f"pypdf extraction notice: {pe}")
+        return []
+
+
+def _pdf_page_count(filepath: str):
+    try:
+        from pypdf import PdfReader
+        return len(PdfReader(filepath).pages)
+    except Exception:
+        return None
+
+
+def ocr_pdf_pages(filepath: str) -> str:
+    """A scanned PDF, recognised page by page: the first pages, then more in small batches until
+    a premium has been found - a long scan whose premium table stands on page 7 is still read,
+    an information leaflet of 60 pages is not read to the end."""
+    total = _pdf_page_count(filepath)
+    text = ""
+    first, last = 1, FIRST_OCR_PAGES
+    while True:
+        images = convert_from_path(
+            filepath, first_page=first, last_page=last,
+            size=OCR_MAX_PAGE_SIDE_PX, timeout=OCR_PDF_RENDER_TIMEOUT_S,
+        )
+        for number, img in enumerate(images, start=first):
+            text += f"--- Page {number} ---\n" + read_page_image(img) + "\n"
+        reached_end = not images or len(images) < (last - first + 1) or (total is not None and last >= total)
+        if reached_end or last >= MAX_OCR_PAGES or has_premium(text) or is_informational(document_type_for(detect_kind(text))):
+            return text
+        first, last = last + 1, min(last + OCR_BATCH_PAGES, MAX_OCR_PAGES)
+
+
 def extract_text_from_file(filepath: str) -> str:
     text = ""
     try:
         if filepath.lower().endswith('.pdf'):
-            try:
-                from pypdf import PdfReader
-                reader = PdfReader(filepath)
-                num_pages = len(reader.pages)
-                
-                # For long multi-page documents (> 5 pages), prioritize first 3 and last 2 pages for metadata
-                pages_to_read = range(num_pages)
-                if num_pages > 5:
-                    pages_to_read = list(range(0, min(5, num_pages))) + list(range(max(0, num_pages - 3), num_pages))
-                    
-                for idx in pages_to_read:
-                    extracted = reader.pages[idx].extract_text()
-                    if extracted:
-                        text += f"--- Page {idx+1} ---\n" + extracted + "\n"
-            except Exception as pe:
-                print(f"pypdf extraction notice: {pe}")
-
-            if not text.strip():
-                images = convert_from_path(
-                    filepath, first_page=1, last_page=OCR_MAX_PAGES,
-                    size=OCR_MAX_PAGE_SIDE_PX, timeout=OCR_PDF_RENDER_TIMEOUT_S,
-                )
-                for number, img in enumerate(images, start=1):
-                    text += f"--- Page {number} ---\n" + read_page_image(img) + "\n"
+            layer = read_text_layer(filepath)
+            if any(page.strip() for page in layer):
+                for idx in choose_text_pages(layer):
+                    if layer[idx].strip():
+                        text += f"--- Page {idx+1} ---\n" + layer[idx] + "\n"
+            else:
+                text = ocr_pdf_pages(filepath)
         else:
             with Image.open(filepath) as img:
                 img.draft("RGB", (OCR_MAX_IMAGE_SIDE_PX, OCR_MAX_IMAGE_SIDE_PX))  # cheap JPEG downscale while decoding
