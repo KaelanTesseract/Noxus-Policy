@@ -88,6 +88,15 @@ def test_forged_and_unsigned_tokens_are_refused(client):
     assert client.get("/api/users/me", headers=bearer(unsigned)).status_code == 401
 
 
+def test_deeply_nested_token_payload_is_a_plain_401(client):
+    """A hostile token whose payload nests JSON thousands of levels deep must be refused
+    like any other bad token, not crash the request (PyJWT advisory PYSEC-2026-4141)."""
+    def b64(raw: bytes) -> bytes:
+        return base64.urlsafe_b64encode(raw).rstrip(b"=")
+    token = b".".join([b64(b'{"alg":"HS256","typ":"JWT"}'), b64(b"[" * 20000 + b"]" * 20000), b64(b"forged")]).decode()
+    assert client.get("/api/users/me", headers=bearer(token)).status_code == 401
+
+
 def test_sliding_session_refreshes_only_near_expiry_and_within_max_age(client):
     import auth
     # the token's version claim must match the one stored for the account
