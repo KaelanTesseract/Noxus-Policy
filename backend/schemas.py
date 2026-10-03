@@ -206,4 +206,5 @@ class ExtractionResult(BaseModel):
     extracted_text: str
     ai_used: Optional[bool] = False
     ai_model: Optional[str] = None
+    field_checks: Optional[dict] = None  # per field: gefunden / berechnet / unsicher, see field_checks.py
     ai_fields: Optional[List[str]] = None  # fields the model filled (the rules found nothing)

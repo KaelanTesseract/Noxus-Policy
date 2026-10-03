@@ -117,7 +117,11 @@ def main():
     # informational letter may not deliver). extract_insurance_data() itself is not called:
     # it would write the learned-pattern store and fetch the model.
     def finished(result, text):
-        return ocr.finalize_extraction(result, text) if result else result
+        if not result:
+            return result
+        ocr.finalize_extraction(result, text)
+        result["field_checks"] = ocr.assess_fields(result, text)
+        return result
 
     methods = {"regex": lambda text: finished(ocr.extract_insurance_data_regex(text), text)}
     if args.ai:
@@ -146,8 +150,13 @@ def main():
             new_title = document_naming.suggest_title((result or {}).get("company"), (result or {}).get("category"), text)
             print(f"    [{method}] Titel alt: {show((result or {}).get('suggested_title'))}")
             print(f"    [{method}] Titel neu: {new_title}")
+            checks = (result or {}).get("field_checks") or {}
             for f in FIELDS:
                 line = f"      {f:18} {show(got[f])}"
+                if f in checks and checks[f]["status"] != "gefunden":
+                    line += f"   [{checks[f]['status']}]"
+                elif f in checks:
+                    line += f"   (S.{checks[f].get('seite')})"
                 if want is not None and f in want:
                     ok = normalise(want[f]) == got[f]
                     scores[method][f][0] += ok

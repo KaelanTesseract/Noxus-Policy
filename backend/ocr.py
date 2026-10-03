@@ -7,6 +7,7 @@ from document_naming import detect_kind, suggest_title
 from image_prep import prepare_for_ocr
 from llm_text import select_relevant_text
 from ai_merge import has_gaps, merge_ai_into_rules
+from field_checks import assess_fields
 from document_types import CONTRACT_FIELDS, DEFAULT_DOC_TYPE, DOC_TYPE_FOR_KIND, document_type_for, is_informational
 from PIL import Image
 from pdf2image import convert_from_path
@@ -155,8 +156,8 @@ def extract_text_from_file(filepath: str) -> str:
                     filepath, first_page=1, last_page=OCR_MAX_PAGES,
                     size=OCR_MAX_PAGE_SIDE_PX, timeout=OCR_PDF_RENDER_TIMEOUT_S,
                 )
-                for img in images:
-                    text += read_page_image(img) + "\n"
+                for number, img in enumerate(images, start=1):
+                    text += f"--- Page {number} ---\n" + read_page_image(img) + "\n"
         else:
             with Image.open(filepath) as img:
                 img.draft("RGB", (OCR_MAX_IMAGE_SIDE_PX, OCR_MAX_IMAGE_SIDE_PX))  # cheap JPEG downscale while decoding
@@ -510,35 +511,38 @@ def _amount_after(pattern: str, text: str):
     return None
 
 
-def extract_cost_fallback(text: str) -> float:
+def extract_cost_with_basis(text: str):
     """The contract premium of a letter. Credits and refunds ("Guthaben 40,33- €",
     "Zwischensumme 10,42- €") are never returned: they are money the insurer pays out,
-    and they used to be read as a negative premium."""
+    and they used to be read as a negative premium.
+
+    Returns (premium, certain). ``certain`` is False when the amount is only the first
+    plausible amount on the page (step 5)."""
     if not text:
-        return None
+        return None, False
 
     # 1. The letter says what is paid from now on:
     #    "Zukünftig wird der monatliche Beitrag von 49,74 €, beginnend mit dem 01.03.2016"
     val = _amount_after(r'(?i)zukünftig\s+wird\s+der\s+(?:\w+\s+)?beitrag\s+von\s+' + _AMOUNT, text)
     if val is not None:
-        return val
+        return val, True
 
     # 2. The total including insurance tax.
     val = _amount_after(r'(?i)beitrag\s*\([^)]*inklusive[^)]*\)\s*[:\s]*' + _AMOUNT, text)
     if val is not None:
-        return val
+        return val, True
     for line in text.split('\n'):
         if re.search(r'(?i)gesamtbeitrag|zahlbeitrag|bruttobeitrag|beitrag\s*inkl\.?\s*steuer', line):
             amounts = [_positive_amount(a) for a in re.findall(_AMOUNT, line)]
             amounts = [a for a in amounts if a is not None]
             if amounts:
-                return amounts[-1]
+                return amounts[-1], True
 
     # 3. The premium of the contract period ("Jahresbeitrag Gültig ab 24.07.2026 29,29 €").
     #    Preferred over the first payment ("Erstbeitrag"), which can differ by a few cents.
     val = _amount_after(r'(?i)(?:jahres|halbjahres|vierteljahres|monats)beitrag[^\n\d€]*(?:\d{2}\.\d{2}\.\d{4})?[^\n\d€]*' + _AMOUNT, text)
     if val is not None:
-        return val
+        return val, True
 
     # 4. Any line that names a premium.
     for line in text.split('\n'):
@@ -548,7 +552,7 @@ def extract_cost_fallback(text: str) -> float:
         if m:
             val = _positive_amount(m.group(1))
             if val is not None:
-                return val
+                return val, True
 
     # 5. Last resort: the first plausible amount.
     for line in text.split('\n'):
@@ -558,9 +562,13 @@ def extract_cost_fallback(text: str) -> float:
         if m:
             val = _positive_amount(m.group(1))
             if val is not None:
-                return val
+                return val, False
 
-    return None
+    return None, False
+
+
+def extract_cost_fallback(text: str) -> float:
+    return extract_cost_with_basis(text)[0]
 
 
 def extract_refund_amount(text: str):
@@ -897,9 +905,10 @@ def finalize_extraction(data: dict, text: str) -> dict:
         data["new_cost"] = None
         return data
 
-    cost = extract_cost_fallback(text)
+    cost, certain = extract_cost_with_basis(text)
     if cost is None:
         cost = data.get("cost")
+    data["cost_certain"] = certain and cost is not None
     if cost is not None and cost <= 0:
         cost = None
     data["cost"] = cost
@@ -949,6 +958,9 @@ def extract_insurance_data(text: str, db=None) -> dict:
     data["suggested_title"] = title
     data["document_title"] = title
     data["subject"] = title
+
+    # How far each value can be trusted (found in the text / computed / unsure), see field_checks.py
+    data["field_checks"] = assess_fields(data, text)
 
     # Trigger automatic learning loop (100% anonymized, ZERO PII)
     if company and (data.get("regional_class") or data.get("type_class") or data.get("sf_class")):
