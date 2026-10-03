@@ -12,6 +12,8 @@ export const maxDuration = 300; // 5 minutes max execution time for AI processin
 // cookie back into the Authorization header the backend expects. That way an XSS
 // bug can make requests as the user but can no longer copy the token itself.
 const SESSION_COOKIE = "noxus_session";
+const OIDC_FLOW_COOKIE = "noxus_oidc";
+const OIDC_CALLBACK_PATH = "/api/auth/oidc/callback";
 
 // The backend only listens on loopback (see docker-compose.yml), so it is never
 // reachable from the LAN directly - every request has to come through this proxy.
@@ -139,6 +141,12 @@ async function proxy(request: NextRequest) {
       }
       if (sessionToken) {
         headers.set("authorization", `Bearer ${sessionToken}`);
+      }
+      // Single sign-on: the short-lived flow cookie (set by the backend when the sign-in
+      // started) is the only cookie the backend ever gets to see, and only here.
+      if (pathname === OIDC_CALLBACK_PATH) {
+        const flow = request.cookies.get(OIDC_FLOW_COOKIE)?.value;
+        if (flow) headers.set("x-oidc-flow", flow);
       }
 
       try {

@@ -21,6 +21,18 @@ export default function Login() {
   // Set once the password was accepted for an account that has a second factor enabled.
   const [mfaRequired, setMfaRequired] = useState(false);
   const [otp, setOtp] = useState("");
+  // Which ways of signing in this instance offers (single sign-on, password).
+  const [authConfig, setAuthConfig] = useState({ oidc_enabled: false, oidc_label: "", password_login_enabled: true });
+
+  useEffect(() => {
+    fetch("/api/users/auth-config")
+      .then(res => (res.ok ? res.json() : null))
+      .then(cfg => { if (cfg) setAuthConfig(cfg); })
+      .catch(() => {});
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("error") === "sso") {
+      setError("Die Anmeldung über Single Sign-On hat nicht geklappt. Versuche es erneut oder frage deinen Administrator.");
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -128,7 +140,21 @@ export default function Login() {
             <CardDescription className="text-xs text-zinc-400">Melde dich an, um deine Polizzen zu verwalten</CardDescription>
           </CardHeader>
           <CardContent className="pt-4">
-            <form onSubmit={handleLogin} className="space-y-5">
+            {authConfig.oidc_enabled && (
+              <div className="space-y-4">
+                <a href="/api/auth/oidc/login" className="theme-bg-accent inline-flex w-full items-center justify-center rounded-lg px-4 py-2.5 text-sm font-medium">
+                  {authConfig.oidc_label || "Mit Pocket ID anmelden"}
+                </a>
+                {!authConfig.password_login_enabled && error && (
+                  <div className="p-3 bg-red-950/50 border border-red-800/80 text-red-300 rounded-xl text-xs">{error}</div>
+                )}
+                {authConfig.password_login_enabled && (
+                  <p className="text-center text-xs text-zinc-500">oder mit Passwort</p>
+                )}
+              </div>
+            )}
+            {authConfig.password_login_enabled && (
+            <form onSubmit={handleLogin} className={`space-y-5 ${authConfig.oidc_enabled ? "mt-4" : ""}`}>
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-xs font-mono text-zinc-400">E-Mail oder Benutzername</Label>
                 <Input 
@@ -211,6 +237,7 @@ export default function Login() {
                 </p>
               </div>
             </form>
+            )}
           </CardContent>
         </Card>
       </div>

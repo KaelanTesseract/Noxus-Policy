@@ -16,6 +16,7 @@ import { Navbar } from "@/components/Navbar";
 import { TwoFactorCard } from "@/components/settings/TwoFactorCard";
 import { AuditLogCard } from "@/components/settings/AuditLogCard";
 import { DeleteAccountCard } from "@/components/settings/DeleteAccountCard";
+import { OidcCard } from "@/components/settings/OidcCard";
 import { APP_VERSION } from "@/lib/version";
 import { clearSession } from "@/lib/session";
 import { RefreshCw, CheckCircle2, AlertCircle, Loader2, Settings, Wrench, Palette, Calendar, Cpu, Clock, Database, Mail, Users, ArrowLeft, GitPullRequest, Check, Info, Trash2 } from "lucide-react";
@@ -1242,6 +1243,8 @@ export default function SettingsPage() {
         {/* System Settings Tab (Admin Only) */}
         {currentUser.is_admin && activeTab === "system" && (
           <div className="space-y-8">
+            <OidcCard />
+
             {/* Registration Admin Settings Card */}
             <Card className="border-zinc-800 bg-zinc-900/50 backdrop-blur-md shadow-xl">
               <CardHeader>
