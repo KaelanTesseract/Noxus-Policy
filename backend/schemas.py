@@ -178,11 +178,14 @@ class ExtractionResult(BaseModel):
     company: Optional[str] = None
     insurance_number: Optional[str] = None
     category: Optional[str] = None
-    doc_type: Optional[str] = None
+    doc_type: Optional[str] = None  # entry of the document-type list, see document_types.py
+    document_kind: Optional[str] = None  # kind of letter as recognised, see document_naming.detect_kind
+    insurance_type: Optional[str] = None  # e.g. "Kfz-Versicherung"
     suggested_title: Optional[str] = None
     subject: Optional[str] = None
     document_title: Optional[str] = None
     cost: Optional[float] = None
+    refund_amount: Optional[float] = None  # money paid back (termination), never a premium
     payment_cycle: Optional[str] = "monatlich"
     start_date: Optional[date] = None
     end_date: Optional[date] = None

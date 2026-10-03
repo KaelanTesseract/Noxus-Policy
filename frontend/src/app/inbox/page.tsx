@@ -14,6 +14,9 @@ import { Label } from "@/components/ui/label";
 import { api, getAuthHeaders } from "@/lib/api";
 import { FolderOpen, Inbox, FileText, Trash2, X } from "lucide-react";
 
+// Same list as the upload dialog (UploadModal.tsx); an older analysis may carry another value.
+const DOC_TYPES = ["Versicherungsschein / Polizze", "Beitragsrechnung", "Beitragsanpassung", "Nachtrag / Änderungsschein", "Verbraucherinformationen", "Kundeninformationen", "Beratungsprotokoll", "Schadenmeldung", "Kündigungsbestätigung", "Sonstiges"];
+
 export default function InboxPage() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -31,7 +34,7 @@ export default function InboxPage() {
   const [assignDoc, setAssignDoc] = useState<any>(null);
   const [selectedInsuranceId, setSelectedInsuranceId] = useState<string>("");
   const [customName, setCustomName] = useState("");
-  const [docType, setDocType] = useState("Police");
+  const [docType, setDocType] = useState("Versicherungsschein / Polizze");
 
   const [createDoc, setCreateDoc] = useState<any>(null);
   const [newInsuranceForm, setNewInsuranceForm] = useState({
@@ -194,7 +197,7 @@ export default function InboxPage() {
     const cleanFilename = (doc.original_filename || doc.filename || "").replace(/\.[^/.]+$/, "");
     const suggestedName = aiData.subject || aiData.document_title || doc.custom_name || cleanFilename;
     setCustomName(suggestedName);
-    setDocType(aiData.doc_type || "Police");
+    setDocType(DOC_TYPES.includes(aiData.doc_type) ? aiData.doc_type : DOC_TYPES[0]);
   };
 
   const handleAssignSubmit = async () => {
@@ -515,11 +518,9 @@ export default function InboxPage() {
                     onChange={(e) => setDocType(e.target.value)}
                     className="w-full mt-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-sm text-zinc-100"
                   >
-                    <option value="Police">Police / Versicherungsschein</option>
-                    <option value="Rechnung">Rechnung / Beitragsrechnung</option>
-                    <option value="Schadenmeldung">Schadenmeldung</option>
-                    <option value="Kündigung">Kündigung / Schreiben</option>
-                    <option value="Sonstiges">Sonstiges</option>
+                    {DOC_TYPES.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
                   </select>
                 </div>
               </div>

@@ -125,8 +125,9 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
         "Rechtsschutz": "Rechtsschutzversicherung",
         "Sonstige": "Versicherung"
       };
-      const unifiedType = data.doc_type && data.doc_type !== "Versicherung" 
-        ? data.doc_type 
+      // doc_type is the kind of letter now; the insurance kind ("Kfz-Versicherung") is insurance_type
+      const unifiedType = data.insurance_type && data.insurance_type !== "Versicherung"
+        ? data.insurance_type
         : (categoryMap[data.category] || data.category || "Versicherung");
 
       const existingIns = selectedInsuranceId !== "new"

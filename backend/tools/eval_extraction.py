@@ -49,7 +49,7 @@ def prepare_windows_tools() -> None:
         os.environ["TESSDATA_PREFIX"] = local_langs
 
 
-FIELDS = ["company", "insurance_number", "category", "doc_type", "cost", "payment_cycle",
+FIELDS = ["company", "insurance_number", "category", "doc_type", "cost", "refund_amount", "payment_cycle",
           "start_date", "end_date", "cancellation_date", "sf_class", "regional_class", "type_class"]
 EXTENSIONS = (".pdf", ".jpg", ".jpeg", ".png")
 
@@ -70,9 +70,13 @@ def load_text(path: str, ocr, fresh: bool = False) -> str:
 def normalise(value):
     if value is None or value == "":
         return None
-    if isinstance(value, float):
-        return round(value, 2)
-    return str(value).strip().lower()
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return round(float(value), 2)
+    text = str(value).strip().lower()
+    try:  # expected.json keeps numbers as text ("62.48"), the extractor returns floats
+        return round(float(text), 2) if text.replace(".", "", 1).replace("-", "", 1).isdigit() and "." in text else text
+    except ValueError:
+        return text
 
 
 def pick(result: dict) -> dict:
@@ -106,9 +110,15 @@ def main():
         with open(EXPECTED_PATH, encoding="utf-8") as f:
             expected = json.load(f)
 
-    methods = {"regex": lambda text: ocr.extract_insurance_data_regex(text)}
+    # The same last step the app runs after either method (document type, amounts, what an
+    # informational letter may not deliver). extract_insurance_data() itself is not called:
+    # it would write the learned-pattern store and fetch the model.
+    def finished(result, text):
+        return ocr.finalize_extraction(result, text) if result else result
+
+    methods = {"regex": lambda text: finished(ocr.extract_insurance_data_regex(text), text)}
     if args.ai:
-        methods["ai"] = lambda text: ocr.extract_with_mini_ai(text)
+        methods["ai"] = lambda text: finished(ocr.extract_with_mini_ai(text), text)
 
     scores = {m: {f: [0, 0] for f in FIELDS} for m in methods}
     drafts = {}

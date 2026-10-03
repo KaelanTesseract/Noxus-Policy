@@ -61,6 +61,8 @@ def detect_kind(text: str) -> Optional[str]:
         return "Schadenvisitenkarten"
     if re.search(r"^beitragsrechnung\b", lowered, re.M):
         return "Beitragsrechnung"
+    if re.search(r"^(?:information zur |mitteilung zur )?(?:beitragsanpassung|beitragsänderung)\b", lowered, re.M):
+        return "Beitragsanpassung"
     if re.search(r"^nachtrag\b", lowered, re.M):
         return "Nachtrag zum Vertragsende" if re.search(r"vertrag ist beendet", lowered) else "Nachtrag"
     if re.search(r"^versicherungsschein\s*[-–—]", lowered, re.M):

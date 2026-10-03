@@ -3,7 +3,8 @@
 
 import pytesseract
 from pattern_safety import apply_patterns
-from document_naming import suggest_title
+from document_naming import detect_kind, suggest_title
+from document_types import CONTRACT_FIELDS, DEFAULT_DOC_TYPE, DOC_TYPE_FOR_KIND, document_type_for, is_informational
 from PIL import Image
 from pdf2image import convert_from_path
 import re
@@ -413,65 +414,102 @@ def parse_german_amount(raw_str: str) -> float:
     except Exception:
         return None
 
+# An amount as printed in German letters: "49,74 €", "1.234,56 EUR", and the credit form
+# "40,33- €" (minus sign behind the number) or "-40,33 €".
+_AMOUNT = r'(-?\s?\d{1,3}(?:\.\d{3})*,\d{2}\s*-?)\s*(?:€|EUR|Euro)'
+# Lines about money coming back to the customer: never the contract premium.
+_REFUND_WORDS = re.compile(r'(?i)guthaben|erstattung|erstatten|gutschrift|rückerstattung|rückzahlung|zwischensumme')
+# Lines whose amounts are limits or deductibles, not premiums.
+_NOT_A_PREMIUM = re.compile(r'(?i)selbstbeteiligung|selbstbehalt|pauschal|deckungssumme|versicherungssumme|'
+                            r'umweltschadensgesetz|personenschäden|ohne versicherungsteuer|fahrzeugwert|mio\.')
+
+
+def _positive_amount(raw: str):
+    """The amount as a positive number; None for credits ("40,33-") and unreadable values."""
+    val = parse_german_amount(raw)
+    return val if val is not None and val > 0 else None
+
+
+def _amount_after(pattern: str, text: str):
+    for m in re.finditer(pattern, text):
+        val = _positive_amount(m.group(1))
+        if val is not None:
+            return val
+    return None
+
+
 def extract_cost_fallback(text: str) -> float:
+    """The contract premium of a letter. Credits and refunds ("Guthaben 40,33- €",
+    "Zwischensumme 10,42- €") are never returned: they are money the insurer pays out,
+    and they used to be read as a negative premium."""
     if not text:
         return None
 
-    # Priority 1: Direct Guthaben / Erstattung / Gutschrift / Abrechnung total match
-    # e.g. "Das Guthaben wird Ihrem Beitragskonto gutgeschrieben: 40,33- €" or "Erstattungsbeitrag ... 40,33- €"
-    m_guthaben = re.search(r'(?i)(?:guthaben|erstattungsbeitrag|erstattung|gutschrift|abrechnung|rückerstattung)[^\n]*?(\d{1,3}(?:\.\d{3})*(?:,\d{2})?\s*-?)\s*(?:€|EUR)', text)
-    if m_guthaben:
-        val = parse_german_amount(m_guthaben.group(1))
-        if val is not None:
-            return val
+    # 1. The letter says what is paid from now on:
+    #    "Zukünftig wird der monatliche Beitrag von 49,74 €, beginnend mit dem 01.03.2016"
+    val = _amount_after(r'(?i)zukünftig\s+wird\s+der\s+(?:\w+\s+)?beitrag\s+von\s+' + _AMOUNT, text)
+    if val is not None:
+        return val
 
-    # Priority 2: Total line match (e.g. "Gesamtbeitrag inkl. 19 % ... 49,53 €" or "Zwischensumme 40,33- €")
+    # 2. The total including insurance tax.
+    val = _amount_after(r'(?i)beitrag\s*\([^)]*inklusive[^)]*\)\s*[:\s]*' + _AMOUNT, text)
+    if val is not None:
+        return val
     for line in text.split('\n'):
-        if re.search(r'(?i)gesamtbeitrag|zahlbeitrag|gesamt|bruttobeitrag|zwischensumme|erstattungsbeitrag', line):
-            amounts = re.findall(r'(\d{1,3}(?:\.\d{3})*(?:,\d{2})?\s*-?)\s*(?:€|EUR)', line)
+        if re.search(r'(?i)gesamtbeitrag|zahlbeitrag|bruttobeitrag|beitrag\s*inkl\.?\s*steuer', line):
+            amounts = [_positive_amount(a) for a in re.findall(_AMOUNT, line)]
+            amounts = [a for a in amounts if a is not None]
             if amounts:
-                val = parse_german_amount(amounts[-1])
-                if val is not None:
-                    return val
+                return amounts[-1]
 
-    # Priority 3: Explicit total premium line with tax
-    m1 = re.search(r'(?i)beitrag\s*\([^)]*inklusive[^)]*\)\s*[:\s]*(\d{1,3}(?:\.\d{3})*(?:,\d{2})?\s*-?)\s*(?:€|EUR)', text)
-    if m1:
-        val = parse_german_amount(m1.group(1))
-        if val is not None:
-            return val
+    # 3. The premium of the contract period ("Jahresbeitrag Gültig ab 24.07.2026 29,29 €").
+    #    Preferred over the first payment ("Erstbeitrag"), which can differ by a few cents.
+    val = _amount_after(r'(?i)(?:jahres|halbjahres|vierteljahres|monats)beitrag[^\n\d€]*(?:\d{2}\.\d{2}\.\d{4})?[^\n\d€]*' + _AMOUNT, text)
+    if val is not None:
+        return val
 
-    m2 = re.search(r'(?i)(?:gesamtbeitrag|zahlbeitrag|beitrag\s*inkl\.?\s*steuer)\s*[:\s]*(\d{1,3}(?:\.\d{3})*(?:,\d{2})?\s*-?)\s*(?:€|EUR)', text)
-    if m2:
-        val = parse_german_amount(m2.group(1))
-        if val is not None:
-            return val
-
-    # Priority 4: Single line scan for premium or credit
+    # 4. Any line that names a premium.
     for line in text.split('\n'):
-        if re.search(r'(?i)selbstbeteiligung|selbstbehalt|ohne versicherungsteuer|kfz\-haftpflicht|teilkasko|vollkasko', line):
+        if _REFUND_WORDS.search(line) or _NOT_A_PREMIUM.search(line) or re.search(r'(?i)kfz-haftpflicht|teilkasko|vollkasko', line):
             continue
-        m = re.search(r'(?i)(?:beitrag|prämie|erstattung|guthaben|gutschrift)\s*[:\s]*(\d{1,3}(?:\.\d{3})*(?:,\d{2})?\s*-?)\s*(?:€|EUR)', line)
+        m = re.search(r'(?i)(?:beitrag|prämie)\s*[:\s]*' + _AMOUNT, line)
         if m:
-            val = parse_german_amount(m.group(1))
+            val = _positive_amount(m.group(1))
             if val is not None:
                 return val
 
-    # Priority 5: Fallback scan lines for any valid amount
-    valid_costs = []
+    # 5. Last resort: the first plausible amount.
     for line in text.split('\n'):
-        if re.search(r'(?i)(selbstbeteiligung|selbstbehalt|pauschal|deckungssumme|umweltschadensgesetz|personenschäden|ohne versicherungsteuer)', line):
+        if _REFUND_WORDS.search(line) or _NOT_A_PREMIUM.search(line):
             continue
-        m = re.search(r'(\d{1,3}(?:\.\d{3})*(?:,\d{2})?\s*-?)\s*(?:€|EUR|Euro)', line)
+        m = re.search(_AMOUNT, line)
         if m:
-            val = parse_german_amount(m.group(1))
-            if val is not None and abs(val) >= 0.01:
-                valid_costs.append(val)
-
-    if valid_costs:
-        return valid_costs[0]
+            val = _positive_amount(m.group(1))
+            if val is not None:
+                return val
 
     return None
+
+
+def extract_refund_amount(text: str):
+    """What the insurer pays back (termination, premium reduction), as a positive number.
+    Kept apart from the cost on purpose. The amount actually paid out ("Wir erstatten
+    Ihnen ...") wins over the balance it is calculated from."""
+    if not text:
+        return None
+    # (pattern, a plain amount is already a refund because of the words in front of it)
+    for pattern, plain_amount_counts in (
+        (r'(?i)wir erstatten ihnen[^\n\d]*' + _AMOUNT, True),
+        (r'(?i)zwischensumme\s*' + _AMOUNT, False),
+        (r'(?i)guthaben\s+von\s+' + _AMOUNT, True),
+        (r'(?i)erstattungsbeitrag[^\n]*?' + _AMOUNT, False),
+    ):
+        for m in re.finditer(pattern, text):
+            val = parse_german_amount(m.group(1))
+            if val and (val < 0 or plain_amount_counts):
+                return abs(val)
+    return None
+
 
 def calculate_insurance_dates(start_date_str, end_date_str, cancellation_date_str, text: str):
     import datetime
@@ -752,6 +790,52 @@ def extract_insurance_data_regex(text: str) -> dict:
     data["coverage_details"] = coverage_details
     return data
 
+def finalize_extraction(data: dict, text: str) -> dict:
+    """Last step, whichever method (rules or AI) produced ``data``: settle the kind of
+    letter and make sure it only delivers what it may.
+
+    - ``doc_type`` becomes the entry of the document-type list that fits the letter
+      (the insurance kind the old code put there moves to ``insurance_type``).
+    - Informational documents (terms, consumer information, green card ...) deliver no
+      contract data at all; their text is full of limits, dates and classes of no policy.
+    - A terminated contract has no premium any more; what is paid back is ``refund_amount``.
+    - A premium is never negative."""
+    kind = detect_kind(text)
+    data["document_kind"] = kind
+    if data.get("doc_type") and data["doc_type"] not in DOC_TYPE_FOR_KIND.values():
+        data["insurance_type"] = data["doc_type"]
+
+    doc_type = document_type_for(kind)
+    if doc_type is None:
+        # a letter we cannot place: fall back on the wording rule of the extractors
+        doc_type = "Beitragsanpassung" if data.get("is_price_change") else DEFAULT_DOC_TYPE
+    data["doc_type"] = doc_type
+    data["is_price_change"] = doc_type == "Beitragsanpassung"
+
+    if is_informational(doc_type):
+        for field in CONTRACT_FIELDS:
+            data[field] = None
+        data["coverage_details"] = []
+        data["refund_amount"] = None
+        return data
+
+    data["refund_amount"] = extract_refund_amount(text)
+    if kind == "Nachtrag zum Vertragsende":
+        data["cost"] = None
+        data["new_cost"] = None
+        return data
+
+    cost = extract_cost_fallback(text)
+    if cost is None:
+        cost = data.get("cost")
+    if cost is not None and cost <= 0:
+        cost = None
+    data["cost"] = cost
+    if data.get("new_cost") is not None or kind in ("Nachtrag", "Beitragsanpassung"):
+        data["new_cost"] = cost
+    return data
+
+
 def extract_insurance_data(text: str, db=None) -> dict:
     use_ai = True
     if db is not None:
@@ -783,6 +867,8 @@ def extract_insurance_data(text: str, db=None) -> dict:
                 if field == "regional_class" and not val.upper().startswith("R"):
                     val = f"R{val}"
                 data[field] = val
+
+    finalize_extraction(data, text)
 
     # The name offered for the document. Built from insurer, kind of letter and date only
     # (see document_naming.py); the old "subject" guess often picked a footer sentence.

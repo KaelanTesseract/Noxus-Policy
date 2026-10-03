@@ -13,6 +13,7 @@ import models, schemas, auth, ocr
 from database import get_db
 from upload_validation import sanitize_filename, validate_upload
 from http_utils import content_disposition
+from document_types import is_informational
 import audit
 from secrets_crypto import encrypt_secret, decrypt_secret
 
@@ -197,7 +198,11 @@ def create_document(
             extracted["extracted_text"] = text
         db_doc.ai_data = json.dumps(extracted, default=str)
 
-        new_c = extracted.get("new_cost") or extracted.get("cost") or db_insurance.cost
+        # Terms, consumer information, the green card etc. are only filed: neither the
+        # premium history nor the contract may change because of them.
+        # The type the user chose in the dialog wins; the recognised one is only the fallback.
+        informational = is_informational(doc_type or extracted.get("doc_type"))
+        new_c = None if informational else (extracted.get("new_cost") or extracted.get("cost") or db_insurance.cost)
         if new_c and float(new_c) > 0:
             import datetime
             from routers.insurances import record_premium_history_entry
@@ -237,9 +242,10 @@ def reanalyze_document(
     text = ocr.extract_text_from_file(filepath)
     extracted = ocr.extract_insurance_data(text, db=db)
 
-    # Update parent insurance metadata if available
+    # Update parent insurance metadata if available - but not from letters that only inform
+    # (the user may also have filed this document under such a type by hand)
     ins = doc.insurance
-    if ins:
+    if ins and not (is_informational(doc.doc_type) or is_informational(extracted.get("doc_type"))):
         if extracted.get("company"):
             ins.company = extracted["company"]
         if extracted.get("insurance_number"):
@@ -288,7 +294,7 @@ def reanalyze_document(
         if new_items:
             ins.coverage_details = json.dumps(new_items)
 
-    if extracted.get("doc_type"):
+    if extracted.get("doc_type") and not is_informational(doc.doc_type):
         doc.doc_type = extracted["doc_type"]
     if extracted.get("suggested_title") and not doc.custom_name:
         doc.custom_name = extracted["suggested_title"]

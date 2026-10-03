@@ -14,6 +14,7 @@ import datetime
 import models, schemas, auth, ocr
 from database import get_db
 from upload_validation import sanitize_filename, validate_upload
+from document_types import is_informational
 
 router = APIRouter(prefix="/api/inbox", tags=["inbox"])
 
@@ -169,7 +170,10 @@ def assign_inbox_document(
     if doc.ai_data:
         try:
             ai_info = json.loads(doc.ai_data) if isinstance(doc.ai_data, str) else doc.ai_data
-            cost_val = ai_info.get("new_cost") or ai_info.get("cost")
+            # letters that only inform (terms, consumer information ...) never change the contract
+            # (the type chosen by the user wins; the recognised one is the fallback)
+            informational = is_informational(payload.doc_type or ai_info.get("doc_type"))
+            cost_val = None if informational else (ai_info.get("new_cost") or ai_info.get("cost"))
             if cost_val and float(cost_val) > 0:
                 eff_date_str = ai_info.get("start_date") or ai_info.get("document_date")
                 eff_date = datetime.datetime.strptime(eff_date_str, "%Y-%m-%d").date() if eff_date_str else None
