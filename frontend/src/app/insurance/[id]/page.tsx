@@ -4,7 +4,9 @@
  * Licensed under the MIT License. See LICENSE file in project root.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
+import { gsap } from "gsap";
 import { useParams, useRouter } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -16,7 +18,9 @@ import { UploadModal } from "@/components/UploadModal";
 import { CompanyLogo } from "@/components/CompanyLogo";
 import { CancellationModal } from "@/components/CancellationModal";
 import { api, getAuthHeaders } from "@/lib/api";
-import { Eye, RefreshCw, Pencil, Trash2, Car, MapPin, Shield } from "lucide-react";
+import { Eye, RefreshCw, Pencil, Trash2, ArrowLeft, CalendarPlus, Pause, PenLine, Car, Shield, Check, FileText, X } from "lucide-react";
+import { daysUntil, formatDate, formatEuro, relativeDays, SOON_DAYS } from "@/lib/deadlines";
+import { prefersReducedMotion } from "@/lib/motion";
 
 interface PremiumHistoryItem {
   id: number;
@@ -71,6 +75,16 @@ export default function InsuranceDetailPage() {
 
   // Tab State
   const [activeTab, setActiveTab] = useState<"stammdaten" | "historie" | "dokumente" | "schaden" | "notizen">("stammdaten");
+  const panelRef = useRef<HTMLDivElement>(null);
+  const firstTabRender = useRef(true);
+
+  // Answer to the user's own action: the new panel settles in briefly.
+  useEffect(() => {
+    if (firstTabRender.current) { firstTabRender.current = false; return; }
+    if (!panelRef.current || prefersReducedMotion()) return;
+    const tween = gsap.fromTo(panelRef.current, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.28, ease: "power2.out", clearProps: "transform,opacity" });
+    return () => { tween.kill(); };
+  }, [activeTab]);
 
   // Edit form state
   const [formData, setFormData] = useState({
@@ -384,7 +398,7 @@ export default function InsuranceDetailPage() {
   };
 
   const handleDeleteInsurance = async () => {
-    if (!window.confirm(`⚠️ ACHTUNG: Möchtest du die Versicherung "${insurance?.name}" wirklich unwiderruflich löschen? Alle verknüpften Dokumente und Notizen werden ebenfalls entfernt.`)) {
+    if (!window.confirm(`Achtung: Möchtest du die Versicherung "${insurance?.name}" wirklich unwiderruflich löschen? Alle verknüpften Dokumente und Notizen werden ebenfalls entfernt.`)) {
       return;
     }
     try {
@@ -511,178 +525,131 @@ export default function InsuranceDetailPage() {
     <div className="space-y-6 flex-1">
       <Navbar userEmail={currentUser?.email} />
 
-      <div className="max-w-6xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-5 border-b border-zinc-800/80 pb-5">
-          <div className="flex items-start gap-3 sm:gap-4">
-            <CompanyLogo company={insurance.company || insurance.name} size="lg" className="mt-1 shrink-0" />
-            <div>
-              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">{insurance.name}</h1>
-                <span className="text-xs font-mono px-2.5 py-1 rounded-md theme-bg-accent text-white font-medium shadow-md">
-                  {insurance.category || "Versicherung"}
-                </span>
+      <div className="max-w-6xl mx-auto space-y-10 px-1 md:px-4">
+        {/* Header: the contract in plain facts, with the two things people do next */}
+        <header className="space-y-8">
+          <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-zinc-50">
+            <ArrowLeft className="size-4" aria-hidden /> Alle Verträge
+          </Link>
 
+          <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+            <div className="flex items-start gap-4">
+              <CompanyLogo company={insurance.company || insurance.name} size="lg" className="mt-1 shrink-0" />
+              <div className="min-w-0">
+                <h1 className="font-display text-balance text-3xl leading-tight text-zinc-50 md:text-4xl">{insurance.name}</h1>
+                <p className="mt-1 text-base text-zinc-400">
+                  {insurance.company || "Gesellschaft nicht angegeben"}
+                  {insurance.category ? `, ${insurance.category}` : ""}
+                </p>
                 {insurance.is_suspended && (
-                  <span className="text-xs font-mono px-2.5 py-1 rounded-md bg-amber-950/90 border border-amber-700 text-amber-300 font-bold shadow-md">
-                    ⏸️ Vertrag ruht
-                  </span>
-                )}
-
-                <span className="text-xs font-mono px-2.5 py-1 rounded-md bg-indigo-950/80 border border-indigo-800/80 text-indigo-300 font-bold">
-                  📋 VSN: {insurance.insurance_number || "Nicht angegeben"}
-                </span>
-
-                {insurance.cost && (
-                  <span className="text-xs font-mono px-2.5 py-1 rounded-md bg-emerald-950/80 border border-emerald-800 text-emerald-300 font-bold">
-                    💰 {insurance.cost.toFixed(2)} € / {insurance.payment_cycle || "Jahr"}
-                  </span>
-                )}
-
-                {insurance.price_change_pct !== undefined && insurance.price_change_pct !== null && insurance.price_change_pct !== 0 && (
-                  <span className={`text-xs font-mono px-2.5 py-1 rounded-md font-bold shadow-md border ${
-                    insurance.price_change_pct > 0 
-                      ? "bg-rose-950/90 border-rose-800 text-rose-300" 
-                      : "bg-emerald-950/90 border-emerald-800 text-emerald-300"
-                  }`}>
-                    {insurance.price_change_pct > 0 ? `📈 +${insurance.price_change_pct}% Erhöhung` : `📉 ${insurance.price_change_pct}% Senkung`}
-                  </span>
+                  <p className="mt-2 inline-flex items-center gap-1.5 text-sm text-zinc-300">
+                    <Pause className="size-3.5" aria-hidden />
+                    Vertrag ruht{insurance.suspension_reason ? `: ${insurance.suspension_reason}` : ""}
+                  </p>
                 )}
               </div>
+            </div>
 
-              {/* KFZ Badges */}
-              {(insurance.sf_class || insurance.regional_class || insurance.type_class) && (
-                <div className="flex items-center gap-2 flex-wrap mt-2">
-                  {insurance.sf_class && (
-                    <span className="text-xs font-mono px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-800 text-cyan-300 font-bold inline-flex items-center gap-1">
-                      <Car className="w-3.5 h-3.5 text-cyan-300 shrink-0" />
-                      <span>{insurance.sf_class}</span>
-                    </span>
-                  )}
-                  {insurance.regional_class && (
-                    <span className="text-xs font-mono px-2 py-0.5 rounded bg-violet-950/80 border border-violet-800 text-violet-300 font-bold inline-flex items-center gap-1">
-                      <MapPin className="w-3.5 h-3.5 text-violet-300 shrink-0" />
-                      <span>Regio: {insurance.regional_class}</span>
-                    </span>
-                  )}
-                  {insurance.type_class && (
-                    <span className="text-xs font-mono px-2 py-0.5 rounded bg-indigo-950/80 border border-indigo-800 text-indigo-300 font-bold inline-flex items-center gap-1">
-                      <Shield className="w-3.5 h-3.5 text-indigo-300 shrink-0" />
-                      <span>Typklasse: {insurance.type_class}</span>
-                    </span>
-                  )}
-                </div>
-              )}
-
-              <p className="text-xs sm:text-sm text-zinc-400 mt-2">
-                Gesellschaft: <span className="text-zinc-200 font-medium">{insurance.company || "Nicht angegeben"}</span>
-                {insurance.is_suspended && insurance.suspension_reason && (
-                  <span className="text-amber-300 ml-2 font-mono text-xs">({insurance.suspension_reason})</span>
-                )}
-              </p>
+            <div className="flex flex-col gap-2 sm:flex-row md:shrink-0">
+              <Button onClick={() => setIsCancellationModalOpen(true)} className="theme-bg-accent h-10 justify-center px-4 text-sm font-medium">
+                <PenLine className="size-4" aria-hidden /> Kündigungsschreiben erstellen
+              </Button>
+              <Button onClick={handleDownloadIcal} variant="outline" className="h-10 justify-center border-zinc-700 bg-transparent px-4 text-sm text-zinc-200 hover:bg-zinc-800/70">
+                <CalendarPlus className="size-4" aria-hidden /> Fristen-Termin (.ics)
+              </Button>
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto shrink-0 justify-start md:justify-end">
-            <Button 
-              onClick={() => setIsCancellationModalOpen(true)} 
-              variant="outline" 
-              className="border-indigo-800/80 bg-indigo-950/40 hover:bg-indigo-900/50 text-indigo-300 font-semibold text-xs transition-all shadow-md flex items-center gap-1.5 w-full sm:w-auto justify-center"
-            >
-              ✍️ Kündigungsschreiben
-            </Button>
-            <Button 
-              onClick={handleDownloadIcal} 
-              variant="outline" 
-              className="border-amber-800/80 bg-amber-950/40 hover:bg-amber-900/50 text-amber-300 font-semibold text-xs transition-all shadow-md flex items-center gap-1.5 w-full sm:w-auto justify-center"
-            >
-              📅 Kalender-Termin (.ics)
-            </Button>
-            <Button variant="outline" onClick={() => router.push("/")} className="border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-300 text-xs w-full sm:w-auto justify-center">
-              ← Zurück
-            </Button>
-          </div>
-        </div>
-
-        {/* Tab Navigation Bar */}
-        <div className="flex items-center gap-1.5 border-b border-zinc-800/80 overflow-x-auto whitespace-nowrap scrollbar-none pb-2 text-sm font-medium">
-          <button
-            onClick={() => setActiveTab("stammdaten")}
-            className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 font-semibold text-xs sm:text-sm ${
-              activeTab === "stammdaten"
-                ? "theme-bg-accent text-white shadow-lg theme-glow border border-emerald-500/50"
-                : "text-zinc-400 hover:text-white hover:bg-zinc-900/60"
-            }`}
-          >
-            <span>📋 Stammdaten & Leistungen</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("historie")}
-            className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 font-semibold text-xs sm:text-sm ${
-              activeTab === "historie"
-                ? "theme-bg-accent text-white shadow-lg theme-glow border border-emerald-500/50"
-                : "text-zinc-400 hover:text-white hover:bg-zinc-900/60"
-            }`}
-          >
-            <span>📈 Beitragsentwicklung</span>
-            {historyEntries.length > 0 && (
-              <span className={`px-2 py-0.5 text-[10px] rounded-full font-mono font-bold ${
-                activeTab === "historie" ? "bg-white/20 text-white" : "bg-zinc-800 text-emerald-400"
-              }`}>
-                {historyEntries.length}
-              </span>
+          <dl className="grid grid-cols-2 gap-x-8 gap-y-5 border-y border-zinc-800 py-6 md:grid-cols-4">
+            <div>
+              <dt className="text-sm text-zinc-400">Beitrag</dt>
+              <dd className="mt-1 text-lg text-zinc-50">
+                {insurance.cost ? (
+                  <>
+                    <span className="tabular-nums">{formatEuro(insurance.cost)}</span>
+                    <span className="text-sm text-zinc-400"> {insurance.payment_cycle || "jährlich"}</span>
+                    {typeof insurance.price_change_pct === "number" && insurance.price_change_pct !== 0 && (
+                      <span
+                        className="ml-2 text-sm tabular-nums"
+                        style={{ color: insurance.price_change_pct > 0 ? "var(--calm-bad, #e0796a)" : "var(--calm-good, #8fbf9a)" }}
+                      >
+                        {insurance.price_change_pct > 0 ? `+${insurance.price_change_pct} %` : `${String(insurance.price_change_pct).replace("-", "−")} %`}
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span className="text-zinc-500">Nicht hinterlegt</span>
+                )}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-sm text-zinc-400">Versicherungsschein-Nr.</dt>
+              <dd className="mt-1 text-lg tabular-nums text-zinc-50">{insurance.insurance_number || <span className="text-zinc-500">Nicht hinterlegt</span>}</dd>
+            </div>
+            <div>
+              <dt className="text-sm text-zinc-400">Kündigungsfrist</dt>
+              <dd className="mt-1 text-lg text-zinc-50">
+                {insurance.cancellation_date ? (
+                  <>
+                    <span className="tabular-nums">{formatDate(insurance.cancellation_date)}</span>
+                    {daysUntil(insurance.cancellation_date) >= 0 && (
+                      <span
+                        className="block text-sm"
+                        style={{ color: daysUntil(insurance.cancellation_date) <= SOON_DAYS ? "var(--calm-signal, #e6b24c)" : "var(--calm-muted, #aaa294)" }}
+                      >
+                        {relativeDays(daysUntil(insurance.cancellation_date))}
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span className="text-zinc-500">Nicht hinterlegt</span>
+                )}
+              </dd>
+            </div>
+            {(insurance.sf_class || insurance.regional_class || insurance.type_class) && (
+              <div>
+                <dt className="text-sm text-zinc-400">Tarifmerkmale</dt>
+                <dd className="mt-1 text-lg text-zinc-50">
+                  {[
+                    insurance.sf_class && `SF ${String(insurance.sf_class).replace(/^sf\s*/i, "")}`,
+                    insurance.regional_class && `Regio ${insurance.regional_class}`,
+                    insurance.type_class && `Typklasse ${insurance.type_class}`,
+                  ].filter(Boolean).join(", ")}
+                </dd>
+              </div>
             )}
-          </button>
+          </dl>
+        </header>
 
-          <button
-            onClick={() => setActiveTab("dokumente")}
-            className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 font-semibold text-xs sm:text-sm ${
-              activeTab === "dokumente"
-                ? "theme-bg-accent text-white shadow-lg theme-glow border border-emerald-500/50"
-                : "text-zinc-400 hover:text-white hover:bg-zinc-900/60"
-            }`}
-          >
-            <span>📄 Dokumente</span>
-            <span className={`px-2 py-0.5 text-[10px] rounded-full font-mono font-bold ${
-              activeTab === "dokumente" ? "bg-white/20 text-white" : "bg-zinc-800 text-indigo-300"
-            }`}>
-              {documents.length}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("schaden")}
-            className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 font-semibold text-xs sm:text-sm ${
-              activeTab === "schaden"
-                ? "theme-bg-accent text-white shadow-lg theme-glow border border-emerald-500/50"
-                : "text-zinc-400 hover:text-white hover:bg-zinc-900/60"
-            }`}
-          >
-            <span>💥 Schadensfälle</span>
-            {claimsList.length > 0 && (
-              <span className={`px-2 py-0.5 text-[10px] rounded-full font-mono font-bold ${
-                activeTab === "schaden" ? "bg-white/20 text-white" : "bg-zinc-800 text-amber-300"
-              }`}>
-                {claimsList.length}
-              </span>
-            )}
-          </button>
-
-          <button
-            onClick={() => setActiveTab("notizen")}
-            className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 font-semibold text-xs sm:text-sm ${
-              activeTab === "notizen"
-                ? "theme-bg-accent text-white shadow-lg theme-glow border border-emerald-500/50"
-                : "text-zinc-400 hover:text-white hover:bg-zinc-900/60"
-            }`}
-          >
-            <span>📝 Notizen & Memos</span>
-          </button>
+        {/* Tabs: text with an underline, counts as plain numbers */}
+        <div role="tablist" aria-label="Bereiche des Vertrags" className="flex items-center gap-6 overflow-x-auto overflow-y-hidden whitespace-nowrap border-b border-zinc-800 [scrollbar-width:none]">
+          {([
+            ["stammdaten", "Stammdaten", null],
+            ["historie", "Beitragsentwicklung", historyEntries.length || null],
+            ["dokumente", "Dokumente", documents.length],
+            ["schaden", "Schadensfälle", claimsList.length || null],
+            ["notizen", "Notizen", null],
+          ] as const).map(([id, label, count]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === id}
+              onClick={() => setActiveTab(id)}
+              className={`-mb-px border-b-2 py-3 text-sm transition-colors ${
+                activeTab === id
+                  ? "border-zinc-100 font-medium text-zinc-50"
+                  : "border-transparent text-zinc-400 hover:text-zinc-100"
+              }`}
+            >
+              {label}
+              {count !== null && <span className="ml-1.5 tabular-nums text-zinc-500">{count}</span>}
+            </button>
+          ))}
         </div>
 
         {/* Tab Content Panels */}
-        <div>
+        <div ref={panelRef} className="-mt-2">
           {/* TAB 1: Stammdaten & Leistungen */}
           {activeTab === "stammdaten" && (
             <Card className="border-zinc-800 bg-zinc-900/40 backdrop-blur-md shadow-xl">
@@ -815,7 +782,7 @@ export default function InsuranceDetailPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="text-base font-bold text-white flex items-center gap-2">
-                          <span>🛡️ Enthaltene Versicherungsleistungen & Abdeckung</span>
+                          <span>Enthaltene Versicherungsleistungen & Abdeckung</span>
                         </h3>
                         <p className="text-xs text-zinc-400 mt-0.5">
                           Automatisch aus deinen hochgeladenen Dokumenten ausgelesen.
@@ -830,7 +797,7 @@ export default function InsuranceDetailPage() {
                       {coverageList.map((item, idx) => (
                         <div key={idx} className="p-3 rounded-xl bg-zinc-950/60 border border-zinc-800/80 flex items-center justify-between gap-3 group hover:border-zinc-700 transition-all">
                           <div className="flex items-center gap-2.5 text-sm text-zinc-200">
-                            <span className="text-emerald-400 font-bold shrink-0">✓</span>
+                            <Check className="size-4 shrink-0 text-emerald-400" aria-hidden />
                             <span>{item}</span>
                           </div>
                           <Button
@@ -840,7 +807,7 @@ export default function InsuranceDetailPage() {
                             onClick={() => handleRemoveCoverageItem(idx)}
                             className="text-zinc-500 hover:text-red-400 h-8 w-8 p-0"
                           >
-                            ✕
+                            <X className="size-4" aria-hidden /><span className="sr-only">Entfernen</span>
                           </Button>
                         </div>
                       ))}
@@ -887,7 +854,7 @@ export default function InsuranceDetailPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="text-xl font-semibold flex items-center gap-2">
-                      <span>📈 Beitragsentwicklung & Preis-Historie</span>
+                      <span>Beitragsentwicklung & Preis-Historie</span>
                     </CardTitle>
                     <CardDescription className="text-xs mt-0.5">
                       Verfolge die Preisentwicklung deiner Beitragsanpassungen über die Jahre.
@@ -899,7 +866,7 @@ export default function InsuranceDetailPage() {
                         ? "bg-rose-950/90 border-rose-800 text-rose-300" 
                         : "bg-emerald-950/90 border-emerald-800 text-emerald-300"
                     }`}>
-                      {insurance.price_change_pct > 0 ? `📈 +${insurance.price_change_pct}%` : `📉 ${insurance.price_change_pct}%`}
+                      {insurance.price_change_pct > 0 ? `+${insurance.price_change_pct}%` : `${insurance.price_change_pct}%`}
                     </span>
                   )}
                 </div>
@@ -950,7 +917,7 @@ export default function InsuranceDetailPage() {
                         <div key={h.id} className="p-4 flex items-center justify-between gap-3 text-xs sm:text-sm">
                           <div>
                             <div className="flex items-center gap-2 font-mono font-bold text-white">
-                              <span>💰 {h.cost.toFixed(2)} €</span>
+                              <span>{h.cost.toFixed(2)} €</span>
                               <span className="text-xs text-zinc-400 font-normal">({h.payment_cycle})</span>
                               <span className="text-xs text-emerald-400">({h.annual_cost.toFixed(2)} € / Jahr)</span>
                             </div>
@@ -966,7 +933,7 @@ export default function InsuranceDetailPage() {
                             onClick={() => handleDeletePremiumHistory(h.id)}
                             className="text-zinc-500 hover:text-red-400 h-8 w-8 p-0 shrink-0"
                           >
-                            ✕
+                            <X className="size-4" aria-hidden /><span className="sr-only">Entfernen</span>
                           </Button>
                         </div>
                       ))}
@@ -1047,7 +1014,7 @@ export default function InsuranceDetailPage() {
               <CardHeader className="pb-3 border-b border-zinc-800/60">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-xl font-semibold flex items-center gap-2">
-                    <span>📄 Hinterlegte Dokumente ({documents.length})</span>
+                    <span>Hinterlegte Dokumente ({documents.length})</span>
                   </CardTitle>
                   <Button 
                     onClick={() => setIsUploadModalOpen(true)} 
@@ -1065,7 +1032,7 @@ export default function InsuranceDetailPage() {
                       <div key={doc.id} className="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800/80 flex items-center justify-between gap-4 group hover:border-zinc-700 transition-all">
                         <div className="flex items-center gap-3 min-w-0">
                           <div className="w-10 h-10 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-xl shrink-0">
-                            📄
+                            <FileText className="size-5" aria-hidden />
                           </div>
                           <div className="min-w-0">
                             <p className="text-sm font-medium text-white truncate">
@@ -1142,7 +1109,7 @@ export default function InsuranceDetailPage() {
               <CardHeader className="pb-3 border-b border-zinc-800/60">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-xl font-semibold flex items-center gap-2">
-                    <span>💥 Schadensfall-Tracker</span>
+                    <span>Schadensfall-Tracker</span>
                   </CardTitle>
                   <Button
                     size="sm"
@@ -1256,7 +1223,7 @@ export default function InsuranceDetailPage() {
                           onClick={() => handleDeleteClaim(claim.id)}
                           className="text-zinc-500 hover:text-red-400 h-8 w-8 p-0 shrink-0"
                         >
-                          ✕
+                          <X className="size-4" aria-hidden /><span className="sr-only">Entfernen</span>
                         </Button>
                       </div>
                     ))}
@@ -1274,7 +1241,7 @@ export default function InsuranceDetailPage() {
               <CardHeader className="pb-3 border-b border-zinc-800/60">
                 <CardTitle className="text-xl font-semibold flex items-center justify-between">
                   <span className="flex items-center gap-2">
-                    <span>📝 Notizen & Persönliche Memos</span>
+                    <span>Notizen & Persönliche Memos</span>
                   </span>
                   {notesMsg && <span className="text-xs text-emerald-400 font-normal">{notesMsg}</span>}
                 </CardTitle>
@@ -1332,7 +1299,7 @@ export default function InsuranceDetailPage() {
                 <h3 className="text-sm font-bold text-white">{viewingDoc.custom_name || viewingDoc.original_filename}</h3>
                 <p className="text-xs text-zinc-400 font-mono">{viewingDoc.doc_type || "Dokument"}</p>
               </div>
-              <Button variant="ghost" onClick={() => setViewingDoc(null)} className="text-zinc-400 hover:text-white h-8 w-8 p-0">✕</Button>
+              <Button variant="ghost" onClick={() => setViewingDoc(null)} className="text-zinc-400 hover:text-white h-8 w-8 p-0"><X className="size-4" aria-hidden /><span className="sr-only">Entfernen</span></Button>
             </div>
             <div className="flex-1 p-2 bg-zinc-950 overflow-auto flex items-center justify-center">
               {viewingDocError ? (

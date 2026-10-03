@@ -210,6 +210,280 @@ body, .theme-bg-accent, [class*="bg-zinc-9"], [class*="border-zinc-8"] {
 }
 
 /* ==========================================================================
+   DARK CALM (data-style="dark-calm") - the default style.
+   Warm anthracite surfaces, paper-coloured text, no glow and no moving
+   background. Tailwind v4 builds every colour utility from a --color-* variable,
+   so redefining the zinc scale here re-colours all existing bg-zinc-*,
+   text-zinc-* and border-zinc-* classes at once, without touching components.
+   Meaning of colour: saffron = a deadline needs attention, sage = good/saving,
+   rust = problem. Everything else is neutral.
+   ========================================================================== */
+html[data-style="dark-calm"] {
+  --color-zinc-50: #f6f3ec;
+  --color-zinc-100: #ece7dd;
+  --color-zinc-200: #d9d3c7;
+  --color-zinc-300: #c2bbad;
+  --color-zinc-400: #aaa294;
+  --color-zinc-500: #978f81;
+  --color-zinc-600: #6f695f;
+  --color-zinc-700: #46413a;
+  --color-zinc-800: #332f2a;
+  --color-zinc-900: #25221e;
+  --color-zinc-950: #1a1815;
+  --color-white: #f6f3ec;
+
+  /* Colour keeps its meaning: green = good, yellow = deadline, red = problem.
+     Everything that used to be blue, violet or cyan decoration is neutral. */
+  --color-emerald-50: #f1f8f3;
+  --color-emerald-100: #e0efe4;
+  --color-emerald-200: #c6e0cd;
+  --color-emerald-300: #a9d1b3;
+  --color-emerald-400: #8fbf9a;
+  --color-emerald-500: #6fa07c;
+  --color-emerald-600: #5a8a68;
+  --color-emerald-700: #3d6a4a;
+  --color-emerald-800: #2c4d36;
+  --color-emerald-900: #213a29;
+  --color-emerald-950: #17281d;
+  --color-green-50: #f1f8f3;
+  --color-green-100: #e0efe4;
+  --color-green-200: #c6e0cd;
+  --color-green-300: #a9d1b3;
+  --color-green-400: #8fbf9a;
+  --color-green-500: #6fa07c;
+  --color-green-600: #5a8a68;
+  --color-green-700: #3d6a4a;
+  --color-green-800: #2c4d36;
+  --color-green-900: #213a29;
+  --color-green-950: #17281d;
+  --color-lime-50: #f1f8f3;
+  --color-lime-100: #e0efe4;
+  --color-lime-200: #c6e0cd;
+  --color-lime-300: #a9d1b3;
+  --color-lime-400: #8fbf9a;
+  --color-lime-500: #6fa07c;
+  --color-lime-600: #5a8a68;
+  --color-lime-700: #3d6a4a;
+  --color-lime-800: #2c4d36;
+  --color-lime-900: #213a29;
+  --color-lime-950: #17281d;
+  --color-teal-50: #f1f8f3;
+  --color-teal-100: #e0efe4;
+  --color-teal-200: #c6e0cd;
+  --color-teal-300: #a9d1b3;
+  --color-teal-400: #8fbf9a;
+  --color-teal-500: #6fa07c;
+  --color-teal-600: #5a8a68;
+  --color-teal-700: #3d6a4a;
+  --color-teal-800: #2c4d36;
+  --color-teal-900: #213a29;
+  --color-teal-950: #17281d;
+  --color-amber-50: #fdf7e8;
+  --color-amber-100: #faedc8;
+  --color-amber-200: #f5dc98;
+  --color-amber-300: #f0c66f;
+  --color-amber-400: #e6b24c;
+  --color-amber-500: #cf9a33;
+  --color-amber-600: #a87a24;
+  --color-amber-700: #7d5a1a;
+  --color-amber-800: #5c4314;
+  --color-amber-900: #44320f;
+  --color-amber-950: #2d2109;
+  --color-yellow-50: #fdf7e8;
+  --color-yellow-100: #faedc8;
+  --color-yellow-200: #f5dc98;
+  --color-yellow-300: #f0c66f;
+  --color-yellow-400: #e6b24c;
+  --color-yellow-500: #cf9a33;
+  --color-yellow-600: #a87a24;
+  --color-yellow-700: #7d5a1a;
+  --color-yellow-800: #5c4314;
+  --color-yellow-900: #44320f;
+  --color-yellow-950: #2d2109;
+  --color-orange-50: #fdf7e8;
+  --color-orange-100: #faedc8;
+  --color-orange-200: #f5dc98;
+  --color-orange-300: #f0c66f;
+  --color-orange-400: #e6b24c;
+  --color-orange-500: #cf9a33;
+  --color-orange-600: #a87a24;
+  --color-orange-700: #7d5a1a;
+  --color-orange-800: #5c4314;
+  --color-orange-900: #44320f;
+  --color-orange-950: #2d2109;
+  --color-rose-50: #fcf1ef;
+  --color-rose-100: #f8dcd8;
+  --color-rose-200: #f2bfb8;
+  --color-rose-300: #eba096;
+  --color-rose-400: #e0796a;
+  --color-rose-500: #cc5f50;
+  --color-rose-600: #a94b3f;
+  --color-rose-700: #7f382f;
+  --color-rose-800: #5f2a24;
+  --color-rose-900: #46201c;
+  --color-rose-950: #2e1411;
+  --color-red-50: #fcf1ef;
+  --color-red-100: #f8dcd8;
+  --color-red-200: #f2bfb8;
+  --color-red-300: #eba096;
+  --color-red-400: #e0796a;
+  --color-red-500: #cc5f50;
+  --color-red-600: #a94b3f;
+  --color-red-700: #7f382f;
+  --color-red-800: #5f2a24;
+  --color-red-900: #46201c;
+  --color-red-950: #2e1411;
+  --color-pink-50: #fcf1ef;
+  --color-pink-100: #f8dcd8;
+  --color-pink-200: #f2bfb8;
+  --color-pink-300: #eba096;
+  --color-pink-400: #e0796a;
+  --color-pink-500: #cc5f50;
+  --color-pink-600: #a94b3f;
+  --color-pink-700: #7f382f;
+  --color-pink-800: #5f2a24;
+  --color-pink-900: #46201c;
+  --color-pink-950: #2e1411;
+  --color-cyan-50: #f6f3ec;
+  --color-cyan-100: #ece7dd;
+  --color-cyan-200: #d9d3c7;
+  --color-cyan-300: #c2bbad;
+  --color-cyan-400: #aaa294;
+  --color-cyan-500: #978f81;
+  --color-cyan-600: #6f695f;
+  --color-cyan-700: #46413a;
+  --color-cyan-800: #332f2a;
+  --color-cyan-900: #25221e;
+  --color-cyan-950: #1f1c19;
+  --color-sky-50: #f6f3ec;
+  --color-sky-100: #ece7dd;
+  --color-sky-200: #d9d3c7;
+  --color-sky-300: #c2bbad;
+  --color-sky-400: #aaa294;
+  --color-sky-500: #978f81;
+  --color-sky-600: #6f695f;
+  --color-sky-700: #46413a;
+  --color-sky-800: #332f2a;
+  --color-sky-900: #25221e;
+  --color-sky-950: #1f1c19;
+  --color-blue-50: #f6f3ec;
+  --color-blue-100: #ece7dd;
+  --color-blue-200: #d9d3c7;
+  --color-blue-300: #c2bbad;
+  --color-blue-400: #aaa294;
+  --color-blue-500: #978f81;
+  --color-blue-600: #6f695f;
+  --color-blue-700: #46413a;
+  --color-blue-800: #332f2a;
+  --color-blue-900: #25221e;
+  --color-blue-950: #1f1c19;
+  --color-indigo-50: #f6f3ec;
+  --color-indigo-100: #ece7dd;
+  --color-indigo-200: #d9d3c7;
+  --color-indigo-300: #c2bbad;
+  --color-indigo-400: #aaa294;
+  --color-indigo-500: #978f81;
+  --color-indigo-600: #6f695f;
+  --color-indigo-700: #46413a;
+  --color-indigo-800: #332f2a;
+  --color-indigo-900: #25221e;
+  --color-indigo-950: #1f1c19;
+  --color-violet-50: #f6f3ec;
+  --color-violet-100: #ece7dd;
+  --color-violet-200: #d9d3c7;
+  --color-violet-300: #c2bbad;
+  --color-violet-400: #aaa294;
+  --color-violet-500: #978f81;
+  --color-violet-600: #6f695f;
+  --color-violet-700: #46413a;
+  --color-violet-800: #332f2a;
+  --color-violet-900: #25221e;
+  --color-violet-950: #1f1c19;
+  --color-purple-50: #f6f3ec;
+  --color-purple-100: #ece7dd;
+  --color-purple-200: #d9d3c7;
+  --color-purple-300: #c2bbad;
+  --color-purple-400: #aaa294;
+  --color-purple-500: #978f81;
+  --color-purple-600: #6f695f;
+  --color-purple-700: #46413a;
+  --color-purple-800: #332f2a;
+  --color-purple-900: #25221e;
+  --color-purple-950: #1f1c19;
+  --color-fuchsia-50: #f6f3ec;
+  --color-fuchsia-100: #ece7dd;
+  --color-fuchsia-200: #d9d3c7;
+  --color-fuchsia-300: #c2bbad;
+  --color-fuchsia-400: #aaa294;
+  --color-fuchsia-500: #978f81;
+  --color-fuchsia-600: #6f695f;
+  --color-fuchsia-700: #46413a;
+  --color-fuchsia-800: #332f2a;
+  --color-fuchsia-900: #25221e;
+  --color-fuchsia-950: #1f1c19;
+
+  --calm-bg: #1a1815;
+  --calm-surface: #25221e;
+  --calm-raised: #2e2a25;
+  --calm-line: #3a3630;
+  --calm-text: #ece7dd;
+  --calm-muted: #aaa294;
+  --calm-signal: #e6b24c;
+  --calm-good: #8fbf9a;
+  --calm-bad: #e0796a;
+
+  --font-display: "Fraunces Variable", "Iowan Old Style", Georgia, serif;
+  --font-body: "Instrument Sans Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Former "mono" labels use the body face with tabular figures instead. */
+  --font-mono: "Instrument Sans Variable", system-ui, sans-serif;
+
+  --radius: 0.5rem;
+  color-scheme: dark;
+}
+html[data-style="dark-calm"] body {
+  font-family: var(--font-body);
+  background-color: var(--calm-bg);
+  color: var(--calm-text);
+}
+html[data-style="dark-calm"] h1 { font-family: var(--font-display); font-weight: 500; letter-spacing: -0.01em; }
+html[data-style="dark-calm"] .font-mono { font-variant-numeric: tabular-nums; letter-spacing: 0; }
+html[data-style="dark-calm"] .uppercase { text-transform: none; }
+html[data-style="dark-calm"] .tracking-wider,
+html[data-style="dark-calm"] .tracking-widest,
+html[data-style="dark-calm"] .tracking-wide { letter-spacing: 0; }
+html[data-style="dark-calm"] .app-ambient-bg { background-image: none; background-color: var(--calm-bg); animation: none; }
+html[data-style="dark-calm"] .bg-zinc-900\/40,
+html[data-style="dark-calm"] .bg-zinc-900\/50,
+html[data-style="dark-calm"] .bg-zinc-900\/60,
+html[data-style="dark-calm"] .bg-zinc-900\/80,
+html[data-style="dark-calm"] .bg-zinc-900 { box-shadow: none; }
+html[data-style="dark-calm"] .border-zinc-800,
+html[data-style="dark-calm"] .border-zinc-800\/80 { border-color: var(--calm-line) !important; }
+html[data-style="dark-calm"] .backdrop-blur-md,
+html[data-style="dark-calm"] .backdrop-blur-xl { backdrop-filter: none; -webkit-backdrop-filter: none; }
+html[data-style="dark-calm"], html[data-style="dark-calm"] * { scrollbar-color: #4a453e transparent; }
+html[data-style="dark-calm"] ::-webkit-scrollbar-thumb { background-color: #4a453e; }
+html[data-style="dark-calm"] .theme-bg-accent {
+  background: var(--calm-text) !important;
+  color: var(--calm-bg) !important;
+  box-shadow: none !important;
+}
+html[data-style="dark-calm"] .theme-bg-accent:hover { filter: none; background: #ffffff !important; box-shadow: none !important; }
+html[data-style="dark-calm"] .theme-glow { box-shadow: none !important; }
+html[data-style="dark-calm"] .theme-text-accent { color: var(--calm-text) !important; }
+html[data-style="dark-calm"] .text-white { color: var(--calm-text); }
+html[data-style="dark-calm"] ::selection { background: rgba(230, 178, 76, 0.28); }
+html[data-style="dark-calm"] :focus-visible { outline: 2px solid var(--calm-signal); outline-offset: 2px; }
+
+/* Display type for headings that carry the page. */
+:root {
+  --font-display: "Fraunces Variable", "Iowan Old Style", Georgia, serif;
+  /* Category tones on dark surfaces; light styles redefine them. */
+  --tone-1: #ece7dd; --tone-2: #c2bbad; --tone-3: #a39b8d; --tone-4: #857d70; --tone-5: #6f695f; --tone-6: #5a554d;
+}
+.font-display { font-family: var(--font-display); font-optical-sizing: auto; }
+
+/* ==========================================================================
    DESIGN THEMES & UI STYLES (data-style attribute)
    "dark-glass" is the default the app was designed against directly, so it
    needs no override block. Every other style (see STYLES in
@@ -236,6 +510,14 @@ body, .theme-bg-accent, [class*="bg-zinc-9"], [class*="border-zinc-8"] {
 html[data-style="apple-light"] {
   background-color: #f5f5f7 !important;
   color: #1d1d1f !important;
+}
+html[data-style="apple-light"] {
+  --calm-bg: #f5f5f7;
+  --calm-muted: #6e6e73;
+  --calm-signal: #8a5a00;
+  --calm-good: #1f7a3a;
+  --calm-bad: #b3261e;
+  --tone-1: #1d1d1f; --tone-2: #48484a; --tone-3: #6e6e73; --tone-4: #8e8e93; --tone-5: #aeaeb2; --tone-6: #c7c7cc;
 }
 html[data-style="apple-light"] body.bg-zinc-950 {
   /* Beats the generic .bg-zinc-950 "white card" rule below on specificity, so the

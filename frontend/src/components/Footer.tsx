@@ -48,7 +48,7 @@ export function Footer() {
             className="flex items-center gap-2 px-3 py-1 rounded-full bg-amber-950/60 border border-amber-800/80 text-amber-300 text-xs font-semibold hover:bg-amber-900/60 transition-all animate-pulse shadow-lg"
           >
             <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-            <span>✨ Neue Version {latestVersion} verfügbar! (Tippe 'update' im Terminal)</span>
+            <span>Neue Version {latestVersion} verfügbar! (Tippe 'update' im Terminal)</span>
           </a>
         ) : (
           <div className="flex items-center gap-3 text-zinc-500">

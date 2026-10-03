@@ -18,11 +18,7 @@ import { AuditLogCard } from "@/components/settings/AuditLogCard";
 import { DeleteAccountCard } from "@/components/settings/DeleteAccountCard";
 import { APP_VERSION } from "@/lib/version";
 import { clearSession } from "@/lib/session";
-import {
-  RefreshCw, CheckCircle2, AlertCircle, Loader2,
-  Settings, Wrench, Palette, Calendar, Cpu, Clock,
-  Database, Mail, Users, ArrowLeft, GitPullRequest
-} from "lucide-react";
+import { RefreshCw, CheckCircle2, AlertCircle, Loader2, Settings, Wrench, Palette, Calendar, Cpu, Clock, Database, Mail, Users, ArrowLeft, GitPullRequest, Check, Info, Trash2 } from "lucide-react";
 
 interface User {
   id: number;
@@ -577,7 +573,7 @@ export default function SettingsPage() {
       return;
     }
 
-    if (!window.confirm("⚠️ ACHTUNG: Das Einspielen des Backups überschreibt den aktuellen Datenbestand auf diesem Server! Möchtest du wirklich fortfahren?")) {
+    if (!window.confirm("Achtung: Das Einspielen des Backups überschreibt den aktuellen Datenbestand auf diesem Server! Möchtest du wirklich fortfahren?")) {
       return;
     }
 
@@ -598,7 +594,7 @@ export default function SettingsPage() {
       }
 
       const importWarnings: string[] = Array.isArray(data.warnings) ? data.warnings : [];
-      setBackupImportMsg((data.msg || "System-Backup erfolgreich wiederhergestellt!") + (importWarnings.length ? " ⚠️ " + importWarnings.join(" ") : ""));
+      setBackupImportMsg((data.msg || "System-Backup erfolgreich wiederhergestellt!") + (importWarnings.length ? " Hinweis: " + importWarnings.join(" ") : ""));
       setBackupImportPassword("");
       setBackupImportFile(null);
       setTimeout(() => {
@@ -717,7 +713,7 @@ export default function SettingsPage() {
     // Empty is fine: the server then uses the password it encrypts its automatic backups with.
     const pwd = restorePasswordInput[filename] || "";
 
-    if (!window.confirm(`⚠️ ACHTUNG: Möchtest du das Backup "${filename}" wirklich einspielen? Der aktuelle Datenbestand auf diesem Server wird überschrieben!`)) {
+    if (!window.confirm(`Achtung: Möchtest du das Backup "${filename}" wirklich einspielen? Der aktuelle Datenbestand auf diesem Server wird überschrieben!`)) {
       return;
     }
 
@@ -725,7 +721,7 @@ export default function SettingsPage() {
     try {
       const res = await api.post(`/backup/restore-stored/${filename}`, { password: pwd });
       const warnings: string[] = Array.isArray(res.warnings) ? res.warnings : [];
-      alert((res.msg || "Backup wurde erfolgreich wiederhergestellt!") + (warnings.length ? "\n\n⚠️ " + warnings.join("\n") : ""));
+      alert((res.msg || "Backup wurde erfolgreich wiederhergestellt!") + (warnings.length ? "\n\nHinweis: " + warnings.join("\n") : ""));
       setTimeout(() => {
         loadUserData();
       }, 1500);
@@ -863,14 +859,14 @@ export default function SettingsPage() {
                   <span>Design & Erscheinungsbild</span>
                 </CardTitle>
                 <CardDescription className="mt-1">
-                  Wähle dein bevorzugtes UI-Design sowie deine Akzentfarbe. Jeder Benutzer kann sein persönliches Erscheinungsbild individuell festlegen.
+                  Wähle das Erscheinungsbild, das dir am besten gefällt. Die Einstellung gilt nur für dein Konto.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* 1. Design-Stil Grid */}
                 <div>
                   <Label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3 block">
-                    1. Oberfläche & Design-Stil wählen:
+                    Design-Stil
                   </Label>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {STYLES.map(s => {
@@ -903,7 +899,7 @@ export default function SettingsPage() {
                                     : "bg-zinc-800 text-zinc-300 border border-zinc-700"
                                 }`}
                               >
-                                {s.mode === "light" ? "☀️ HELL" : "🌙 DUNKEL"}
+                                {s.mode === "light" ? "Hell" : "Dunkel"}
                               </span>
                             </div>
                             <div
@@ -917,7 +913,7 @@ export default function SettingsPage() {
                           <div>
                             <div className="flex items-center justify-between">
                               <span className="text-sm font-bold text-zinc-100">{s.name}</span>
-                              {isSelected && <span className="text-xs text-indigo-400 font-bold">Aktiv ✓</span>}
+                              {isSelected && <span className="text-xs text-indigo-400 font-bold">Aktiv</span>}
                             </div>
                             <p className="text-xs text-zinc-400 leading-relaxed mt-1">{s.desc}</p>
                           </div>
@@ -927,10 +923,11 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                {/* 2. Color Accent Grid */}
+                {/* Accent colour: only the styles that use one offer it */}
+                {styleTheme !== "dark-calm" && (
                 <div className="pt-4 border-t border-zinc-800/80">
                   <Label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3 block">
-                    2. Akzentfarbe wählen:
+                    Akzentfarbe
                   </Label>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                     {THEMES.map(t => {
@@ -951,7 +948,7 @@ export default function SettingsPage() {
                             style={{ backgroundColor: t.color }}
                           >
                             {isSelected && (
-                              <span className="text-white text-[10px] font-bold">✓</span>
+                              <Check className="size-3 text-white" aria-hidden />
                             )}
                           </div>
                           <span className="text-xs font-medium text-zinc-200 truncate">{t.name}</span>
@@ -960,16 +957,17 @@ export default function SettingsPage() {
                     })}
                   </div>
                 </div>
+                )}
 
                 {/* 3. Dashboard-Elemente & Diagramm Toggle */}
                 <div className="pt-4 border-t border-zinc-800/80">
                   <Label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3 block">
-                    3. Dashboard-Elemente & Diagramme:
+                    Dashboard
                   </Label>
                   <div className="flex items-center justify-between p-4 rounded-xl bg-zinc-950/60 border border-zinc-800">
                     <div>
                       <Label htmlFor="showCostChartToggle" className="text-sm font-semibold text-white cursor-pointer">
-                        📊 Sparten- & Kosten-Diagramm auf dem Dashboard anzeigen
+                        Sparten- & Kosten-Diagramm auf dem Dashboard anzeigen
                       </Label>
                       <p className="text-xs text-zinc-400 mt-1">
                         Aktiviert die visuelle Aufschlüsselung der jährlichen Versicherungskosten nach Sparten im Dashboard.
@@ -1037,7 +1035,7 @@ export default function SettingsPage() {
                       <div className="flex items-center justify-between p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800">
                         <div>
                           <Label htmlFor="emailNotificationsToggle" className="text-xs font-semibold text-white cursor-pointer block">
-                            📧 E-Mail Benachrichtigungen für Kündigungsfristen
+                            E-Mail Benachrichtigungen für Kündigungsfristen
                           </Label>
                           <p className="text-[11px] text-zinc-400 mt-0.5">
                             Erhalte automatische Vorwarnungen per E-Mail, wenn eine Kündigungsfrist in den nächsten 30 Tagen abläuft.
@@ -1059,9 +1057,9 @@ export default function SettingsPage() {
                   ) : (
                     <div className="pt-3 border-t border-zinc-800/80">
                       <p className="text-xs text-zinc-400 flex items-center gap-2 bg-zinc-950/40 p-3 rounded-lg border border-zinc-800/60">
-                        <span>ℹ️</span>
+                        <Info className="size-4 shrink-0" aria-hidden />
                         <span>
-                          <strong>E-Mail-Benachrichtigungen:</strong> Diese Funktion wird automatisch hier sichtbar, sobald ein Administrator den SMTP-Server unter <em>Systemeinstellungen ➔ E-Mail & SMTP Server</em> konfiguriert hat.
+                          <strong>E-Mail-Benachrichtigungen:</strong> Diese Funktion wird automatisch hier sichtbar, sobald ein Administrator den SMTP-Server unter <em>Systemeinstellungen › E-Mail & SMTP Server</em> konfiguriert hat.
                         </span>
                       </p>
                     </div>
@@ -1087,7 +1085,7 @@ export default function SettingsPage() {
                       onClick={() => handleExportUser(currentUser.id, currentUser.email)}
                       className="border-zinc-700 bg-zinc-900 text-zinc-300 text-xs hover:bg-zinc-800 w-full sm:w-auto"
                     >
-                      {exportingUserId === currentUser.id ? "Erstelle Backup..." : "📤 Meine Daten exportieren (.noxususer)"}
+                      {exportingUserId === currentUser.id ? "Erstelle Backup..." : "Meine Daten exportieren (.noxususer)"}
                     </Button>
                   </div>
                 </form>
@@ -1109,7 +1107,7 @@ export default function SettingsPage() {
                       <svg className="w-5 h-5 fill-current text-indigo-400" viewBox="0 0 24 24">
                         <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2zm-7 5h5v5h-5z"/>
                       </svg>
-                      <span>📅 Kalender & Kündigungsfristen (iCal / WebCal)</span>
+                      <span>Kalender & Kündigungsfristen (iCal / WebCal)</span>
                     </CardTitle>
                     <CardDescription className="mt-1">
                       Exportiere deine Kündigungsfristen in deinen Kalender (iPhone, Android, Google Kalender, Outlook).
@@ -1121,7 +1119,7 @@ export default function SettingsPage() {
                     onClick={handleDownloadManualIcs}
                     className="theme-bg-accent text-white text-xs shrink-0 flex items-center gap-1.5"
                   >
-                    📥 Alle Kündigungsfristen (.ics) herunterladen
+                    Alle Kündigungsfristen (.ics) herunterladen
                   </Button>
                 </div>
               </CardHeader>
@@ -1139,7 +1137,7 @@ export default function SettingsPage() {
                       </div>
                       {calendarTokenMsg && (
                         <span className="text-xs px-2.5 py-1 rounded bg-emerald-950 border border-emerald-800 text-emerald-300 font-mono shrink-0">
-                          ✓ {calendarTokenMsg}
+                          {calendarTokenMsg}
                         </span>
                       )}
                     </div>
@@ -1163,7 +1161,7 @@ export default function SettingsPage() {
                             }}
                             className="theme-bg-accent text-white text-xs"
                           >
-                            📋 Link kopieren
+                            Link kopieren
                           </Button>
                           <Button
                             type="button"
@@ -1175,7 +1173,7 @@ export default function SettingsPage() {
                             }}
                             className="border-indigo-700 bg-indigo-950/60 hover:bg-indigo-900 text-indigo-200 text-xs"
                           >
-                            📱 In Kalender öffnen
+                            In Kalender öffnen
                           </Button>
                         </div>
                       </div>
@@ -1190,7 +1188,7 @@ export default function SettingsPage() {
                         onClick={handleRotateCalendarToken}
                         className="text-xs text-zinc-400 hover:text-white p-0 h-auto font-mono"
                       >
-                        🔄 Kalender-Token neu generieren (Sicherheitstoken zurücksetzen)
+                        Kalender-Token neu generieren (Sicherheitstoken zurücksetzen)
                       </Button>
                     </div>
 
@@ -1198,7 +1196,7 @@ export default function SettingsPage() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-indigo-900/40">
                       <div className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800 space-y-1.5">
                         <p className="text-xs font-bold text-zinc-200 flex items-center gap-1.5">
-                          <span>🍎 iPhone / iPad / Mac</span>
+                          <span>iPhone / iPad / Mac</span>
                         </p>
                         <p className="text-[11px] text-zinc-400 leading-relaxed">
                           Klicke oben auf <strong>"In Kalender öffnen"</strong>. Apple Kalender öffnet sich und fragt nach Bestätigung.
@@ -1207,19 +1205,19 @@ export default function SettingsPage() {
 
                       <div className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800 space-y-1.5">
                         <p className="text-xs font-bold text-zinc-200 flex items-center gap-1.5">
-                          <span>🤖 Android / Google</span>
+                          <span>Android / Google</span>
                         </p>
                         <p className="text-[11px] text-zinc-400 leading-relaxed">
-                          Öffne <a href="https://calendar.google.com" target="_blank" rel="noreferrer" className="text-indigo-400 underline font-semibold">calendar.google.com</a> ➔ <em>Weitere Kalender (+)</em> ➔ <em>Per URL hinzufügen</em>.
+                          Öffne <a href="https://calendar.google.com" target="_blank" rel="noreferrer" className="text-indigo-400 underline font-semibold">calendar.google.com</a> › <em>Weitere Kalender (+)</em> › <em>Per URL hinzufügen</em>.
                         </p>
                       </div>
 
                       <div className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800 space-y-1.5">
                         <p className="text-xs font-bold text-zinc-200 flex items-center gap-1.5">
-                          <span>💼 Outlook / Desktop</span>
+                          <span>Outlook / Desktop</span>
                         </p>
                         <p className="text-[11px] text-zinc-400 leading-relaxed">
-                          Wähle <strong>Kalender hinzufügen</strong> ➔ <em>Aus dem Internet abonnieren</em> ➔ Link einfügen.
+                          Wähle <strong>Kalender hinzufügen</strong> › <em>Aus dem Internet abonnieren</em> › Link einfügen.
                         </p>
                       </div>
                     </div>
@@ -1227,7 +1225,7 @@ export default function SettingsPage() {
                 ) : (
                   <div className="p-4 rounded-xl bg-zinc-950/60 border border-zinc-800 space-y-2 text-xs text-zinc-400">
                     <p className="text-zinc-300 font-semibold flex items-center gap-2">
-                      <span>ℹ️ WebCal Live-Sync ist aktuell deaktiviert</span>
+                      <span>WebCal Live-Sync ist aktuell deaktiviert</span>
                     </p>
                     <p className="leading-relaxed">
                       Der Administrator hat die automatische WebCal-Live-Synchronisation deaktiviert (z. B. bei rein lokaler Server-Nutzung ohne Nginx/Domain).
@@ -1276,7 +1274,7 @@ export default function SettingsPage() {
                 </div>
                 {registrationMsg && (
                   <p className="text-xs font-mono text-emerald-400 bg-emerald-950/50 border border-emerald-800 p-2.5 rounded-lg">
-                    ✓ {registrationMsg}
+                    {registrationMsg}
                   </p>
                 )}
               </CardContent>
@@ -1315,14 +1313,14 @@ export default function SettingsPage() {
 
                 {webcalMsg && (
                   <p className="text-xs font-mono text-emerald-400 bg-emerald-950/50 border border-emerald-800 p-2.5 rounded-lg">
-                    ✓ {webcalMsg}
+                    {webcalMsg}
                   </p>
                 )}
 
                 {/* Important Server Accessibility Notice */}
                 <div className="p-4 rounded-xl bg-amber-950/30 border border-amber-800/50 text-amber-200 space-y-2 text-xs leading-relaxed">
                   <h4 className="font-bold text-amber-300 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-                    <span>⚠️ Wichtiger Hinweis zur Server-Erreichbarkeit (Nginx / Domain):</span>
+                    <span>Wichtiger Hinweis zur Server-Erreichbarkeit (Nginx / Domain):</span>
                   </h4>
                   <p className="text-zinc-300">
                     Das <strong>WebCal Live-Abonnement</strong> ermöglicht es externen Kalenderdiensten (z. B. <strong>Google Kalender Cloud, Apple iCloud, Outlook</strong>), Kündigungsfristen automatisch abzurufen.
@@ -1331,7 +1329,7 @@ export default function SettingsPage() {
                     <strong>Voraussetzung:</strong> Diese Funktion erfordert, dass dieser Server <strong>von außen erreichbar ist</strong> (z. B. über einen <strong>Nginx Reverse Proxy</strong>, Cloudflare Tunnel oder eine öffentliche IP/Domain).
                   </p>
                   <p className="text-amber-300/90 font-mono text-[11px]">
-                    💡 Wenn der Server rein lokal (z. B. <code>http://192.168.x.x:3000</code>) ohne externe Anbindung betrieben wird, können externe Kalender-Server nicht auf den Live-Link zugreifen. Deaktiviere in diesem Fall das WebCal-Live-Abonnement. Alle Benutzer können stattdessen weiterhin den <strong>manuellen .ics-Download</strong> nutzen!
+                    Wenn der Server rein lokal (z. B. <code>http://192.168.x.x:3000</code>) ohne externe Anbindung betrieben wird, können externe Kalender-Server nicht auf den Live-Link zugreifen. Deaktiviere in diesem Fall das WebCal-Live-Abonnement. Alle Benutzer können stattdessen weiterhin den <strong>manuellen .ics-Download</strong> nutzen!
                   </p>
                 </div>
               </CardContent>
@@ -1366,7 +1364,7 @@ export default function SettingsPage() {
                   {/* Recommended Hardware Info Box */}
                   <div className="p-4 rounded-xl bg-purple-950/20 border border-purple-800/40 text-purple-200 space-y-2 text-xs leading-relaxed">
                     <h4 className="font-bold text-purple-300 uppercase tracking-wider text-[11px]">
-                      💡 Empfohlene Hardware-Ressourcen für KI-Nutzung:
+                      Empfohlene Hardware-Ressourcen für KI-Nutzung:
                     </h4>
                     <ul className="list-disc list-inside space-y-1 text-zinc-300 font-mono text-[11px]">
                       <li><strong>Prozessor (CPU):</strong> Mindestens <strong>4 CPU-Kerne</strong> (mit AVX2-Befehlssatz).</li>
@@ -1432,7 +1430,7 @@ export default function SettingsPage() {
                           ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
                           : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
                       }`}>
-                        {patternSyncTokenConfigured ? "✓ Hinterlegt" : "Nicht konfiguriert"}
+                        {patternSyncTokenConfigured ? "Hinterlegt" : "Nicht konfiguriert"}
                       </span>
                     </div>
                     <Input
@@ -1453,7 +1451,7 @@ export default function SettingsPage() {
                       Diese Funktion schreibt niemals direkt auf den Hauptzweig — sie veröffentlicht gelernte Muster auf einem eigenen Branch und öffnet dafür einen Pull Request, den ein Mensch prüfen und mergen muss.
                     </p>
                     <p className="text-amber-300/90 font-mono text-[11px]">
-                      💡 Für maximale Sicherheit zusätzlich im GitHub-Repo unter Branch-Schutzregeln „Require a pull request before merging" für den Hauptzweig aktivieren.
+                      Für maximale Sicherheit zusätzlich im GitHub-Repo unter Branch-Schutzregeln „Require a pull request before merging" für den Hauptzweig aktivieren.
                     </p>
                   </div>
 
@@ -1617,7 +1615,7 @@ export default function SettingsPage() {
                       onClick={handleRunBackupNow}
                       className="border-indigo-800 bg-indigo-950/50 hover:bg-indigo-900 text-indigo-300 text-xs w-full sm:w-auto"
                     >
-                      {autoBackupRunning ? "Erstelle Backup..." : "⚡ Sofort Backup auf Server erstellen"}
+                      {autoBackupRunning ? "Erstelle Backup..." : "Sofort Backup auf Server erstellen"}
                     </Button>
 
                     <Button type="submit" disabled={autoBackupSaving} className="theme-bg-accent text-white theme-glow text-xs font-medium w-full sm:w-auto">
@@ -1639,7 +1637,7 @@ export default function SettingsPage() {
                       onClick={loadStoredBackupsList}
                       className="text-xs border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-zinc-300"
                     >
-                      🔄 Liste aktualisieren
+                      Liste aktualisieren
                     </Button>
                   </div>
 
@@ -1681,7 +1679,7 @@ export default function SettingsPage() {
                                     className="border-zinc-700 bg-zinc-900 text-[11px] hover:bg-zinc-800 text-zinc-200 h-7 px-2"
                                     title="Herunterladen"
                                   >
-                                    ⬇️ Download
+                                    Download
                                   </Button>
 
                                   <Input
@@ -1700,7 +1698,7 @@ export default function SettingsPage() {
                                     className="border-amber-800 bg-amber-950/50 text-[11px] hover:bg-amber-900 text-amber-300 h-7 px-2"
                                     title="Einspielen"
                                   >
-                                    {restoringFilename === b.filename ? "Spielt ein..." : "📥 Wiederherstellen"}
+                                    {restoringFilename === b.filename ? "Spielt ein..." : "Wiederherstellen"}
                                   </Button>
 
                                   <Button
@@ -1711,7 +1709,7 @@ export default function SettingsPage() {
                                     className="bg-red-950/80 hover:bg-red-900 text-red-300 border border-red-800 text-[11px] h-7 px-2"
                                     title="Löschen"
                                   >
-                                    {deletingFilename === b.filename ? "Löscht..." : "🗑️"}
+                                    {deletingFilename === b.filename ? "Löscht..." : <><Trash2 className="size-3.5" aria-hidden /><span className="sr-only">Löschen</span></>}
                                   </Button>
                                 </div>
                               </td>
@@ -2015,7 +2013,7 @@ export default function SettingsPage() {
                     onClick={() => setShowUserImportBox(!showUserImportBox)}
                     className="border-indigo-800 bg-indigo-950/50 text-indigo-300 text-xs hover:bg-indigo-900 w-full sm:w-auto shrink-0"
                   >
-                    📥 Einzelnen Benutzer importieren (.noxususer)
+                    Einzelnen Benutzer importieren (.noxususer)
                   </Button>
                 </div>
               </CardHeader>
@@ -2063,7 +2061,7 @@ export default function SettingsPage() {
                       )}
 
                       <Button type="submit" disabled={userImporting} className="theme-bg-accent text-white theme-glow text-xs">
-                        {userImporting ? "Importiere Benutzer..." : "📥 Benutzer jetzt importieren"}
+                        {userImporting ? "Importiere Benutzer..." : "Benutzer jetzt importieren"}
                       </Button>
                     </form>
                   </div>
@@ -2124,7 +2122,7 @@ export default function SettingsPage() {
                                 className="border-indigo-800 bg-indigo-950/50 text-xs hover:bg-indigo-900 text-indigo-300"
                                 title="Sichert diesen Benutzer samt allen Polizzen & Dokumenten"
                               >
-                                {exportingUserId === u.id ? "Exportiert..." : "📤 Export"}
+                                {exportingUserId === u.id ? "Exportiert..." : "Export"}
                               </Button>
 
                               {u.totp_enabled && (

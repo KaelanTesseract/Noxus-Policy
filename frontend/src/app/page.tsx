@@ -7,24 +7,22 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { UploadModal } from "@/components/UploadModal";
 import { TaxExportModal } from "@/components/TaxExportModal";
-import { CompanyLogo } from "@/components/CompanyLogo";
+import { DeadlineTimeline } from "@/components/dashboard/DeadlineTimeline";
+import { PolicyList } from "@/components/dashboard/PolicyList";
+import { CountUp } from "@/components/dashboard/CountUp";
+import { daysUntil, formatDate, formatEuro, relativeDays, startOfToday } from "@/lib/deadlines";
 import { useTheme } from "@/components/ThemeProvider";
 import { clearSession, hasSessionHint } from "@/lib/session";
-import { Car, MapPin, Shield } from "lucide-react";
+import { Search, X } from "lucide-react";
 
-const CATEGORY_COLORS = [
-  { bg: "bg-indigo-500", text: "text-indigo-400", border: "border-indigo-500/30", lightBg: "bg-indigo-500/10" },
-  { bg: "bg-emerald-500", text: "text-emerald-400", border: "border-emerald-500/30", lightBg: "bg-emerald-500/10" },
-  { bg: "bg-violet-500", text: "text-violet-400", border: "border-violet-500/30", lightBg: "bg-violet-500/10" },
-  { bg: "bg-cyan-500", text: "text-cyan-400", border: "border-cyan-500/30", lightBg: "bg-cyan-500/10" },
-  { bg: "bg-amber-500", text: "text-amber-400", border: "border-amber-500/30", lightBg: "bg-amber-500/10" },
-  { bg: "bg-rose-500", text: "text-rose-400", border: "border-rose-500/30", lightBg: "bg-rose-500/10" },
-];
+// One hue in descending strength instead of six colours: a category is told apart by
+// its label, so colour is free to keep its meaning (saffron = deadline).
+const CATEGORY_TONES = [1, 2, 3, 4, 5, 6].map(n => `var(--tone-${n})`);
 
 export default function Dashboard() {
   const router = useRouter();
@@ -130,17 +128,14 @@ export default function Dashboard() {
 
   const totalCostAnnual = insurances.reduce((acc, ins) => acc + getAnnualCost(ins), 0);
 
-  // Upcoming cancellation deadlines within the next 90 days (excludes suspended policies)
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // Cancellation deadlines still ahead (suspended policies are excluded). The timeline
+  // shows the next twelve months; the headline names the nearest one.
+  const today = startOfToday();
   const upcomingDeadlines = insurances
-    .filter((ins: any) => {
-      if (!ins.cancellation_date || ins.is_suspended) return false;
-      const days = (new Date(ins.cancellation_date).getTime() - today.getTime()) / 86400000;
-      return days >= 0 && days <= 90;
-    })
+    .filter((ins: any) => ins.cancellation_date && !ins.is_suspended && daysUntil(ins.cancellation_date, today) >= 0)
     .sort((a: any, b: any) => a.cancellation_date.localeCompare(b.cancellation_date));
   const nextDeadline = upcomingDeadlines[0];
+  const nextDeadlineDays = nextDeadline ? daysUntil(nextDeadline.cancellation_date, today) : null;
 
   // Calculate category statistics & breakdown
   const categoryStats = insurances.reduce((acc: any, ins: any) => {
@@ -158,7 +153,7 @@ export default function Dashboard() {
     count: data.count,
     cost: data.cost,
     percentage: totalCostAnnual > 0 ? Math.round((data.cost / totalCostAnnual) * 100) : 0,
-    style: CATEGORY_COLORS[index % CATEGORY_COLORS.length]
+    tone: CATEGORY_TONES[index % CATEGORY_TONES.length]
   })).sort((a, b) => b.cost - a.cost);
 
   // Filter and Sort Logic
@@ -195,315 +190,170 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 flex-1 flex flex-col justify-between">
-      <Navbar 
-        userEmail={currentUser?.email} 
-        onUploadClick={() => setIsUploadModalOpen(true)} 
+      <Navbar
+        userEmail={currentUser?.email}
+        onUploadClick={() => setIsUploadModalOpen(true)}
         onTaxExportClick={() => setIsTaxModalOpen(true)}
       />
 
-      <div className="space-y-6 flex-1">
-        {/* Metric Quick Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="border-zinc-800/80 bg-zinc-900/40 backdrop-blur-md relative overflow-hidden group hover:border-zinc-700 transition-all">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-indigo-500/10 to-transparent rounded-bl-full pointer-events-none"></div>
-            <CardContent className="p-5 flex items-center justify-between h-full">
-              <div>
-                <p className="text-xs font-mono uppercase tracking-wider text-zinc-400">Aktive Policen</p>
-                <h3 className="text-3xl font-bold text-white mt-1">{insurances.length}</h3>
-                <p className="text-[11px] text-zinc-500 mt-0.5">&nbsp;</p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-zinc-800/80 border border-zinc-700/50 flex items-center justify-center text-xl text-zinc-200">
-                🛡️
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-zinc-800/80 bg-zinc-900/40 backdrop-blur-md relative overflow-hidden group hover:border-zinc-700 transition-all">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-emerald-500/10 to-transparent rounded-bl-full pointer-events-none"></div>
-            <CardContent className="p-5 flex items-center justify-between h-full">
-              <div>
-                <p className="text-xs font-mono uppercase tracking-wider text-zinc-400">Gesamtkosten / Jahr</p>
-                <h3 className="text-2xl font-bold text-emerald-400 mt-1">
-                  {totalCostAnnual > 0 ? `${totalCostAnnual.toFixed(2)} €` : "0,00 €"}
-                </h3>
-                <p className="text-[11px] text-zinc-500 mt-0.5">&nbsp;</p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-emerald-950/40 border border-emerald-800/50 flex items-center justify-center text-xl text-emerald-300">
-                💰
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card
-            onClick={() => { if (nextDeadline) router.push(`/insurance/${nextDeadline.id}`); }}
-            className={`border-zinc-800/80 bg-zinc-900/40 backdrop-blur-md relative overflow-hidden group hover:border-zinc-700 transition-all ${nextDeadline ? "cursor-pointer" : ""}`}
-          >
-            <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-amber-500/10 to-transparent rounded-bl-full pointer-events-none"></div>
-            <CardContent className="p-5 flex items-center justify-between h-full">
-              <div>
-                <p className="text-xs font-mono uppercase tracking-wider text-zinc-400">Kündigungsfristen</p>
-                <h3 className="text-3xl font-bold text-white mt-1">{upcomingDeadlines.length}</h3>
-                <p className="text-[11px] text-zinc-500 mt-0.5">
-                  {nextDeadline
-                    ? `${nextDeadline.name}: ${new Date(nextDeadline.cancellation_date).toLocaleDateString("de-DE")}`
-                    : "Keine Frist in 90 Tagen"}
+      <div className="flex-1 space-y-16 px-1 md:px-4">
+        {/* The one thing that matters most: what has to be done next, and what it all costs */}
+        <section className="grid gap-8 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+          <div className="space-y-5">
+            {nextDeadline && nextDeadlineDays !== null ? (
+              <>
+                <h1 className="font-display text-balance text-4xl leading-[1.08] text-zinc-50 md:text-5xl">
+                  Kündigungsfrist für {nextDeadline.name} endet {relativeDays(nextDeadlineDays)}.
+                </h1>
+                <p className="text-base text-zinc-400">
+                  {nextDeadline.company ? `${nextDeadline.company}, ` : ""}Frist am {formatDate(nextDeadline.cancellation_date)}.{" "}
+                  <Link href={`/insurance/${nextDeadline.id}`} className="text-zinc-100 underline underline-offset-4 hover:text-white">
+                    Vertrag öffnen
+                  </Link>
                 </p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-amber-950/40 border border-amber-800/50 flex items-center justify-center text-xl text-amber-300">
-                ⏰
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card
-            onClick={() => router.push("/inbox")}
-            className="border-zinc-800/80 bg-zinc-900/40 backdrop-blur-md relative overflow-hidden group hover:border-zinc-700 transition-all cursor-pointer"
-          >
-            <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-cyan-500/10 to-transparent rounded-bl-full pointer-events-none"></div>
-            <CardContent className="p-5 flex items-center justify-between h-full">
-              <div>
-                <p className="text-xs font-mono uppercase tracking-wider text-zinc-400">Posteingang</p>
-                <h3 className="text-3xl font-bold text-white mt-1">{inboxCount}</h3>
-                <p className="text-[11px] text-zinc-500 mt-0.5">
-                  {inboxCount > 0 ? "Dokumente warten auf Zuordnung" : "Alles erledigt"}
-                </p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-cyan-950/40 border border-cyan-800/50 flex items-center justify-center text-xl text-cyan-300">
-                📬
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Visual Category & Cost Distribution Diagram */}
-        {showCostChart && categoryList.length > 0 && (
-          <Card className="border-zinc-800/80 bg-zinc-900/40 backdrop-blur-md overflow-hidden">
-            <CardHeader className="pb-3 border-b border-zinc-800/60">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div>
-                  <CardTitle className="text-base font-bold text-white flex items-center gap-2">
-                    <span>📊 Kosten-Verteilung nach Sparten</span>
-                  </CardTitle>
-                  <p className="text-xs text-zinc-400 mt-0.5">Übersicht deiner Ausgaben aufgeschlüsselt nach Versicherungskategorie</p>
-                </div>
-                {selectedCategory !== "all" && (
-                  <Button 
-                    onClick={() => setSelectedCategory("all")} 
-                    variant="ghost" 
-                    size="sm" 
-                    className="text-xs text-zinc-400 hover:text-white h-8 self-start sm:self-auto"
-                  >
-                    ✕ Filter zurücksetzen
-                  </Button>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="pt-4 space-y-4">
-              {/* Stacked Percentage Bar */}
-              <div className="w-full h-3.5 bg-zinc-800/80 rounded-full overflow-hidden flex gap-0.5 p-0.5 border border-zinc-700/50">
-                {categoryList.map((cat) => (
-                  <div
-                    key={cat.name}
-                    style={{ width: `${Math.max(cat.percentage, 4)}%` }}
-                    className={`h-full ${cat.style.bg} transition-all duration-500 rounded-sm cursor-pointer hover:opacity-80`}
-                    title={`${cat.name}: ${cat.cost.toFixed(2)} € (${cat.percentage}%)`}
-                    onClick={() => setSelectedCategory(cat.name)}
-                  />
-                ))}
-              </div>
-
-              {/* Interactive Category Chips Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-                {categoryList.map((cat) => {
-                  const isSelected = selectedCategory.toLowerCase() === cat.name.toLowerCase();
-                  return (
-                    <div
-                      key={cat.name}
-                      onClick={() => setSelectedCategory(isSelected ? "all" : cat.name)}
-                      className={`p-2.5 rounded-xl border text-xs font-mono cursor-pointer transition-all ${
-                        isSelected 
-                          ? `${cat.style.border} ${cat.style.lightBg} ring-1 ring-white/20 shadow-md` 
-                          : "border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800/60"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className={`font-bold ${cat.style.text} truncate`}>{cat.name}</span>
-                        <span className="text-[10px] text-zinc-400 px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700">
-                          {cat.count}x
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-baseline text-zinc-300">
-                        <span className="font-semibold text-white">{cat.cost.toFixed(2)} €</span>
-                        <span className="text-[10px] text-zinc-500">{cat.percentage}%</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Filter & Search Toolbar */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-800/80 pb-4">
-          <div>
-            <h2 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-              <span>Meine Versicherungs-Policen</span>
-              <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700">
-                <span className="sm:hidden">{filteredInsurances.length} / {insurances.length}</span>
-                <span className="hidden sm:inline">{filteredInsurances.length} von {insurances.length}</span>
-              </span>
-            </h2>
-            <p className="text-xs text-zinc-400 mt-0.5">Durchsuche und verwalte deine aktiv ausgelesenen Verträge</p>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-center gap-3">
-            {/* Search Input */}
-            <div className="relative w-full sm:w-64">
-              <Input
-                type="text"
-                placeholder="🔍 Suche nach Name, Anbieter..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="bg-zinc-900/60 border-zinc-800 text-xs pl-8 placeholder:text-zinc-500 rounded-xl"
-              />
-              <svg className="w-3.5 h-3.5 absolute left-2.5 top-3 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-
-            {/* Sort Select */}
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="bg-zinc-900/60 border border-zinc-800 text-xs text-zinc-300 px-3 py-2 rounded-xl outline-none cursor-pointer w-full sm:w-auto"
-            >
-              <option value="fristen">⏳ Sortieren: Fristen demnächst</option>
-              <option value="cost">💰 Sortieren: Kosten (höchste)</option>
-              <option value="name">🔤 Sortieren: Name (A - Z)</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Insurance Cards Grid */}
-        {filteredInsurances.length === 0 ? (
-          <div className="text-center py-12 bg-zinc-900/20 border border-zinc-800/60 rounded-2xl p-8 space-y-3">
-            <span className="text-3xl">🔎</span>
-            <h3 className="text-base font-bold text-white">Keine Versicherungen gefunden</h3>
-            <p className="text-xs text-zinc-400 max-w-md mx-auto">
-              {searchQuery || selectedCategory !== "all" 
-                ? "Keine Ergebnisse für deine aktuellen Filtereinstellungen. Ändere die Suche oder wähle eine andere Sparte."
-                : "Du hast noch keine Versicherungspolicen hochgeladen."}
-            </p>
-            {(searchQuery || selectedCategory !== "all") && (
-              <Button 
-                onClick={() => { setSearchQuery(""); setSelectedCategory("all"); }}
-                variant="outline"
-                size="sm"
-                className="border-zinc-700 bg-zinc-800 text-xs text-zinc-200 mt-2"
-              >
-                Filter zurücksetzen
-              </Button>
+              </>
+            ) : (
+              <h1 className="font-display text-balance text-4xl leading-[1.08] text-zinc-50 md:text-5xl">
+                {insurances.length === 0 ? "Noch keine Verträge." : "Keine Kündigungsfrist steht an."}
+              </h1>
+            )}
+            {inboxCount > 0 && (
+              <p className="text-sm text-zinc-400">
+                <Link href="/inbox" className="text-zinc-100 underline underline-offset-4 hover:text-white">
+                  {inboxCount === 1 ? "1 Dokument wartet" : `${inboxCount} Dokumente warten`} im Posteingang
+                </Link>{" "}
+                auf die Zuordnung.
+              </p>
             )}
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredInsurances.map((ins: any) => (
-              <Card 
-                key={ins.id} 
-                onClick={() => router.push(`/insurance/${ins.id}`)}
-                className="group cursor-pointer border-zinc-800/80 bg-zinc-900/40 hover:bg-zinc-900/80 backdrop-blur-md transition-all duration-300 hover:border-zinc-600 hover:shadow-xl hover:-translate-y-1 relative overflow-hidden flex flex-col justify-between"
-              >
-                <div className="absolute top-0 left-0 w-full h-[2px] theme-bg-accent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <CardHeader className="pb-2">
-                  <div className="flex items-start gap-3">
-                    <CompanyLogo company={ins.company || ins.name} size="md" className="mt-1" />
-                    <div className="flex-1 min-w-0 space-y-1.5">
-                      <CardTitle className="text-base sm:text-lg font-bold text-white group-hover:theme-text-accent transition-colors leading-snug break-words">
-                        {ins.name}
-                      </CardTitle>
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="inline-block text-[11px] px-2 py-0.5 rounded bg-zinc-800/90 text-zinc-300 font-mono border border-zinc-700/80 font-medium shadow-sm">
-                          {ins.category || "Versicherung"}
-                        </span>
 
-                        {ins.is_suspended && (
-                          <span className="inline-block text-[11px] px-2 py-0.5 rounded bg-amber-950/90 text-amber-300 font-mono border border-amber-700 font-bold shadow-sm">
-                            ⏸️ Ruhend
-                          </span>
-                        )}
-
-                        {ins.price_change_pct !== undefined && ins.price_change_pct !== null && ins.price_change_pct !== 0 && (
-                          <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded font-mono font-bold border ${
-                            ins.price_change_pct > 0 
-                              ? "bg-rose-950/80 text-rose-300 border-rose-800" 
-                              : "bg-emerald-950/80 text-emerald-300 border-emerald-800"
-                          }`}>
-                            {ins.price_change_pct > 0 ? `+${ins.price_change_pct}%` : `${ins.price_change_pct}%`}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3 flex-1 flex flex-col justify-between">
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-sm text-zinc-300">
-                      <span className="text-zinc-500">Gesellschaft:</span>
-                      <span className="font-medium text-zinc-200">{ins.company || "Nicht angegeben"}</span>
-                    </div>
-
-                    {(ins.sf_class || ins.regional_class || ins.type_class) && (
-                      <div className="flex items-center gap-1.5 text-[11px] font-mono text-zinc-300 pt-1 pb-1 flex-wrap">
-                        {ins.sf_class && (
-                          <span className="bg-cyan-950/80 text-cyan-300 border border-cyan-800 px-2 py-0.5 rounded font-bold inline-flex items-center gap-1">
-                            <Car className="w-3.5 h-3.5 text-cyan-300 shrink-0" />
-                            <span>{ins.sf_class}</span>
-                          </span>
-                        )}
-                        {ins.regional_class && (
-                          <span className="bg-violet-950/80 text-violet-300 border border-violet-800 px-2 py-0.5 rounded font-bold inline-flex items-center gap-1">
-                            <MapPin className="w-3.5 h-3.5 text-violet-300 shrink-0" />
-                            <span>Regio: {ins.regional_class}</span>
-                          </span>
-                        )}
-                        {ins.type_class && (
-                          <span className="bg-indigo-950/80 text-indigo-300 border border-indigo-800 px-2 py-0.5 rounded font-bold inline-flex items-center gap-1">
-                            <Shield className="w-3.5 h-3.5 text-indigo-300 shrink-0" />
-                            <span>Typ: {ins.type_class}</span>
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    
-                    <div className="flex items-center justify-between text-xs font-mono text-zinc-400">
-                      <span className="text-zinc-500">Versicherungsschein-Nr:</span>
-                      <span className="bg-zinc-800/80 px-2 py-0.5 rounded text-indigo-300 border border-zinc-700/50">
-                        {ins.insurance_number || "k.A."}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs font-mono text-zinc-400">
-                      <span className="text-zinc-500">Beitrag / Kosten:</span>
-                      <span className={`font-bold ${ins.is_suspended ? "text-amber-400" : "text-emerald-400"}`}>
-                        {ins.is_suspended 
-                          ? "⏸️ Ruhend (0 €)" 
-                          : ins.cost ? `${ins.cost.toFixed(2)} € / ${ins.payment_cycle || "jährlich"}` : "k.A."}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="pt-2 border-t border-zinc-800/60 flex items-center justify-between text-xs font-mono">
-                    <span className="text-zinc-400">Kündigungsfrist:</span>
-                    <span className="text-amber-400 font-bold px-2 py-0.5 bg-amber-950/30 rounded border border-amber-800/40">
-                      {ins.cancellation_date ? new Date(ins.cancellation_date).toLocaleDateString("de-DE") : "Keine Angabe"}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="md:text-right">
+            <p className="font-display text-4xl tabular-nums text-zinc-50 md:text-5xl">
+              <CountUp value={totalCostAnnual} format={formatEuro} />
+            </p>
+            <p className="mt-1 text-sm text-zinc-400">
+              pro Jahr, verteilt auf {insurances.length === 1 ? "einen Vertrag" : `${insurances.length} Verträge`}
+            </p>
           </div>
+        </section>
+
+        <section aria-labelledby="timeline-heading">
+          <h2 id="timeline-heading" className="sr-only">Kündigungsfristen der nächsten zwölf Monate</h2>
+          <DeadlineTimeline items={insurances.filter((i: any) => i.cancellation_date && !i.is_suspended)} />
+        </section>
+
+        {showCostChart && categoryList.length > 0 && (
+          <section className="space-y-5" aria-labelledby="costs-heading">
+            <div className="flex items-baseline justify-between gap-4">
+              <h2 id="costs-heading" className="font-display text-2xl text-zinc-50">Kosten nach Sparte</h2>
+              {selectedCategory !== "all" && (
+                <Button onClick={() => setSelectedCategory("all")} variant="ghost" size="sm" className="text-zinc-400 hover:text-zinc-50">
+                  <X className="size-3.5" aria-hidden /> Auswahl aufheben
+                </Button>
+              )}
+            </div>
+
+            <div className="flex h-2 w-full gap-0.5 overflow-hidden rounded-full" role="img"
+              aria-label={categoryList.map(c => `${c.name} ${c.percentage} Prozent`).join(", ")}>
+              {categoryList.map(cat => {
+                const dimmed = selectedCategory !== "all" && selectedCategory.toLowerCase() !== cat.name.toLowerCase();
+                return (
+                  <div
+                    key={cat.name}
+                    style={{ width: `${Math.max(cat.percentage, 3)}%`, background: cat.tone, opacity: dimmed ? 0.25 : 1 }}
+                    className="h-full transition-opacity duration-300"
+                  />
+                );
+              })}
+            </div>
+
+            <ul className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 lg:grid-cols-6">
+              {categoryList.map(cat => {
+                const isSelected = selectedCategory.toLowerCase() === cat.name.toLowerCase();
+                return (
+                  <li key={cat.name}>
+                    <button
+                      type="button"
+                      aria-pressed={isSelected}
+                      onClick={() => setSelectedCategory(isSelected ? "all" : cat.name)}
+                      className="group block w-full text-left"
+                    >
+                      <span className="flex items-center gap-2 text-sm text-zinc-300 group-hover:text-zinc-50">
+                        <span className="size-2 shrink-0 rounded-full" style={{ background: cat.tone }} aria-hidden />
+                        <span className={`truncate ${isSelected ? "underline underline-offset-4" : ""}`}>{cat.name}</span>
+                      </span>
+                      <span className="mt-0.5 block text-sm tabular-nums text-zinc-100">{formatEuro(cat.cost)}</span>
+                      <span className="block text-xs text-zinc-500">{cat.percentage} %, {cat.count} {cat.count === 1 ? "Vertrag" : "Verträge"}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
         )}
+
+        <section className="space-y-5" aria-labelledby="policies-heading">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <h2 id="policies-heading" className="font-display text-2xl text-zinc-50">
+              Verträge
+              <span className="ml-3 font-sans text-sm font-normal text-zinc-400">
+                {filteredInsurances.length === insurances.length ? insurances.length : `${filteredInsurances.length} von ${insurances.length}`}
+              </span>
+            </h2>
+
+            <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+              <div className="relative sm:w-72">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500" aria-hidden />
+                <Input
+                  type="search"
+                  aria-label="Verträge durchsuchen"
+                  placeholder="Name, Anbieter oder Nummer"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-10 border-zinc-800 bg-transparent pl-9 text-sm placeholder:text-zinc-500"
+                />
+              </div>
+              <select
+                aria-label="Sortierung"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="h-10 cursor-pointer rounded-lg border border-zinc-800 bg-transparent px-3 text-sm text-zinc-200 outline-none"
+              >
+                <option value="fristen">Nächste Frist zuerst</option>
+                <option value="cost">Höchste Kosten zuerst</option>
+                <option value="name">Name von A bis Z</option>
+              </select>
+            </div>
+          </div>
+
+          {filteredInsurances.length === 0 ? (
+            <div className="space-y-3 border-y border-zinc-800 py-12">
+              <h3 className="font-display text-xl text-zinc-50">
+                {insurances.length === 0 ? "Noch keine Verträge" : "Keine Verträge gefunden"}
+              </h3>
+              <p className="max-w-md text-sm text-zinc-400">
+                {insurances.length === 0
+                  ? "Lade eine Police als PDF oder Foto hoch. Gesellschaft, Beitrag und Fristen werden automatisch ausgelesen."
+                  : "Zu deiner Suche oder Sparte passt kein Vertrag. Ändere die Suche oder hebe die Auswahl auf."}
+              </p>
+              {insurances.length === 0 ? (
+                <Button onClick={() => setIsUploadModalOpen(true)} className="theme-bg-accent">Police hochladen</Button>
+              ) : (
+                <Button onClick={() => { setSearchQuery(""); setSelectedCategory("all"); }} variant="outline">Suche zurücksetzen</Button>
+              )}
+            </div>
+          ) : (
+            <div>
+              <div className="hidden grid-cols-[2.5rem_minmax(0,1fr)_10rem_12rem] gap-x-4 px-3 pb-2 text-xs text-zinc-500 md:grid">
+                <span />
+                <span>Vertrag</span>
+                <span className="text-right">Beitrag</span>
+                <span className="text-right">Kündigungsfrist</span>
+              </div>
+              <PolicyList insurances={filteredInsurances} annualCost={getAnnualCost} />
+            </div>
+          )}
+        </section>
       </div>
 
       <UploadModal 

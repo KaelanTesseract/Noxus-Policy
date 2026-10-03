@@ -11,7 +11,7 @@ export type ColorTheme = "indigo" | "emerald" | "violet" | "cyan" | "amber" | "r
 // The type stays a union and STYLES stays a list so a future theme can be added by
 // appending an id here, an entry below, and a matching `html[data-style="..."] { ... }`
 // block in globals.css (see the comment there).
-export type StyleTheme = "dark-glass" | "apple-light";
+export type StyleTheme = "dark-calm" | "dark-glass" | "apple-light";
 
 export const STYLES: {
   id: StyleTheme;
@@ -23,10 +23,19 @@ export const STYLES: {
   previewBorder: string;
 }[] = [
   {
-    id: "dark-glass",
-    name: "Dark Neon Glass (Standard)",
+    id: "dark-calm",
+    name: "Dunkel (Standard)",
     mode: "dark",
-    desc: "Dunkles Glasmorphismus-Design mit Neoneffekten & transparenten Glaskarten.",
+    desc: "Ruhiges, warmes Dunkel mit klarer Typografie. Farbe nur dort, wo sie etwas bedeutet.",
+    previewBg: "#1a1815",
+    previewCard: "#25221e",
+    previewBorder: "#3a3630"
+  },
+  {
+    id: "dark-glass",
+    name: "Dark Neon Glass",
+    mode: "dark",
+    desc: "Das bisherige Design mit Neoneffekten und Glaskarten.",
     previewBg: "#09090b",
     previewCard: "#18181b",
     previewBorder: "#27272a"
@@ -64,7 +73,7 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType>({
   theme: "indigo",
   setTheme: () => {},
-  styleTheme: "dark-glass",
+  styleTheme: "dark-calm",
   setStyleTheme: () => {},
   showCostChart: true,
   setShowCostChart: () => {}
@@ -72,7 +81,7 @@ const ThemeContext = createContext<ThemeContextType>({
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<ColorTheme>("indigo");
-  const [styleTheme, setStyleThemeState] = useState<StyleTheme>("dark-glass");
+  const [styleTheme, setStyleThemeState] = useState<StyleTheme>("dark-calm");
   const [showCostChart, setShowCostChartState] = useState<boolean>(true);
 
   useEffect(() => {
@@ -92,7 +101,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         setStyleThemeState(savedStyle);
         document.documentElement.setAttribute("data-style", savedStyle);
       } else {
-        document.documentElement.setAttribute("data-style", "dark-glass");
+        document.documentElement.setAttribute("data-style", "dark-calm");
       }
 
       if (savedChart !== null) {

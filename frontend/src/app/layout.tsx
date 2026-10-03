@@ -4,6 +4,8 @@
  */
 
 import type { Metadata } from "next";
+import "@fontsource-variable/fraunces/opsz.css";
+import "@fontsource-variable/instrument-sans/index.css";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { Footer } from "@/components/Footer";
@@ -24,7 +26,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="de" className="dark" data-theme="indigo">
+    <html lang="de" className="dark" data-theme="indigo" data-style="dark-calm">
       <head>
         <link rel="icon" href="/logo.png" type="image/png" />
         <link rel="apple-touch-icon" href="/logo.png" />

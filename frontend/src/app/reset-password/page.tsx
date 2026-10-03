@@ -57,7 +57,7 @@ function ResetPasswordForm() {
 
   if (!token) {
     return (
-      <Card className="w-full max-w-md border-zinc-800 bg-zinc-900/40 backdrop-blur-xl shadow-2xl text-center p-6 rounded-2xl">
+      <Card className="w-full max-w-md border-zinc-800 bg-zinc-900/40 backdrop-blur-xl text-center p-6 rounded-2xl">
         <p className="text-red-400 font-medium">Ungültiger oder fehlender Zurücksetzen-Token.</p>
         <a href="/login" className="inline-block mt-4 text-xs text-indigo-400 hover:text-indigo-300">
           Zurück zur Anmeldung
@@ -67,7 +67,7 @@ function ResetPasswordForm() {
   }
 
   return (
-    <Card className="w-full max-w-md border-zinc-800/80 bg-zinc-900/40 backdrop-blur-xl shadow-2xl rounded-2xl">
+    <Card className="w-full max-w-md border-zinc-800/80 bg-zinc-900/40 backdrop-blur-xl rounded-2xl">
       <CardHeader className="text-center pb-2">
         <CardTitle className="text-xl font-bold text-white">Neues Passwort festlegen</CardTitle>
         <CardDescription className="text-xs text-zinc-400">
@@ -123,12 +123,11 @@ function ResetPasswordForm() {
 export default function ResetPasswordPage() {
   return (
     <div className="flex flex-col items-center justify-center min-h-[85vh] py-8">
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/30 via-zinc-950 to-zinc-950"></div>
       <div className="w-full max-w-md space-y-6">
         <div className="text-center space-y-3">
           <img src="/logo.png" alt="Noxus Policy Logo" className="w-20 h-20 mx-auto object-contain drop-shadow-xl" />
           <h1 className="text-2xl font-extrabold tracking-tight text-white">
-            NOXUS <span className="theme-text-accent">POLICY</span>
+            Noxus Policy
           </h1>
         </div>
         <Suspense fallback={<div className="text-zinc-400 text-center">Lädt...</div>}>

@@ -8,6 +8,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { clearSession } from "@/lib/session";
+import { Lock } from "lucide-react";
 
 export default function SessionExpiredPage() {
   const router = useRouter();
@@ -29,9 +30,9 @@ export default function SessionExpiredPage() {
 
   return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
-      <div className="max-w-md w-full p-8 rounded-2xl bg-zinc-900/80 border border-zinc-800 shadow-2xl backdrop-blur-xl text-center space-y-6">
-        <div className="w-16 h-16 mx-auto rounded-full bg-amber-950/60 border border-amber-800/80 flex items-center justify-center text-3xl shadow-lg">
-          🔒
+      <div className="max-w-md w-full p-8 rounded-2xl bg-zinc-900/80 border border-zinc-800 backdrop-blur-xl text-center space-y-6">
+        <div className="w-16 h-16 mx-auto rounded-full bg-amber-950/60 border border-amber-800/80 flex items-center justify-center shadow-lg">
+          <Lock className="size-7" aria-hidden />
         </div>
 
         <div className="space-y-2">

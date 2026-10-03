@@ -12,6 +12,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api, getAuthHeaders } from "@/lib/api";
+import { FolderOpen, Inbox, FileText, Trash2, X } from "lucide-react";
 
 export default function InboxPage() {
   const router = useRouter();
@@ -268,10 +269,10 @@ export default function InboxPage() {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-zinc-100 to-indigo-200 bg-clip-text text-transparent">
-                📬 Posteingang
+                Posteingang
               </h1>
               <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
-                {inboxDocs.length} Dokumente
+                {inboxDocs.length} {inboxDocs.length === 1 ? "Dokument" : "Dokumente"}
               </span>
             </div>
             <p className="text-xs sm:text-sm text-zinc-400 mt-1">
@@ -296,7 +297,7 @@ export default function InboxPage() {
           <CardContent className="p-6 text-center">
             <div className="flex flex-col items-center justify-center space-y-3">
               <div className="w-12 h-12 rounded-full bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 text-xl">
-                📂
+                <FolderOpen className="size-5" aria-hidden />
               </div>
               <div>
                 <p className="text-sm font-semibold text-zinc-200">
@@ -307,7 +308,7 @@ export default function InboxPage() {
                 </p>
               </div>
               <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs sm:text-sm transition-all shadow-md">
-                <span>{uploading ? "Wird hochgeladen..." : "➕ Datei auswählen"}</span>
+                <span>{uploading ? "Wird hochgeladen..." : "Datei auswählen"}</span>
                 <input
                   type="file"
                   multiple
@@ -327,7 +328,7 @@ export default function InboxPage() {
         ) : inboxDocs.length === 0 ? (
           <Card className="border-zinc-800/80 bg-zinc-900/40 rounded-2xl py-12 text-center">
             <CardContent className="space-y-2">
-              <span className="text-4xl">📭</span>
+              <Inbox className="mx-auto size-10 text-zinc-500" aria-hidden />
               <h3 className="text-base font-semibold text-zinc-300">Dein Posteingang ist leer</h3>
               <p className="text-xs text-zinc-500 max-w-md mx-auto">
                 Lade Dateien oben hoch, um sie hier zu analysieren und zuzuordnen.
@@ -350,7 +351,7 @@ export default function InboxPage() {
                     {/* Left: Info */}
                     <div className="flex items-start gap-4 flex-1">
                       <div className="w-12 h-12 rounded-xl bg-zinc-800 border border-zinc-700/80 flex items-center justify-center text-2xl shrink-0">
-                        📄
+                        <FileText className="size-5" aria-hidden />
                       </div>
                       <div className="space-y-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -362,13 +363,13 @@ export default function InboxPage() {
                               ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
                               : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
                           }`}>
-                            {doc.status === "analyzed" ? "⚡ KI-Analysiert" : "⏳ Ausstehend"}
+                            {doc.status === "analyzed" ? "KI-Analysiert" : "Ausstehend"}
                           </span>
                         </div>
 
                         <div className="flex items-center gap-3 text-xs text-zinc-400 flex-wrap font-mono">
-                          <span>📅 {new Date(doc.upload_date).toLocaleDateString("de-DE")}</span>
-                          <span>💾 {formatFileSize(doc.file_size)}</span>
+                          <span>{new Date(doc.upload_date).toLocaleDateString("de-DE")}</span>
+                          <span>{formatFileSize(doc.file_size)}</span>
                           <span className="text-zinc-500 truncate max-w-[200px]">{doc.original_filename}</span>
                         </div>
 
@@ -376,7 +377,7 @@ export default function InboxPage() {
                         {aiParsed && (
                           <div className="mt-3 p-3 rounded-xl bg-indigo-950/30 border border-indigo-900/40 text-xs text-indigo-200 space-y-1 font-mono">
                             <div className="font-bold text-indigo-400 flex items-center gap-1">
-                              <span>🤖 Extrahierter Inhalt:</span>
+                              <span>Extrahierter Inhalt:</span>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 pt-1 text-[11px]">
                               <div><span className="text-zinc-500">Versicherung:</span> {aiParsed.name || aiParsed.company || "-"}</div>
@@ -399,7 +400,7 @@ export default function InboxPage() {
                         size="sm"
                         className="border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs"
                       >
-                        👁️ Vorschau
+                        Vorschau
                       </Button>
 
                       <Button
@@ -409,7 +410,7 @@ export default function InboxPage() {
                         size="sm"
                         className="border-indigo-800/80 bg-indigo-950/40 hover:bg-indigo-900/60 text-indigo-200 text-xs font-semibold"
                       >
-                        {analyzingId === doc.id ? "Analysiere..." : "⚡ KI-Analyse"}
+                        {analyzingId === doc.id ? "Analysiere..." : "KI-Analyse"}
                       </Button>
 
                       {insurances.length > 0 && (
@@ -419,7 +420,7 @@ export default function InboxPage() {
                           size="sm"
                           className="border-emerald-800/80 bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-200 text-xs font-semibold"
                         >
-                          📋 Zuordnen
+                          Zuordnen
                         </Button>
                       )}
 
@@ -428,7 +429,7 @@ export default function InboxPage() {
                         size="sm"
                         className="theme-bg-accent text-white hover:opacity-90 text-xs font-semibold"
                       >
-                        ➕ Neue Versicherung
+                        Neue Versicherung
                       </Button>
 
                       <Button
@@ -437,7 +438,7 @@ export default function InboxPage() {
                         size="sm"
                         className="border-zinc-800 hover:bg-red-950/50 text-zinc-400 hover:text-red-400 text-xs"
                       >
-                        🗑️
+                        <Trash2 className="size-4" aria-hidden /><span className="sr-only">Löschen</span>
                       </Button>
                     </div>
                   </CardContent>
@@ -455,7 +456,7 @@ export default function InboxPage() {
                 <h3 className="font-bold text-sm sm:text-base text-zinc-100">
                   {previewDoc.original_filename}
                 </h3>
-                <Button variant="ghost" size="sm" onClick={() => setPreviewDoc(null)}>✕</Button>
+                <Button variant="ghost" size="sm" onClick={() => setPreviewDoc(null)}><X className="size-4" aria-hidden /><span className="sr-only">Schließen</span></Button>
               </div>
               <div className="p-4 flex-1 overflow-auto bg-zinc-950 flex items-center justify-center">
                 {previewDocError ? (
@@ -477,7 +478,7 @@ export default function InboxPage() {
         {assignDoc && (
           <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md p-6 space-y-4">
-              <h3 className="font-bold text-lg text-zinc-100">📋 Zu bestehender Versicherung zuordnen</h3>
+              <h3 className="font-bold text-lg text-zinc-100">Zu bestehender Versicherung zuordnen</h3>
               <p className="text-xs text-zinc-400">
                 Wähle die Ziel-Versicherung aus. Das Dokument wird dort eingeordnet und aus dem Posteingang archiviert.
               </p>
@@ -539,7 +540,7 @@ export default function InboxPage() {
         {createDoc && (
           <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-              <h3 className="font-bold text-lg text-zinc-100">➕ Neue Versicherung aus Dokument erstellen</h3>
+              <h3 className="font-bold text-lg text-zinc-100">Neue Versicherung aus Dokument erstellen</h3>
               <p className="text-xs text-zinc-400">
                 Die Daten wurden per KI vorbereitet. Überprüfe die Werte und erstelle die Versicherung.
               </p>

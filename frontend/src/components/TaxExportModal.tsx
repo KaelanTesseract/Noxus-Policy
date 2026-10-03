@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { escapeHtml } from "@/lib/escapeHtml";
+import { FileText, X } from "lucide-react";
 
 interface InsuranceItem {
   id: number;
@@ -224,7 +225,7 @@ export function TaxExportModal({ isOpen, onClose, insurances = [], userEmail }: 
         <body>
           <div class="header">
             <div>
-              <h1 class="title">📄 STEUER- & HAUSHALTSÜBERSICHT ${selectedYear}</h1>
+              <h1 class="title">STEUER- & HAUSHALTSÜBERSICHT ${selectedYear}</h1>
               <p class="subtitle">Zusammenstellung der Vorsorgeaufwendungen & Versicherungsbeiträge für das Finanzamt</p>
             </div>
             <div style="text-align: right; font-size: 9pt; color: #475569;">
@@ -245,7 +246,7 @@ export function TaxExportModal({ isOpen, onClose, insurances = [], userEmail }: 
             <div class="summary-amount">${totalDeductibleSum.toFixed(2)} €</div>
           </div>
 
-          <div class="section-heading">🛡️ Steuerlich absetzbare Versicherungen (${deductibleList.length})</div>
+          <div class="section-heading">Steuerlich absetzbare Versicherungen (${deductibleList.length})</div>
           <table>
             <thead>
               <tr>
@@ -269,7 +270,7 @@ export function TaxExportModal({ isOpen, onClose, insurances = [], userEmail }: 
           </table>
 
           ${nonDeductibleList.length > 0 ? `
-            <div class="section-heading" style="margin-top: 30px; color: #64748b;">🏡 Weitere Sach- & Vermögensversicherungen (${nonDeductibleList.length})</div>
+            <div class="section-heading" style="margin-top: 30px; color: #64748b;">Weitere Sach- & Vermögensversicherungen (${nonDeductibleList.length})</div>
             <table>
               <thead>
                 <tr>
@@ -338,7 +339,7 @@ export function TaxExportModal({ isOpen, onClose, insurances = [], userEmail }: 
         {/* Modal Header */}
         <div className="px-6 py-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/60">
           <div className="flex items-center gap-2">
-            <span className="text-xl">📑</span>
+            <FileText className="size-5" aria-hidden />
             <div>
               <h2 className="text-lg font-bold text-white">Steuererklärungs- & Haushalts-Export</h2>
               <p className="text-xs text-zinc-400">Erstelle eine fertige Jahresübersicht deiner absetzbaren Vorsorgeaufwendungen</p>
@@ -348,7 +349,7 @@ export function TaxExportModal({ isOpen, onClose, insurances = [], userEmail }: 
             onClick={onClose}
             className="text-zinc-400 hover:text-white text-xl font-bold px-2 py-1 rounded-lg hover:bg-zinc-800"
           >
-            ✕
+            <X className="size-4" aria-hidden /><span className="sr-only">Schließen</span>
           </button>
         </div>
 
@@ -385,7 +386,7 @@ export function TaxExportModal({ isOpen, onClose, insurances = [], userEmail }: 
           <div className="p-5 rounded-2xl bg-gradient-to-r from-sky-950/60 via-indigo-950/40 to-emerald-950/40 border border-sky-800/60 shadow-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <p className="text-xs font-mono text-sky-300 font-bold uppercase tracking-wider">
-                🛡️ Steuerlich absetzbare Vorsorgeaufwendungen ({selectedYear})
+                Steuerlich absetzbare Vorsorgeaufwendungen ({selectedYear})
               </p>
               <p className="text-xs text-zinc-400 mt-1">
                 {deductibleList.length} absetzbare Verträge gemäß § 10 EStG (Sonderausgaben / Vorsorgeaufwendungen)
@@ -404,7 +405,7 @@ export function TaxExportModal({ isOpen, onClose, insurances = [], userEmail }: 
           {/* Deductible Insurances Table */}
           <div className="space-y-3">
             <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center justify-between">
-              <span>🛡️ Steuerlich relevante Versicherungen ({deductibleList.length})</span>
+              <span>Steuerlich relevante Versicherungen ({deductibleList.length})</span>
               <span className="text-[10px] text-zinc-500 font-normal font-mono">Klicke auf den Status, um die Absetzbarkeit anzupassen</span>
             </h3>
 
@@ -441,7 +442,7 @@ export function TaxExportModal({ isOpen, onClose, insurances = [], userEmail }: 
                               : "bg-zinc-900 text-zinc-500 border-zinc-800 hover:text-zinc-300"
                           }`}
                         >
-                          {ins.isDeductible ? "✓ JA (Absetzbar)" : "✕ NEIN"}
+                          {ins.isDeductible ? "JA (Absetzbar)" : "NEIN"}
                         </button>
                       </td>
                     </tr>
@@ -466,7 +467,7 @@ export function TaxExportModal({ isOpen, onClose, insurances = [], userEmail }: 
               onClick={handleDownloadCSV}
               className="border-zinc-700 bg-zinc-900 text-zinc-200 text-xs hover:bg-zinc-800 w-full sm:w-auto flex items-center gap-1.5"
             >
-              📊 Tabelle als CSV herunterladen
+              Tabelle als CSV herunterladen
             </Button>
 
             <Button
@@ -474,7 +475,7 @@ export function TaxExportModal({ isOpen, onClose, insurances = [], userEmail }: 
               onClick={handlePrintPDF}
               className="theme-bg-accent text-white text-xs font-semibold theme-glow w-full sm:w-auto flex items-center gap-1.5"
             >
-              🖨️ PDF für Finanzamt drucken / speichern
+              PDF für Finanzamt drucken / speichern
             </Button>
           </div>
         </div>

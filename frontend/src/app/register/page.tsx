@@ -101,13 +101,11 @@ export default function RegisterPage() {
   return (
     <div className="flex flex-col items-center justify-center min-h-[85vh] py-8">
       {/* Background glow effects */}
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/30 via-zinc-950 to-zinc-950"></div>
       
       <div className="w-full max-w-md space-y-6">
         {/* Brand Header */}
         <div className="text-center space-y-3">
           <div className="relative inline-block">
-            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-emerald-500 rounded-3xl blur-xl opacity-40 animate-pulse"></div>
             <img 
               src="/logo.png" 
               alt="Noxus Policy Logo" 
@@ -116,8 +114,8 @@ export default function RegisterPage() {
           </div>
           
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-zinc-100 to-zinc-400 bg-clip-text text-transparent">
-              NOXUS <span className="theme-text-accent">POLICY</span>
+            <h1 className="text-3xl font-extrabold tracking-tight text-zinc-50">
+              Noxus Policy
             </h1>
             <p className="text-xs text-zinc-400 font-mono mt-1 tracking-wider uppercase">
               Kostenloses Konto erstellen
@@ -126,7 +124,7 @@ export default function RegisterPage() {
         </div>
 
         {/* Register Card */}
-        <Card className="border-zinc-800/80 bg-zinc-900/40 backdrop-blur-xl shadow-2xl rounded-2xl">
+        <Card className="border-zinc-800/80 bg-zinc-900/40 backdrop-blur-xl rounded-2xl">
           <CardHeader className="text-center pb-2">
             <CardTitle className="text-xl font-bold text-white">Registrieren</CardTitle>
             <CardDescription className="text-xs text-zinc-400">Erstelle ein Konto, um deine Versicherungen digital zu verwalten</CardDescription>

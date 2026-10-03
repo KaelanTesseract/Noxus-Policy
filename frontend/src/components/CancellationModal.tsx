@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { escapeHtml } from "@/lib/escapeHtml";
+import { PenLine, TriangleAlert, X } from "lucide-react";
 
 interface ClaimItem {
   id?: number;
@@ -349,14 +350,14 @@ ${senderName || "[Dein Name]"} (Unterschrift)`;
         {/* Modal Header */}
         <div className="px-6 py-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-950/60">
           <div className="flex items-center gap-2">
-            <span className="text-xl">✍️</span>
+            <PenLine className="size-5" aria-hidden />
             <h2 className="text-lg font-bold text-white">Sonderkündigungsrechts-Assistent & Generator</h2>
           </div>
           <button 
             onClick={onClose}
             className="text-zinc-400 hover:text-white text-xl font-bold px-2 py-1 rounded-lg hover:bg-zinc-800"
           >
-            ✕
+            <X className="size-4" aria-hidden /><span className="sr-only">Schließen</span>
           </button>
         </div>
 
@@ -365,7 +366,7 @@ ${senderName || "[Dein Name]"} (Unterschrift)`;
 
           {/* CRITICAL WARNING BANNER */}
           <div className="p-4 rounded-xl bg-amber-950/60 border border-amber-800/80 text-amber-200 text-xs flex items-start gap-3 shadow-lg">
-            <span className="text-lg shrink-0">⚠️</span>
+            <TriangleAlert className="size-5 shrink-0" aria-hidden />
             <div>
               <strong className="font-bold text-amber-100 uppercase tracking-wide block mb-1">
                 Wichtiger Rechtshinweis:
@@ -391,7 +392,7 @@ ${senderName || "[Dein Name]"} (Unterschrift)`;
                 }`}
               >
                 <div className="font-bold text-xs flex items-center justify-between">
-                  <span>📅 Ordentliche Kündigung</span>
+                  <span>Ordentliche Kündigung</span>
                   <span className="text-[10px] font-mono text-zinc-500">§ 11 VVG</span>
                 </div>
                 <p className="text-[11px] text-zinc-400 mt-1 leading-snug">
@@ -409,7 +410,7 @@ ${senderName || "[Dein Name]"} (Unterschrift)`;
                 }`}
               >
                 <div className="font-bold text-xs flex items-center justify-between">
-                  <span>📈 Sonderkündigung: Beitragserhöhung</span>
+                  <span>Sonderkündigung: Beitragserhöhung</span>
                   <span className="text-[10px] font-mono text-indigo-400 font-bold">§ 40 VVG</span>
                 </div>
                 <p className="text-[11px] text-zinc-400 mt-1 leading-snug">
@@ -427,7 +428,7 @@ ${senderName || "[Dein Name]"} (Unterschrift)`;
                 }`}
               >
                 <div className="font-bold text-xs flex items-center justify-between">
-                  <span>💥 Sonderkündigung: Schadensfall</span>
+                  <span>Sonderkündigung: Schadensfall</span>
                   <span className="text-[10px] font-mono text-indigo-400 font-bold">§ 92 VVG</span>
                 </div>
                 <p className="text-[11px] text-zinc-400 mt-1 leading-snug">
@@ -445,7 +446,7 @@ ${senderName || "[Dein Name]"} (Unterschrift)`;
                 }`}
               >
                 <div className="font-bold text-xs flex items-center justify-between">
-                  <span>🚗 Sonderkündigung: Risikowegfall</span>
+                  <span>Sonderkündigung: Risikowegfall</span>
                   <span className="text-[10px] font-mono text-indigo-400 font-bold">§ 80 VVG</span>
                 </div>
                 <p className="text-[11px] text-zinc-400 mt-1 leading-snug">
@@ -459,7 +460,7 @@ ${senderName || "[Dein Name]"} (Unterschrift)`;
           {cancelMode === "special_price_increase" && (
             <div className="p-4 rounded-xl bg-indigo-950/30 border border-indigo-800/50 space-y-3">
               <h3 className="text-xs font-bold text-indigo-300 uppercase tracking-wider">
-                ⚙️ Angaben zur Beitragserhöhung (§ 40 VVG)
+                Angaben zur Beitragserhöhung (§ 40 VVG)
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1">
@@ -500,7 +501,7 @@ ${senderName || "[Dein Name]"} (Unterschrift)`;
           {cancelMode === "special_claim" && (
             <div className="p-4 rounded-xl bg-indigo-950/30 border border-indigo-800/50 space-y-3">
               <h3 className="text-xs font-bold text-indigo-300 uppercase tracking-wider">
-                ⚙️ Angaben zum Schadensfall (§ 92 VVG)
+                Angaben zum Schadensfall (§ 92 VVG)
               </h3>
 
               {insurance.claims && insurance.claims.length > 0 && (
@@ -547,7 +548,7 @@ ${senderName || "[Dein Name]"} (Unterschrift)`;
           {cancelMode === "special_risk_drop" && (
             <div className="p-4 rounded-xl bg-indigo-950/30 border border-indigo-800/50 space-y-3">
               <h3 className="text-xs font-bold text-indigo-300 uppercase tracking-wider">
-                ⚙️ Angaben zum Risikowegfall (§ 80 VVG)
+                Angaben zum Risikowegfall (§ 80 VVG)
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
@@ -575,7 +576,7 @@ ${senderName || "[Dein Name]"} (Unterschrift)`;
           {cancelMode === "special_custom" && (
             <div className="p-4 rounded-xl bg-indigo-950/30 border border-indigo-800/50 space-y-3">
               <h3 className="text-xs font-bold text-indigo-300 uppercase tracking-wider">
-                ⚙️ Individuelle Begründung der Sonderkündigung
+                Individuelle Begründung der Sonderkündigung
               </h3>
               <div className="space-y-1">
                 <Label className="text-xs text-zinc-300">Sonderkündigungsgrund</Label>
@@ -694,7 +695,7 @@ ${senderName || "[Dein Name]"} (Unterschrift)`;
               <Label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
                 4. Live-Vorschau des Kündigungsschreibens
               </Label>
-              {copied && <span className="text-xs text-emerald-400 font-semibold">✓ In Zwischenablage kopiert!</span>}
+              {copied && <span className="text-xs text-emerald-400 font-semibold">In Zwischenablage kopiert!</span>}
             </div>
             <textarea
               readOnly
@@ -719,7 +720,7 @@ ${senderName || "[Dein Name]"} (Unterschrift)`;
               onClick={handleCopyText}
               className="border-zinc-700 bg-zinc-900 text-zinc-200 text-xs hover:bg-zinc-800 w-full sm:w-auto"
             >
-              📋 Text kopieren
+              Text kopieren
             </Button>
 
             <Button
@@ -727,7 +728,7 @@ ${senderName || "[Dein Name]"} (Unterschrift)`;
               onClick={handlePrint}
               className="theme-bg-accent text-white text-xs font-semibold theme-glow w-full sm:w-auto flex items-center gap-2"
             >
-              🖨️ Drucken / PDF speichern
+              Drucken / PDF speichern
             </Button>
           </div>
         </div>

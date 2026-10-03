@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FileText, Info } from "lucide-react";
 
 const isInformationalDocType = (type: string) => {
   if (!type) return false;
@@ -291,7 +292,7 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
               />
 
               <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-zinc-800/80 border border-zinc-700 flex items-center justify-center text-3xl shadow-lg">
-                📄
+                <FileText className="size-7" aria-hidden />
               </div>
 
               {file ? (
@@ -331,7 +332,7 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
 
                 <div className="flex justify-between items-center text-[11px] text-zinc-500 font-mono pt-1">
                   <span>1. Texterkennung (OCR)</span>
-                  <span>{useAi ? "2. 🤖 Mini-KI (Qwen2.5 1.5B)" : "2. Daten-Strukturierung"}</span>
+                  <span>{useAi ? "2. Mini-KI (Qwen2.5 1.5B)" : "2. Daten-Strukturierung"}</span>
                 </div>
               </div>
             )}
@@ -342,7 +343,7 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
                 <div className="flex gap-2">
                   {extractError.includes("Sitzung abgelaufen") ? (
                     <Button size="sm" onClick={() => window.location.href = "/login"} className="theme-bg-accent text-white text-xs">
-                      🔑 Zur Anmeldung →
+                      Zur Anmeldung →
                     </Button>
                   ) : (
                     <Button size="sm" onClick={handleManualEntry} className="theme-bg-accent text-white text-xs">
@@ -359,7 +360,7 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
                   Abbrechen
                 </Button>
                 <Button onClick={() => processFile(file)} className="theme-bg-accent text-white theme-glow">
-                  Erneut analysieren ⚡
+                  Erneut analysieren 
                 </Button>
               </div>
             )}
@@ -368,10 +369,10 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
           <div className="space-y-4">
             <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-800/50 flex items-center justify-between text-xs text-emerald-300 font-mono">
               <div className="flex items-center gap-2">
-                <span>✓ Daten verarbeitet</span>
+                <span>Daten verarbeitet</span>
                 {useAi && extractedData?.ai_used ? (
                   <span className="px-2 py-0.5 rounded text-[10px] bg-purple-950 text-purple-300 border border-purple-800 font-sans font-semibold flex items-center gap-1">
-                    🤖 Mini-KI ({extractedData.ai_model || "Qwen2.5 1.5B"})
+                    Mini-KI ({extractedData.ai_model || "Qwen2.5 1.5B"})
                   </span>
                 ) : (
                   <span className="px-2 py-0.5 rounded text-[10px] bg-zinc-800 text-zinc-300 border border-zinc-700 font-sans">
@@ -383,7 +384,7 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
                 onClick={() => setShowRawText(!showRawText)}
                 className="underline hover:text-white transition-colors"
               >
-                {showRawText ? "▲ Rohtext verbergen" : "🔍 Ausgelesenen Rohtext anzeigen (OCR Debug)"}
+                {showRawText ? "Rohtext verbergen" : "Ausgelesenen Rohtext anzeigen (OCR Debug)"}
               </button>
             </div>
 
@@ -399,7 +400,7 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
             {/* Document Specific Info (Name & Category) */}
             <div className="p-4 rounded-xl bg-indigo-950/30 border border-indigo-800/50 space-y-3">
               <div className="flex items-center gap-2 text-xs font-mono text-indigo-300 font-semibold uppercase tracking-wider">
-                <span>📂 Dokumenten-Informationen</span>
+                <span>Dokumenten-Informationen</span>
                 {extractedData.doc_type && (
                   <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-900/80 border border-indigo-700 text-white font-normal">
                     {useAi ? "KI-Vorschlag:" : "Vorschlag:"} {extractedData.doc_type}
@@ -442,7 +443,7 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
 
               {selectedInsuranceId !== "new" && isInformationalDocType(docType) && (
                 <div className="p-3.5 rounded-xl bg-blue-950/40 border border-blue-800/60 text-xs text-blue-200 flex items-center gap-2">
-                  <span className="text-base shrink-0">ℹ️</span>
+                  <Info className="size-4 shrink-0" aria-hidden />
                   <span>
                     <strong>Informationsschreiben ({docType}):</strong> Es werden keine Vertragsdaten oder Beiträge der bestehenden Versicherung überschrieben. Das Dokument wird lediglich als Datei abgelegt.
                   </span>
@@ -467,7 +468,7 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
                   <div className="flex flex-wrap gap-1.5 pt-1">
                     {extractedData.coverage_details.map((item: string, idx: number) => (
                       <span key={idx} className="text-xs px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-200 font-medium">
-                        ✓ {item}
+                        {item}
                       </span>
                     ))}
                   </div>
