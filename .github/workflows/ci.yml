@@ -25,7 +25,13 @@ jobs:
       - run: npm ci --no-fund
       - name: Typecheck
         run: npx tsc --noEmit
-      - name: Known vulnerabilities (high and above)
+      - name: Known vulnerabilities in what ships (any severity)
+        run: npm audit --omit=dev
+      - name: Known vulnerabilities in build tooling (informational)
+        # ESLint and the shadcn CLI are only used while developing and are not
+        # part of the running app, so a finding there is reported but does not
+        # block the build.
+        continue-on-error: true
         run: npm audit --audit-level=high
       - name: Production build
         run: npm run build
