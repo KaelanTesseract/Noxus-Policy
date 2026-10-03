@@ -16,7 +16,7 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -40,7 +40,7 @@ jobs:
     name: Backend (Compile, Dependency audit, Tests)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -68,7 +68,7 @@ jobs:
     name: Docker (Images bauen, Backend starten)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Compose file is valid
         run: SECRET_KEY=ci-only-not-a-secret docker compose config --quiet
       - name: Build the backend image
