@@ -14,6 +14,7 @@ from database import get_db
 from upload_validation import sanitize_filename, validate_upload
 from http_utils import content_disposition
 from document_types import is_informational
+from document_hash import find_duplicate, sha256_bytes
 import audit
 from secrets_crypto import encrypt_secret, decrypt_secret
 
@@ -128,7 +129,9 @@ def extract_document_data(
     text = ocr.extract_text_from_file(temp_filepath)
     extracted_data = ocr.extract_insurance_data(text, db=db)
     extracted_data["extracted_text"] = text
-    
+    # Has this exact file been stored before? (a warning for the dialog; the user decides)
+    extracted_data["duplicate"] = find_duplicate(db, current_user.id, sha256_bytes(contents))
+
     if os.path.exists(temp_filepath):
         try:
             os.remove(temp_filepath)
@@ -161,6 +164,7 @@ def create_document(
         original_filename=original_filename,
         custom_name=custom_name or original_filename,
         doc_type=doc_type or "Vertragsschreiben",
+        file_hash=sha256_bytes(contents),
         insurance_id=insurance_id,
         category_id=category_id,
         owner_id=current_user.id,
@@ -185,6 +189,7 @@ def create_document(
             parsed = json.loads(extracted_data)
             if isinstance(parsed, dict) and parsed.get("extracted_text"):
                 extracted = parsed
+                extracted.pop("duplicate", None)  # a hint for the dialog, not part of the document
                 for date_field in ("start_date", "end_date", "cancellation_date", "document_date"):
                     if extracted.get(date_field):
                         extracted[date_field] = ocr.parse_date(str(extracted[date_field]))

@@ -108,6 +108,7 @@ class Document(Base):
     document_date = Column(Date, nullable=True)
     upload_date = Column(DateTime, default=datetime.datetime.utcnow)
     file_size = Column(Integer, nullable=True)
+    file_hash = Column(String, nullable=True, index=True)  # SHA-256 of the file, see document_hash.py
     
     # Posteingang (Inbox) attributes
     is_inbox = Column(Boolean, default=False, index=True)

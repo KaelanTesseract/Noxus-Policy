@@ -15,6 +15,7 @@ import models, schemas, auth, ocr
 from database import get_db
 from upload_validation import sanitize_filename, validate_upload
 from document_types import is_informational
+from document_hash import find_duplicate, sha256_bytes
 
 router = APIRouter(prefix="/api/inbox", tags=["inbox"])
 
@@ -64,6 +65,9 @@ def get_inbox_documents(
         models.Document.owner_id == current_user.id,
         models.Document.is_inbox == True
     ).order_by(models.Document.upload_date.desc()).all()
+    for doc in docs:
+        # only the later of two copies is the duplicate
+        doc.duplicate_of = find_duplicate(db, current_user.id, doc.file_hash, exclude_id=doc.id, only_before_id=doc.id)
     return docs
 
 @router.post("/upload", response_model=schemas.DocumentResponse)
@@ -91,6 +95,7 @@ def upload_to_inbox(
         doc_type="Posteingang",
         upload_date=datetime.datetime.utcnow(),
         file_size=file_size,
+        file_hash=sha256_bytes(contents),
         is_inbox=True,
         status="pending",
         owner_id=current_user.id

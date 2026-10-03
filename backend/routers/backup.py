@@ -20,6 +20,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import models, auth, audit
 from database import get_db, engine, SessionLocal
 from http_utils import content_disposition
+from document_hash import sha256_file
 from rate_limit import rate_limiter
 from upload_validation import ALLOWED_EXTENSIONS, matches_signature, sanitize_filename
 from safe_archive import ArchiveRejected, safe_extract_zip, copy_tree_files
@@ -733,7 +734,8 @@ def import_user_backup(
                         filename=new_filename,
                         original_filename=original_name,
                         custom_name=doc_dict.get("custom_name", ""),
-                        doc_type=doc_dict.get("doc_type", "")
+                        doc_type=doc_dict.get("doc_type", ""),
+                        file_hash=sha256_file(extracted_file)
                     )
                     db.add(new_doc)
                     doc_count += 1

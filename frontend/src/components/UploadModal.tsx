@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileText, Info } from "lucide-react";
 import { FieldChecks, CheckHint, type FieldCheck } from "@/components/FieldChecks";
+import { DuplicateNotice } from "@/components/DuplicateNotice";
 
 const isInformationalDocType = (type: string) => {
   if (!type) return false;
@@ -488,6 +489,8 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
             )}
             </div>
 
+            <DuplicateNotice duplicate={extractedData?.duplicate} />
+
             {extractedData && !extractedData.manual && (
               <FieldChecks data={extractedData} checks={fieldChecks} />
             )}
@@ -592,7 +595,7 @@ export function UploadModal({ isOpen, onClose, onSuccess, insurances = [], prese
                 ← Andere Datei wählen
               </Button>
               <Button onClick={handleSave} className="theme-bg-accent text-white theme-glow font-medium px-6">
-                Versicherung & Dokument speichern
+                {extractedData?.duplicate ? "Trotzdem speichern" : "Versicherung & Dokument speichern"}
               </Button>
             </div>
           </div>

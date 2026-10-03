@@ -122,6 +122,8 @@ def auto_migrate_sqlite():
                         cursor.execute("ALTER TABLE documents ADD COLUMN ai_data VARCHAR")
                     if "owner_id" not in doc_cols:
                         cursor.execute("ALTER TABLE documents ADD COLUMN owner_id INTEGER")
+                    if "file_hash" not in doc_cols:
+                        cursor.execute("ALTER TABLE documents ADD COLUMN file_hash VARCHAR")
                 except Exception as e:
                     print(f"[Auto-Migrate documents] {e}")
 
@@ -156,6 +158,7 @@ def auto_migrate_sqlite():
                     cursor.execute("CREATE INDEX IF NOT EXISTS ix_insurances_owner_id ON insurances (owner_id)")
                     cursor.execute("CREATE INDEX IF NOT EXISTS ix_documents_owner_id ON documents (owner_id)")
                     cursor.execute("CREATE INDEX IF NOT EXISTS ix_documents_insurance_id ON documents (insurance_id)")
+                    cursor.execute("CREATE INDEX IF NOT EXISTS ix_documents_file_hash ON documents (file_hash)")
                     cursor.execute("CREATE INDEX IF NOT EXISTS ix_claims_insurance_id ON claims (insurance_id)")
                     cursor.execute("CREATE INDEX IF NOT EXISTS ix_premium_history_insurance_id ON premium_history (insurance_id)")
                 except Exception as e:
@@ -224,6 +227,12 @@ def startup_db_init():
         start_scheduler_thread()
     except Exception as se:
         print(f"Error starting backup scheduler thread: {se}")
+
+    try:
+        from document_hash import start_backfill_thread
+        start_backfill_thread(SessionLocal)
+    except Exception as he:
+        print(f"Error starting document fingerprinting: {he}")
 
     try:
         from learning import start_daily_pattern_scheduler

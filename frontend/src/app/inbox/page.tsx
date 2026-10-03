@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { api, getAuthHeaders } from "@/lib/api";
 import { FolderOpen, Inbox, FileText, Trash2, X } from "lucide-react";
 import { FieldChecks } from "@/components/FieldChecks";
+import { DuplicateNotice } from "@/components/DuplicateNotice";
 
 // Same list as the upload dialog (UploadModal.tsx); an older analysis may carry another value.
 const DOC_TYPES = ["Versicherungsschein / Polizze", "Beitragsrechnung", "Beitragsanpassung", "Nachtrag / Änderungsschein", "Verbraucherinformationen", "Kundeninformationen", "Beratungsprotokoll", "Schadenmeldung", "Kündigungsbestätigung", "Sonstiges"];
@@ -378,6 +379,8 @@ export default function InboxPage() {
                           <span>{formatFileSize(doc.file_size)}</span>
                           <span className="text-zinc-500 truncate max-w-[200px]">{doc.original_filename}</span>
                         </div>
+
+                        <DuplicateNotice duplicate={doc.duplicate_of} />
 
                         {/* AI Extraction Preview Box */}
                         {aiParsed && (
