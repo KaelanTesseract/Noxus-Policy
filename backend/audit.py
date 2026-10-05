@@ -28,6 +28,7 @@ ACTION_LABELS = {
     "login_success": "Anmeldung",
     "sso_login": "Anmeldung über SSO",
     "sso_linked": "Konto mit SSO verknüpft",
+    "sso_unlinked": "SSO-Verknüpfung gelöst",
     "sso_created": "Konto über SSO angelegt",
     "sso_denied": "SSO-Anmeldung abgewiesen",
     "oidc_config_changed": "SSO-Einstellungen geändert",

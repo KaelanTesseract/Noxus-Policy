@@ -14,12 +14,12 @@ the ID token and the session token never reach page scripts."""
 import secrets
 from typing import Optional, Tuple
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-import audit, auth, models, oidc, oidc_settings
+import audit, auth, models, oidc, oidc_settings, schemas
 from database import get_db
 from rate_limit import rate_limiter
 
@@ -135,6 +135,35 @@ def oidc_link(
     if current_user.oidc_linked:
         return RedirectResponse("/settings?sso=already", status_code=302)
     return _start(request, db, link_user=current_user.id)
+
+
+@router.post("/unlink", dependencies=[Depends(_limit)])
+def oidc_unlink(
+    payload: schemas.PasswordConfirmPayload,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user),
+):
+    """Removes the link between the signed-in account and its provider identity.
+    The password is asked for again (a stolen session must not be able to cut the
+    owner off from or re-point the account), and it must stay possible to sign in
+    afterwards: with the password login switched off the link is the only way in."""
+    if not current_user.oidc_linked:
+        raise HTTPException(status_code=400, detail="Dein Konto ist nicht mit Single Sign-On verknüpft.")
+    if not oidc_settings.password_login_enabled(db):
+        raise HTTPException(
+            status_code=400,
+            detail="Die Anmeldung mit Passwort ist für diese Instanz ausgeschaltet. Ohne Verknüpfung könntest du dich nicht mehr anmelden.",
+        )
+    if not auth.verify_password(payload.password, current_user.hashed_password):
+        audit.log_event(db, "login_failed", request, user=current_user, detail="SSO lösen: falsches Passwort")
+        raise HTTPException(status_code=403, detail="Das Passwort ist nicht korrekt.")
+
+    issuer = current_user.oidc_issuer or ""
+    current_user.oidc_issuer = current_user.oidc_sub = None
+    db.commit()
+    audit.log_event(db, "sso_unlinked", request, user=current_user, detail="Provider: " + issuer[:100])
+    return {"msg": "Die Verknüpfung mit Single Sign-On wurde gelöst."}
 
 
 def _complete_link(db: Session, request: Request, claims: dict, cfg: oidc.OidcConfig, user_id: int) -> Optional[str]:

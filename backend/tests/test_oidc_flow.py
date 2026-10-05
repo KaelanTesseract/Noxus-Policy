@@ -277,3 +277,28 @@ def test_returning_user_signs_in_even_when_token_has_no_email_and_userinfo_fails
     _, query, cookie = begin(client)
     token = assert_signed_in(finish(client, sso, query, cookie, sub="sub-quiet", email=None, email_verified=None))
     assert client.get("/api/users/me", headers=bearer(token)).json()["email"] == "quiet@test.example"
+
+
+def test_user_can_unlink_with_password_but_not_with_a_wrong_one_or_without_password_login(client, sso, admin_headers):
+    _, query, cookie = begin(client)
+    token = assert_signed_in(finish(client, sso, query, cookie, sub="sub-unlink", email=ADMIN_EMAIL))
+    headers = bearer(token)
+    from conftest import ADMIN_PASSWORD
+    assert client.post("/api/auth/oidc/unlink", headers=headers, json={"password": "falsch"}).status_code == 403
+    assert user_by_email(ADMIN_EMAIL).oidc_sub == "sub-unlink"
+
+    from database import SessionLocal
+    import oidc_settings
+    db = SessionLocal()
+    oidc_settings.set_setting(db, "password_login_enabled", "false")
+    db.commit()
+    db.close()
+    assert client.post("/api/auth/oidc/unlink", headers=headers, json={"password": ADMIN_PASSWORD}).status_code == 400
+    db = SessionLocal()
+    oidc_settings.set_setting(db, "password_login_enabled", "true")
+    db.commit()
+    db.close()
+
+    assert client.post("/api/auth/oidc/unlink", headers=headers, json={"password": ADMIN_PASSWORD}).status_code == 200
+    assert user_by_email(ADMIN_EMAIL).oidc_sub is None
+    assert client.post("/api/auth/oidc/unlink", headers=headers, json={"password": ADMIN_PASSWORD}).status_code == 400
