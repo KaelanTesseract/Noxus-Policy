@@ -132,3 +132,49 @@ def test_the_billing_month_is_found_below_a_long_letterhead():
     lines.append("01.01.2019 wird der monatliche Beitrag für den Zeitraum 01.01.2019 bis 31.01.2019 fällig.")
     text = chr(10).join(lines)
     assert dn.suggest_title("Itzehoer", "Kfz", text) == "Itzehoer Kfz-Beitragsrechnung Januar 2019"
+
+
+# A policy whose heading is the single word "Versicherungsschein" (as pdftotext -layout delivers it:
+# columns separated by wide gaps) is a policy too - the kind used to need a dash behind the word.
+SCHEIN_UEBERSCHRIFT = """Nordlicht Versicherung AG                      Beispielstadt, 12.01.2026
+Musterweg 1
+12345 Beispielstadt
+
+Versicherungsschein
+
+Kfz-Versicherung für Ihr Fahrzeug - Vollkasko
+
+Versicherungsnummer        NL-4411-8032
+Versicherungsbeginn        01.03.2019
+Beitrag                    38,40 EUR monatlich
+"""
+
+
+def test_a_heading_that_is_only_the_word_versicherungsschein_is_a_policy():
+    assert dn.detect_kind(SCHEIN_UEBERSCHRIFT) == "Versicherungsschein"
+
+
+@pytest.mark.parametrize("zeile", ["Versicherungsschein", "  Versicherungsschein  ", "Versicherungsschein - Kfz", "Versicherungsschein – Kfz"])
+def test_policy_headings(zeile):
+    assert dn.detect_kind(f"Nordlicht Versicherung AG\n{zeile}\nBeitrag 1,00 €\n") == "Versicherungsschein"
+
+
+@pytest.mark.parametrize("zeile", [
+    "Ihr Versicherungsschein folgt in Kürze",           # a sentence, not a heading
+    "Versicherungsschein folgt separat",
+    "zum Versicherungsschein",
+    "Nachtrag zum Versicherungsschein",
+])
+def test_a_line_that_merely_mentions_the_policy_is_not_a_heading(zeile):
+    assert dn.detect_kind(f"Nordlicht Versicherung AG\n{zeile}\nBeitrag 1,00 €\n") != "Versicherungsschein"
+
+
+def test_the_policy_is_named_with_insurer_kind_and_the_date_of_the_letter():
+    import ocr
+    data = ocr.extract_insurance_data(SCHEIN_UEBERSCHRIFT)
+    assert data["suggested_title"] == "Nordlicht Versicherung AG Kfz-Versicherungsschein 12.01.2026"
+    assert "Dokument vom" not in data["suggested_title"]
+
+
+def test_the_letter_date_is_found_behind_a_column_gap():
+    assert dn.document_date("Versicherungsschein", SCHEIN_UEBERSCHRIFT) == "12.01.2026"

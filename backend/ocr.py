@@ -459,7 +459,12 @@ def extract_refund_amount(text: str):
     return None
 
 
-def calculate_insurance_dates(start_date_str, end_date_str, cancellation_date_str, text: str):
+# How a letter names the end of the term. "Hauptfälligkeit" is the yearly due date of the contract.
+END_LABEL = (r'(?i)(?:versicherungsablauf|vertragsablauf|versicherungsende|vertragsende|hauptfälligkeit(?:\s*/\s*ablauf)?'
+             r'|ablauftermin|ablauf|gültig bis|laufzeit\s+bis)')
+
+
+def calculate_insurance_dates(start_date_str, end_date_str, cancellation_date_str, text: str, today=None):
     import datetime
 
     def to_date_obj(val):
@@ -484,7 +489,7 @@ def calculate_insurance_dates(start_date_str, end_date_str, cancellation_date_st
             e_date = pair_end
 
     # 2. Search for explicit Ablauf date in text
-    match_end = re.search(r'(?i)(?:versicherungsablauf|vertragsablauf|ablauf|gültig bis)\.?:?\s*(\d{2}\.\d{2}\.\d{4})', text)
+    match_end = re.search(END_LABEL + r'\.?:?\s*(?:am\s+)?(\d{2}\.\d{2}\.\d{4})', text)
     if match_end:
         parsed_end = parse_date(match_end.group(1))
         if parsed_end:
@@ -504,12 +509,12 @@ def calculate_insurance_dates(start_date_str, end_date_str, cancellation_date_st
         if better_end and (better_end.month != 1 or better_end.day != 1):
             e_date = better_end
 
-    # 5. If start_date is known but end_date missing, set end_date = start_date + 1 year
+    # 5. If start_date is known but end_date missing: contracts renew by a year, so the term that is
+    # running ends the day before the next anniversary of the start. (Start + 1 year alone is the end
+    # of the first period - for a contract that began years ago that is a date long gone, and the
+    # notice date derived from it too.)
     if s_date and not e_date:
-        try:
-            e_date = datetime.date(s_date.year + 1, s_date.month, s_date.day) - datetime.timedelta(days=1)
-        except Exception:
-            pass
+        e_date = end_of_running_period(s_date, today or datetime.date.today())
 
     # 6. Calculate cancellation_date = end_date - 1 month (standard German Kündigungsfrist)
     if e_date:
@@ -519,6 +524,20 @@ def calculate_insurance_dates(start_date_str, end_date_str, cancellation_date_st
             pass
 
     return s_date, e_date, c_date
+
+def end_of_running_period(start, today):
+    """The end of the yearly period of a contract that began on ``start`` and is running on ``today``
+    (a contract that has not started yet: of its first period). 01.03.2019 -> 28.02.2027 on 06.10.2026."""
+    import calendar
+    import datetime
+    year = start.year + 1
+    while True:
+        anniversary = datetime.date(year, start.month, min(start.day, calendar.monthrange(year, start.month)[1]))
+        end = anniversary - datetime.timedelta(days=1)
+        if end >= today:
+            return end
+        year += 1
+
 
 def one_month_before(end_date):
     """The last day for a notice with a notice period of one month to the end of the term:

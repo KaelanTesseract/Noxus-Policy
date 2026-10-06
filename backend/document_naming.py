@@ -66,7 +66,9 @@ def detect_kind(text: str) -> Optional[str]:
         return "Beitragsanpassung"
     if re.search(r"^nachtrag\b", lowered, re.M):
         return "Nachtrag zum Vertragsende" if re.search(r"vertrag ist beendet", lowered) else "Nachtrag"
-    if re.search(r"^versicherungsschein\s*[-–—]", lowered, re.M):
+    # "Versicherungsschein - Kfz ..." or the word alone as the heading; a sentence that only
+    # mentions the policy ("Ihr Versicherungsschein folgt") is none
+    if re.search(r"^versicherungsschein\s*(?:[-–—]|$)", lowered, re.M):
         return "Versicherungsschein"
     return None
 
@@ -100,7 +102,8 @@ def document_date(kind: Optional[str], text: str) -> Optional[str]:
 
     if kind in ("Versicherungsschein", "Schadenvisitenkarten"):
         m = re.search(r"Gültig ab\s+" + _DATE, head) if kind == "Versicherungsschein" else None
-        m = m or re.search(r"^[^\d\n]{2,40},\s*" + _DATE + r"\s*$", head, re.M)
+        # "Coburg, 24.07.2026" - or, as layout text has it, behind a column gap: "Nordlicht AG      Stadt, 12.01.2026"
+        m = m or re.search(r"^(?:[^\d\n]{2,40}|.+?[ \t]{2,}[^\d\n]{2,40}),\s*" + _DATE + r"\s*$", head, re.M)
         return _full_date(m) if m else None
 
     return None  # leaflets, the green card: no date in the name

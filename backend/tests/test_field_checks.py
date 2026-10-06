@@ -105,3 +105,36 @@ def test_a_short_year_never_matches_inside_a_longer_one():
 
 def test_short_forms_of_a_date_are_still_found():
     assert fc.assess_fields({"start_date": datetime.date(2018, 5, 8)}, "Beginn 8.5.18 Uhr")["start_date"]["status"] == "gefunden"
+
+
+# The extractor stores the regional class as "R4" (normalised), letters print just "4".
+SCHEIN_REGIONALKLASSE = """Versicherungsschein
+Schadenfreiheitsklasse     SF 12
+Regionalklasse             4
+Typklasse                  18
+Beitrag 38,40 EUR, Vertrag 4 Jahre
+"""
+
+
+def test_a_regional_class_is_found_behind_its_label_even_without_the_r():
+    entry = fc.assess_fields({"regional_class": "R4"}, SCHEIN_REGIONALKLASSE)["regional_class"]
+    assert entry["status"] == "gefunden"
+    assert entry["seite"] == 1 and "Regionalklasse" in entry["stelle"]
+
+
+def test_the_regional_class_with_its_r_is_still_found():
+    assert fc.assess_fields({"regional_class": "R4"}, "Regionalklasse R4\n")["regional_class"]["status"] == "gefunden"
+    assert fc.assess_fields({"regional_class": "R4"}, "Regionalklasse: R 4\n")["regional_class"]["status"] == "gefunden"
+
+
+def test_a_number_that_is_not_behind_the_label_does_not_count_as_the_regional_class():
+    text = "Regionalklasse 14\nBeitrag 38,40 EUR, Vertrag 4 Jahre\n"
+    assert fc.assess_fields({"regional_class": "R4"}, text)["regional_class"]["status"] == "unsicher"
+    assert fc.assess_fields({"regional_class": "R4"}, "Typklasse 18\nKlasse 4\n")["regional_class"]["status"] == "unsicher"
+
+
+def test_the_demo_letter_has_no_unsure_value_left():
+    import ocr
+    data = ocr.extract_insurance_data(SCHEIN_REGIONALKLASSE.replace("Versicherungsschein", "Nordlicht Versicherung AG\nVersicherungsschein\nVersicherungsbeginn 01.03.2019\nVertragsende 01.03.2027"))
+    assert data["regional_class"] == "R4"
+    assert data["field_checks"]["regional_class"]["status"] == "gefunden"

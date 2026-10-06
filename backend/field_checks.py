@@ -121,6 +121,22 @@ def _locate_sf_class(text: str, value: str):
     return None
 
 
+def _locate_regional_class(text: str, value: str):
+    """The extractor stores "R4" (normalised), the letter prints "Regionalklasse 4" - the class counts as
+    found when its number stands behind the label. A number elsewhere on the page does not count."""
+    found = _locate_fuzzy(text, value)
+    if found:
+        return found
+    number = re.sub(r"(?i)^\s*r\s*", "", value).strip()
+    if not number:
+        return None
+    pattern = re.compile(r"(?i)(?:regionalklasse|regionalkl\.?|\bregion\b)\D{0,40}?(?<![0-9a-zA-Z])" + re.escape(number) + r"(?![0-9a-zA-Z])")
+    for page, raw in _lines_with_pages(text):
+        if pattern.search(raw):
+            return page, raw.strip()
+    return None
+
+
 def _check(field: str, value, text: str, data: dict) -> Optional[dict]:
     if value in (None, "", []):
         return None
@@ -138,6 +154,8 @@ def _check(field: str, value, text: str, data: dict) -> Optional[dict]:
         found = next(((page, raw.strip()) for page, raw in _lines_with_pages(text) if pattern.search(raw)), None)
     elif field == "sf_class":
         found = _locate_sf_class(text, str(value))
+    elif field == "regional_class":
+        found = _locate_regional_class(text, str(value))
     elif field in _CLASS_FIELDS:
         found = _locate_fuzzy(text, str(value))
     elif value_in_text(field, value, text):
@@ -149,7 +167,7 @@ def _check(field: str, value, text: str, data: dict) -> Optional[dict]:
         return {"status": "gefunden", "seite": found[0], "stelle": found[1][:SNIPPET_CHARS]}
 
     if field == "end_date" and data.get("start_date"):
-        return {"status": "berechnet", "grund": "Beginn plus ein Jahr, im Dokument steht kein Ablaufdatum"}
+        return {"status": "berechnet", "grund": "Aus dem Beginn berechnet (Verträge verlängern sich jährlich), im Dokument steht kein Ablaufdatum"}
     return {"status": "unsicher", "grund": "Wert steht nicht wörtlich im Dokument"}
 
 

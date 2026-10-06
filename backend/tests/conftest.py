@@ -47,6 +47,22 @@ def client():
         yield test_client
 
 
+@pytest.fixture(scope="session", autouse=True)
+def isolated_pattern_store():
+    """Extraction teaches the learned-pattern store. Work on a copy so a test run never changes
+    the committed ``data/vendor_patterns.enc`` (it is read as before, only writes go to the copy)."""
+    import shutil
+    import learning
+    copy = os.path.join(_WORKDIR, "vendor_patterns.enc")
+    if os.path.exists(learning.ENC_FILE):
+        shutil.copyfile(learning.ENC_FILE, copy)
+    original = (learning.ENC_FILE, learning.JSON_LEGACY_FILE)
+    learning.ENC_FILE = copy
+    learning.JSON_LEGACY_FILE = os.path.join(_WORKDIR, "vendor_patterns.json")
+    yield
+    learning.ENC_FILE, learning.JSON_LEGACY_FILE = original
+
+
 @pytest.fixture(autouse=True)
 def fresh_rate_limits():
     import rate_limit
